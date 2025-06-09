@@ -8,6 +8,7 @@ export interface ICourse extends Document {
   duration: number;
   content: string;
   price: number;
+  createdBy: mongoose.Types.ObjectId;
 }
 
 const CourseSchema: Schema = new Schema({
@@ -18,6 +19,7 @@ const CourseSchema: Schema = new Schema({
   duration: { type: Number, required: true },
   content: { type: String, required: true },
   price: { type: Number, required: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 });
 
 export default mongoose.model<ICourse>('Course', CourseSchema);

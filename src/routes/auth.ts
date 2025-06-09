@@ -1,23 +1,38 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import Admin from '../models/Admin';
+import User from '../models/Users';
 import { comparePassword } from '../utils/hash';
 const router = express.Router();
 
-// Admin login
+// Универсальная функция создания JWT-токена для пользователя
+function createJwtToken(user: any) {
+  return jwt.sign(
+    {
+      id: user._id?.toString?.() || user.id || '',
+      username: user.username || '',
+      role: user.role || 'student',
+    },
+    process.env.JWT_SECRET || 'secret',
+    { expiresIn: '2h' }
+  );
+}
+
+// User login
 router.post('/login', async (req, res) => {
-  const { login, password } = req.body;
+  const { username, password } = req.body;
+  console.log('login:', username, password);
   try {
-    const user = await Admin.findOne({ login });
+    const user = await User.findOne({ username: username || '' });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'No account with this data' });
     }
-    const isMatch = await comparePassword(password, user.password);
+    const isMatch = await comparePassword(password, user.passwordHash || '');
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'incorrect password' });
     }
-    const token = jwt.sign({ login: user.login }, process.env.JWT_SECRET || 'secret', { expiresIn: '2h' });
-    res.json({ token });
+    console.log('user for JWT:', user);
+    const token = createJwtToken(user);
+    res.json({ token, role: user.role, username: user.username, id: user._id });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

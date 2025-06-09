@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IAdminUser extends Document {
+export interface IUser extends Document {
   username: string;
-  passwordHash: string | undefined;
+  passwordHash?: string;
   firstName: string;
   lastName: string;
   phone: string;
@@ -26,7 +26,7 @@ export interface IAdminUser extends Document {
   createdAt: Date;
 }
 
-const AdminUserSchema: Schema = new Schema({
+const UserSchema: Schema = new Schema({
   username: { type: String, required: true, unique: true }, // phone
   passwordHash: { type: String, required: true }, // для соц.регистраций можно не требовать
   firstName: { type: String, required: true },
@@ -52,4 +52,4 @@ const AdminUserSchema: Schema = new Schema({
   createdAt: { type: Date, required: true },
 });
 
-export default mongoose.model<IAdminUser>('AdminUser', AdminUserSchema);
+export default mongoose.model<IUser>('users', UserSchema);

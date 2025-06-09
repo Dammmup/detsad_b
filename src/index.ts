@@ -4,6 +4,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import courseRoutes from './routes/course';
+import userRoutes from './routes/user';
+import eventRoutes from './routes/event';
+
 dotenv.config();
 
 const app = express();
@@ -16,9 +19,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
-import eventRoutes from './routes/event';
 app.use('/api/events', eventRoutes);
-import userRoutes from './routes/user';
 app.use('/api/users', userRoutes);
 
 app.get('/', (req, res) => {
