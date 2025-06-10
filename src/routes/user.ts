@@ -115,4 +115,18 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+
+router.put('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    user.notes = req.body.notes;
+    await user.save();
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating user' });
+  }
+});
 export default router;
