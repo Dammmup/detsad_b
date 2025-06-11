@@ -21,9 +21,10 @@ export interface IUser extends Document {
   email: string;
   birthday?: string;
   notes?: string;
-  access: string;
+  access: boolean;
   coursesCompleted: number;
   createdAt: Date;
+  level?: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -47,9 +48,10 @@ const UserSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   birthday: { type: String },
   notes: { type: String },
-  access: { type: String, default: 'none' },
+  access: { type: Boolean, default: false },
   coursesCompleted: { type: Number, default: 0 },
   createdAt: { type: Date, required: true },
+  level: { type: String },
 });
 
 export default mongoose.model<IUser>('users', UserSchema);
