@@ -10,8 +10,7 @@ lerna-debug.log*
 .env.example
 README.md
 LICENSE
-package-lock.json
-package.json
+
 tscconfig.json
 tscconfig.node.json
 
