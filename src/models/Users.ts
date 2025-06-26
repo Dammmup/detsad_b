@@ -17,7 +17,6 @@ export interface IUser extends Document {
   gender: string;
   telegram?: string;
   whatsapp?: string;
-  vk?: string;
   email: string;
   birthday?: string;
   notes?: string;
@@ -44,7 +43,6 @@ const UserSchema: Schema = new Schema({
   gender: { type: String, default: 'male' },
   telegram: { type: String },
   whatsapp: { type: String },
-  vk: { type: String },
   email: { type: String, required: true, unique: true },
   birthday: { type: String },
   notes: { type: String },

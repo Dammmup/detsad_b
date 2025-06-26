@@ -1,18 +1,43 @@
 import express from 'express';
 import Course from '../models/Course';
+import Lesson from '../models/Lesson';
+import mongoose from 'mongoose';
 import { authorizeRole } from '../middlewares/authRole';
 
 const router = express.Router();
 
 // Add new course (admin, teacher)
 router.post('/', authorizeRole(['admin', 'teacher']), async (req: any, res) => {
+  const session = await Course.startSession();
+  session.startTransaction();
   try {
-    const course = new Course({ ...req.body, createdBy: req.user.id });
-    await course.save();
+    const courseId = new Course()._id; // генерируем ObjectId для курса заранее
+
+    // 1. Создаём минимальный урок-заглушку
+    const lesson = await Lesson.create([{
+      title: 'Placeholder',
+      content: 'Placeholder',
+      course: courseId,
+      order: 0,
+    }], { session });
+
+    // 2. Создаём сам курс, указывая lessonId
+    const course = new Course({
+      ...req.body,
+      _id: courseId,
+      lessonId: lesson[0]._id,
+      createdBy: req.user.id,
+    });
+    await course.save({ session });
+
+    await session.commitTransaction();
     res.status(201).json(course);
   } catch (err) {
+    await session.abortTransaction();
     const error = err as Error;
     res.status(400).json({ error: error.message });
+  } finally {
+    session.endSession();
   }
 });
 
@@ -55,6 +80,22 @@ router.put('/:id', authorizeRole(['admin', 'teacher']), async (req: any, res) =>
 router.get('/', async (req, res) => {
   const courses = await Course.find();
   res.json(courses);
+});
+
+// Get course by ID (public)
+router.get('/:id', async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+    
+    res.json(course);
+  } catch (err) {
+    const error = err as Error;
+    res.status(400).json({ error: error.message });
+  }
 });
 
 export default router;

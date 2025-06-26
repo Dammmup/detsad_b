@@ -6,6 +6,8 @@ import authRoutes from './routes/auth';
 import courseRoutes from './routes/course';
 import userRoutes from './routes/user';
 import eventRoutes from './routes/event';
+import postRoutes from './routes/post';
+import lessonRoutes from './routes/lesson';
 
 dotenv.config();
 
@@ -20,7 +22,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/lessons', lessonRoutes);
 
 app.get('/', (req, res) => {
   res.send('Uyghur Connect Backend API');
