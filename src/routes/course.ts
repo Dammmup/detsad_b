@@ -78,8 +78,13 @@ router.put('/:id', authorizeRole(['admin', 'teacher']), async (req: any, res) =>
 
 // Get all courses (public)
 router.get('/', async (req, res) => {
-  const courses = await Course.find();
-  res.json(courses);
+  try {
+    const courses = await Course.find();
+    res.json(courses);
+  } catch (err) {
+    console.error("Error fetching courses:", err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
 });
 
 // Get course by ID (public)
