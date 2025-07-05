@@ -80,10 +80,20 @@ router.put('/:id', authorizeRole(['admin', 'teacher']), async (req: any, res) =>
 router.get('/', async (req, res) => {
   try {
     const courses = await Course.find();
+    
+    // ТЕМП КОД: логируем все доступные курсы и их ID
+    console.log('\n\n============= ДОСТУПНЫЕ КУРСЫ ============= ');
+    courses.forEach((course) => {
+      // Исправляем ошибку типизации: 'course._id' is of type 'unknown'
+      const courseId = course._id ? course._id.toString() : 'unknown';
+      console.log(`Курс: ${course.name} | ID курса: ${courseId}`);
+    });
+    console.log('=============================================\n\n');
+    
     res.json(courses);
   } catch (err) {
-    console.error("Error fetching courses:", err);
-    res.status(500).json({ error: "Something went wrong" });
+    const error = err as Error;
+    res.status(400).json({ error: error.message });
   }
 });
 

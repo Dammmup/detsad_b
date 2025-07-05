@@ -15,14 +15,13 @@ function createJwtToken(user: any) {
       email: user.email,
       username: user.username,
       role: user.role,
+      level: user.level,
       access: user.access,
       emailVerified: user.emailVerified,
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      photo: user.photo || ''
+      blocked: user.blocked
     },
     process.env.JWT_SECRET || 'secret',
-    { expiresIn: '7d' }
+    { expiresIn: '1d' }
   );
 }
 
@@ -38,8 +37,8 @@ const transporter = nodemailer.createTransport({
 });
 const emailTemplate = ({username,link}:{username:string,link:string})=>`
 <P>Hello ${username},</P>
-<P>Please click on the link below to verify your email:</P>
-<P><a href="${link}">Verify Email</a></P>
+<P>We glad you interested in our service!</P>
+<P>You must type verification code on our page</P>
 `
 // Временное хранилище кодов верификации
 const verificationCodes = new Map<string, string>();
@@ -79,7 +78,7 @@ router.post('/send-verification-email', async (req, res) => {
     from: process.env.EMAIL_USER || 'your-email@example.com',
     to: email,
     subject: 'Email Verification',
-    text: `Your verification code is: ${code}`
+    text: `${emailTemplate}Your verification code is: ${code}`
   };
 
   try {

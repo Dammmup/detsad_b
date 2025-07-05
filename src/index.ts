@@ -1,6 +1,7 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import { apiLimiter } from './middlewares/rateLimiter';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import courseRoutes from './routes/course';
@@ -18,8 +19,12 @@ app.use(cors({
   origin: '*',
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+// Global rate limiter
+app.use(apiLimiter);
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+
 
 
 

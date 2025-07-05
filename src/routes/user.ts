@@ -77,6 +77,8 @@ router.post('/', async (req, res) => {
       language,
       photo,
       role: role || 'student',
+      level: role === 'teacher' ? 'speaking' : 'none',
+      access: role === 'teacher' ? true : false,
       active: active !== undefined ? active : true,
       blocked: blocked !== undefined ? blocked : false,
       emailVerified: emailVerified !== undefined ? emailVerified : false,
@@ -122,9 +124,38 @@ router.put('/:id', async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    user.notes = req.body.notes;
+
+    // Обновление заметок
+    if (req.body.notes !== undefined) {
+      user.notes = req.body.notes;
+    }
+
+    // Обновление community-поля
+    if (req.body.status !== undefined) {
+      user.status = req.body.status;
+    }
+    if (req.body.cardColor !== undefined) {
+      user.cardColor = req.body.cardColor;
+    }
+    if (req.body.active !== undefined) {
+      user.active = req.body.active;
+    }
+
+    // Добавление завершённого урока
+    const { completedLessonId } = req.body;
+    if (completedLessonId) {
+      const alreadyDone = user.completedLessons.find((id: any) => id.toString() === completedLessonId);
+      if (!alreadyDone) {
+        user.completedLessons.push(completedLessonId);
+        user.coursesCompleted = (user.coursesCompleted || 0) + 1;
+      }
+    }
+
     await user.save();
-    res.json(user);
+    // исключаем passwordHash
+    const userObj = user.toObject();
+    delete (userObj as any).passwordHash;
+    res.json(userObj);
   } catch (err) {
     res.status(500).json({ error: 'Error updating user' });
   }

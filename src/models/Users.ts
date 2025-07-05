@@ -11,6 +11,9 @@ export interface IUser extends Document {
   photo?: string;
   role: string;
   active: boolean;
+  status?: string;
+  cardColor?: string;
+  access: boolean;
   blocked: boolean;
   emailVerified: boolean;
   lastLogin?: Date;
@@ -20,9 +23,9 @@ export interface IUser extends Document {
   email: string;
   birthday?: string;
   notes?: string;
-  access: boolean;
   coursesCompleted: number;
   createdAt: Date;
+  completedLessons: mongoose.Types.ObjectId[];
   level?: string;
 }
 
@@ -46,10 +49,13 @@ const UserSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
   birthday: { type: String },
   notes: { type: String },
+  status: { type: String, default: '' },
+  cardColor: { type: String, default: '#1890ff' },
   access: { type: Boolean, default: false },
   coursesCompleted: { type: Number, default: 0 },
+  completedLessons: { type: [mongoose.Schema.Types.ObjectId], default: [] },
   createdAt: { type: Date, required: true },
-  level: { type: String },
+  level: { type: String, enum: ['none', 'beginner', 'intermediate', 'advanced', 'speaking'], default: 'none' },
 });
 
 export default mongoose.model<IUser>('users', UserSchema);
