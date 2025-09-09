@@ -49,7 +49,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create a new cyclogram
-router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -69,7 +69,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       .populate('createdBy', 'fullName');
     
     res.status(201).json(populatedCyclogram);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating cyclogram:', error);
     
     if (error.name === 'ValidationError') {
@@ -82,7 +82,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Update an existing cyclogram
-router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -102,7 +102,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
     }
     
     res.json(cyclogram);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating cyclogram:', error);
     
     if (error.name === 'ValidationError') {
@@ -115,7 +115,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Delete a cyclogram
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -155,7 +155,7 @@ router.get('/templates/list', async (req: Request, res: Response) => {
 });
 
 // Create cyclogram from template
-router.post('/from-template/:templateId', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/from-template/:templateId', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -194,7 +194,7 @@ router.post('/from-template/:templateId', async (req: AuthenticatedRequest, res:
       .populate('createdBy', 'fullName');
     
     res.status(201).json(populatedCyclogram);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating cyclogram from template:', error);
     
     if (error.name === 'ValidationError') {
@@ -207,7 +207,7 @@ router.post('/from-template/:templateId', async (req: AuthenticatedRequest, res:
 });
 
 // Duplicate a cyclogram
-router.post('/:id/duplicate', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/duplicate', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

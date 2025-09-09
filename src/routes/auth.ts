@@ -1,7 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/Users';
-import { comparePassword } from '../utils/hash';
 
 const router = express.Router();
 

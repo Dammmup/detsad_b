@@ -57,7 +57,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create a new report
-router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -90,7 +90,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Update an existing report
-router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -123,7 +123,7 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Delete a report
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -197,7 +197,7 @@ router.get('/statistics/schedule', async (req: Request, res: Response) => {
 });
 
 // Export report to file
-router.post('/:id/export', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/export', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -231,7 +231,7 @@ router.post('/:id/export', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Generate custom report
-router.post('/generate', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/generate', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -281,7 +281,7 @@ router.post('/generate', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Schedule automatic report generation
-router.post('/schedule', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/schedule', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

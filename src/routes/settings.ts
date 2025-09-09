@@ -45,7 +45,7 @@ router.get('/kindergarten', async (req: Request, res: Response) => {
 });
 
 // Update kindergarten settings
-router.put('/kindergarten', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/kindergarten', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -112,7 +112,7 @@ router.get('/notifications', async (req: Request, res: Response) => {
 });
 
 // Update notification settings
-router.put('/notifications', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/notifications', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -184,7 +184,7 @@ router.get('/security', async (req: Request, res: Response) => {
 });
 
 // Update security settings
-router.put('/security', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/security', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -252,7 +252,7 @@ router.get('/geolocation', async (req: Request, res: Response) => {
 });
 
 // Update geolocation settings
-router.put('/geolocation', async (req: AuthenticatedRequest, res: Response) => {
+router.put('/geolocation', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -312,7 +312,7 @@ router.get('/system', async (req: Request, res: Response) => {
 });
 
 // Test email configuration
-router.post('/test-email', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/test-email', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -339,7 +339,7 @@ router.post('/test-email', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // Test SMS configuration
-router.post('/test-sms', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/test-sms', async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
