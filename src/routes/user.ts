@@ -60,7 +60,6 @@ router.get('/roles', (req, res) => {
   }
 });
 
-// Получить всех пользователей, кроме админов (без passwordHash)
 router.get('/', async (req, res) => {
   try {
     const users = await User.find({ role: { $ne: 'admin' } }, '-passwordHash');
@@ -117,9 +116,7 @@ router.post('/', async (req, res) => {
     // const newUser = new UserModel(req.body);
     // await newUser.save();
 
-    const passwordHash = null; // Пароли не используются
     const userData: any = {
-      passwordHash,
       ...req.body,
       uniqNumber: req.body.iin || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ИИН или временный уникальный ID
       createdAt: new Date()
