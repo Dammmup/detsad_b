@@ -23,7 +23,6 @@ export function authorizeRole(roles: string[]) {
       console.log('[AUTH] Token verified, decoded payload:', { 
         id: decoded.id,
         role: decoded.role,
-        email: decoded.email,
         username: decoded.username
       });
       

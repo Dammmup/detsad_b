@@ -9,7 +9,9 @@ import userRoutes from './routes/user';
 import eventRoutes from './routes/event';
 import postRoutes from './routes/post';
 import lessonRoutes from './routes/lesson';
-
+import fineRoutes from './routes/fine';
+import groupRoutes from './routes/group';
+import attendanceRoutes from './routes/attendance';
 dotenv.config();
 
 const app = express();
@@ -29,18 +31,21 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 
 app.use('/api/auth', authRoutes);
+
 app.use('/api/courses', courseRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/lessons', lessonRoutes);
-
+app.use('/api/fines', fineRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/attendance', attendanceRoutes);
 app.get('/', (req, res) => {
-  res.send('Uyghur Connect Backend API');
+  res.send('Test Backend API');
 });
 
 mongoose.connect(process.env.MONGO_URI || '', {
-  dbName: 'uyghur_connect',
+  dbName: 'test',
 }).then(() => {
   console.log('MongoDB connected');
   app.listen(PORT, () => {
