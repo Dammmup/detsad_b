@@ -21,6 +21,7 @@ export interface IUser extends Document {
   verificationCodeExpires?: Date;  // Срок действия кода
   isVerified: boolean;  // Подтвержден ли номер
   lastLogin?: Date;  // Последний вход
+  personalCode?: string;  // Персональный код для входа
 
   
   // Тип пользователя и роль
@@ -71,8 +72,9 @@ const UserSchema: Schema = new Schema({
   // Верификация через WhatsApp
   verificationCode: { type: String },
   verificationCodeExpires: { type: Date },
-  isVerified: { type: Boolean, default: false },
   lastLogin: { type: Date },
+  personalCode: { type: String },
+  isVerified: { type: Boolean, default: false },
   
   // Тип пользователя и роль
   type: {

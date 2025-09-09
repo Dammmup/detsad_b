@@ -26,12 +26,9 @@ import { Request, Response, NextFunction } from 'express';
 
 function canMarkAttendance(req: Request, res: Response, next: NextFunction) {
   const role = req.user?.role;
-  console.log('[ATTENDANCE] Checking role:', role, 'for user:', req.user?.id);
   if (role === 'admin' || role === 'teacher' || role === 'assistant') {
-    console.log('[ATTENDANCE] Access granted for role:', role);
     return next();
   }
-  console.log('[ATTENDANCE] Access denied for role:', role);
   return res.status(403).json({ error: 'Недостаточно прав для отметки посещаемости' });
 }
 

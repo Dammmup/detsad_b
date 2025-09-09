@@ -4,11 +4,8 @@ import cors from 'cors';
 import { apiLimiter } from './middlewares/rateLimiter';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
-import courseRoutes from './routes/course';
 import userRoutes from './routes/user';
 import eventRoutes from './routes/event';
-import postRoutes from './routes/post';
-import lessonRoutes from './routes/lesson';
 import fineRoutes from './routes/fine';
 import groupRoutes from './routes/group';
 import attendanceRoutes from './routes/attendance';
@@ -32,11 +29,8 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 app.use('/api/auth', authRoutes);
 
-app.use('/api/courses', courseRoutes);
 app.use('/api/events', eventRoutes);
-app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/lessons', lessonRoutes);
 app.use('/api/fines', fineRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/attendance', attendanceRoutes);

@@ -5,6 +5,39 @@ import { AuthenticatedRequest } from '../types/express';
 
 const router = express.Router();
 
+/**
+ * Генерация персонального кода (6 символов: буквы + цифры)
+ */
+function generatePersonalCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Проверка уникальности персонального кода
+ */
+async function generateUniquePersonalCode(): Promise<string> {
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (attempts < maxAttempts) {
+    const code = generatePersonalCode();
+    const existingUser = await User.findOne({ personalCode: code });
+    
+    if (!existingUser) {
+      return code;
+    }
+    
+    attempts++;
+  }
+  
+  throw new Error('Не удалось сгенерировать уникальный персональный код');
+}
+
 // Get available user roles
 router.get('/roles', (req, res) => {
   try {
@@ -97,13 +130,31 @@ router.post('/', async (req, res) => {
       userData.groupId = req.body.groupId;
     }
 
+    // Генерируем персональный код для сотрудников
+    if (type === 'adult') {
+      try {
+        userData.personalCode = await generateUniquePersonalCode();
+        console.log('🔑 Сгенерирован персональный код для сотрудника:', userData.personalCode);
+      } catch (error) {
+        console.error('❌ Ошибка генерации персонального кода:', error);
+        return res.status(500).json({ error: 'Ошибка генерации персонального кода' });
+      }
+    }
+
     console.log('userData перед сохранением:', userData);
     
     const user = new User(userData);
     await user.save();
+    
     // Исключаем passwordHash из ответа
     const userObj = user.toObject();
     delete (userObj as any).passwordHash;
+    
+    // Логируем успешное создание
+    if (type === 'adult' && userData.personalCode) {
+      console.log(`✅ Сотрудник создан: ${userData.fullName}, персональный код: ${userData.personalCode}`);
+    }
+    
     res.status(201).json(userObj);
   } catch (err: any) {
     console.error('Ошибка при создании пользователя:', err);

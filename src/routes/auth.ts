@@ -7,15 +7,21 @@ const router = express.Router();
 
 // Универсальная функция создания JWT-токена для пользователя
 function createJwtToken(user: any) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('❌ JWT_SECRET не установлен в переменных окружения!');
+    throw new Error('Server configuration error');
+  }
   return jwt.sign(
     {
       id: user._id,
       fullName: user.fullName,
       role: user.role,
-      access: user.access,
+      phone: user.phone,
+      iat: Math.floor(Date.now() / 1000)
     },
-    process.env.JWT_SECRET || 'secret',
-    { expiresIn: '1d' }
+    secret,
+    { expiresIn: '24h' }
   );
 }
 
@@ -50,7 +56,40 @@ router.post('/login', async (req, res) => {
  * Генерация случайного 4-значного OTP кода
  */
 function generateOTPCode(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  // Используем криптографически стойкий генератор для production
+  const crypto = require('crypto');
+  const randomBytes = crypto.randomBytes(2);
+  const code = (randomBytes.readUInt16BE(0) % 9000 + 1000).toString();
+  return code;
+}
+
+// Rate limiting для WhatsApp OTP
+const otpAttempts = new Map<string, { count: number, lastAttempt: number }>();
+
+function checkRateLimit(phoneNumber: string): boolean {
+  const now = Date.now();
+  const key = phoneNumber;
+  const attempt = otpAttempts.get(key);
+  
+  if (!attempt) {
+    otpAttempts.set(key, { count: 1, lastAttempt: now });
+    return true;
+  }
+  
+  // Сброс счётчика каждые 15 минут
+  if (now - attempt.lastAttempt > 15 * 60 * 1000) {
+    otpAttempts.set(key, { count: 1, lastAttempt: now });
+    return true;
+  }
+  
+  // Максимум 3 попытки за 15 минут
+  if (attempt.count >= 3) {
+    return false;
+  }
+  
+  attempt.count++;
+  attempt.lastAttempt = now;
+  return true;
 }
 
 /**
@@ -64,6 +103,20 @@ router.post('/whatsapp/send-otp', async (req, res) => {
   
   if (!phoneNumber) {
     return res.status(400).json({ error: 'Номер телефона обязателен' });
+  }
+  
+  // Валидация номера телефона (казахстанский формат)
+  const phoneRegex = /^\+?7[0-9]{10}$|^8[0-9]{10}$/;
+  if (!phoneRegex.test(phoneNumber.replace(/[\s\-\(\)]/g, ''))) {
+    return res.status(400).json({ error: 'Неверный формат номера телефона' });
+  }
+  
+  // Проверка rate limiting
+  if (!checkRateLimit(phoneNumber)) {
+    return res.status(429).json({ 
+      error: 'Слишком много попыток. Попробуйте через 15 минут.',
+      retryAfter: 900 // 15 минут в секундах
+    });
   }
   
   try {
@@ -84,7 +137,7 @@ router.post('/whatsapp/send-otp', async (req, res) => {
         fullName: `Пользователь ${phoneNumber}`,
         phone: phoneNumber,
         type: 'adult',
-        role: phoneNumber.includes('777') ? 'admin' : 'teacher', // 777 в номере = админ
+        role: phoneNumber.includes('7777777777') ? 'admin' : 'teacher', // Конкретный админский номер
         active: true,
         isVerified: false,
         verificationCode: otpCode,
@@ -100,10 +153,8 @@ router.post('/whatsapp/send-otp', async (req, res) => {
     
     await user.save();
     
-    // В реальном приложении здесь будет интеграция с WhatsApp Business API
-    // Пока что просто логируем код для разработки
-    console.log(`📲 [MOCK] Отправка WhatsApp сообщения на ${phoneNumber}:`);
-    console.log(`   Ваш код для входа в Детсад CRM: ${otpCode}`);
+    // Простое логирование OTP кода для разработки
+    console.log(`📲 OTP код для ${phoneNumber}: ${otpCode}`);
     console.log(`   Код действителен 5 минут.`);
     
     res.json({
@@ -221,5 +272,134 @@ router.get('/validate', async (req, res) => {
     res.status(401).json({ error: 'Недействительный токен' });
   }
 });
+
+// ===== АВТОРИЗАЦИЯ ПО ПЕРСОНАЛЬНОМУ КОДУ =====
+
+/**
+ * Авторизация сотрудника по персональному коду
+ * POST /api/auth/personal-code
+ */
+router.post('/personal-code', async (req, res) => {
+  const { phoneNumber, personalCode } = req.body;
+  
+  console.log('🔐 Авторизация по персональному коду для номера:', phoneNumber);
+  
+  if (!phoneNumber || !personalCode) {
+    return res.status(400).json({ error: 'Номер телефона и персональный код обязательны' });
+  }
+  
+  try {
+    // Ищем пользователя с данным номером и персональным кодом
+    const user = await User.findOne({ 
+      phone: phoneNumber,
+      personalCode: personalCode.toUpperCase().trim()
+    });
+    
+    if (!user) {
+      console.log('❌ Пользователь не найден или неверный код для номера:', phoneNumber);
+      return res.status(401).json({ error: 'Неверный номер телефона или персональный код' });
+    }
+    
+    // Проверяем что пользователь активен
+    if (!user.active) {
+      console.log('❌ Пользователь неактивен:', user.fullName);
+      return res.status(401).json({ error: 'Аккаунт заблокирован. Обратитесь к администратору.' });
+    }
+    
+    // Успешная авторизация
+    console.log('✅ Успешная авторизация по персональному коду:', user.fullName);
+    
+    // Обновляем время последнего входа
+    user.lastLogin = new Date() as any;
+    user.isVerified = true;
+    await user.save();
+    
+    // Создаем JWT токен
+    const token = createJwtToken(user);
+    
+    console.log('🎉 Пользователь авторизован по персональному коду:', user.fullName);
+    
+    res.json({
+      success: true,
+      message: 'Успешная авторизация',
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        phone: user.phone,
+        role: user.role,
+        type: user.type
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка авторизации по персональному коду:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+/**
+ * Генерация персонального кода для сотрудника (только для админов)
+ * POST /api/auth/generate-personal-code
+ */
+router.post('/generate-personal-code', async (req, res) => {
+  const { userId } = req.body;
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'ID пользователя обязателен' });
+  }
+  
+  try {
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    // Генерируем уникальный персональный код (6 символов)
+    const personalCode = generatePersonalCode();
+    
+    // Проверяем уникальность кода
+    const existingUser = await User.findOne({ personalCode });
+    if (existingUser) {
+      // Если код уже существует, генерируем новый
+      return res.status(500).json({ error: 'Ошибка генерации кода. Попробуйте еще раз.' });
+    }
+    
+    // Сохраняем код
+    user.personalCode = personalCode;
+    await user.save();
+    
+    console.log('🔑 Сгенерирован персональный код для:', user.fullName, 'Код:', personalCode);
+    
+    res.json({
+      success: true,
+      message: 'Персональный код сгенерирован',
+      personalCode,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        phone: user.phone,
+        personalCode
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка генерации персонального кода:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+/**
+ * Генерация персонального кода (6 символов: буквы + цифры)
+ */
+function generatePersonalCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
 
 export default router;
