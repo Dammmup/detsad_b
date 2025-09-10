@@ -222,14 +222,11 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
     
     await user.save();
     
-    // Создаем JWT токен
-    const token = createJwtToken(user);
-    
     console.log('🎉 Пользователь авторизован через WhatsApp:', user.fullName);
     
     res.json({
       success: true,
-      token,
+      message: 'Успешная авторизация',
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -313,15 +310,11 @@ router.post('/personal-code', async (req, res) => {
     user.isVerified = true;
     await user.save();
     
-    // Создаем JWT токен
-    const token = createJwtToken(user);
-    
     console.log('🎉 Пользователь авторизован по персональному коду:', user.fullName);
     
     res.json({
       success: true,
       message: 'Успешная авторизация',
-      token,
       user: {
         id: user._id,
         fullName: user.fullName,
