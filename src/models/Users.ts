@@ -15,15 +15,12 @@ export interface IUser extends Document {
   fullName: string;
   phone: string;  // WhatsApp номер для входа и верификации
 
-  
-  // Верификация через WhatsApp
-  verificationCode?: string;  // Код подтверждения
-  verificationCodeExpires?: Date;  // Срок действия кода
-  isVerified: boolean;  // Подтвержден ли номер
-  lastLogin?: Date;  // Последний вход
-  personalCode?: string;  // Персональный код для входа
+  // Хэш пароля (только для сотрудников и прочих взрослых пользователей)
+  passwordHash?: string; // Хэш пароля
 
-  
+  // Первичный пароль (plaintext) для админа, удаляется после смены
+  initialPassword?: string;
+
   // Тип пользователя и роль
   type: 'adult' | 'child';  // Взрослый (сотрудник) или ребенок
   role: string;  // Для взрослых: admin, teacher, assistant, cook, cleaner, security, nurse, manager
@@ -35,7 +32,6 @@ export interface IUser extends Document {
   birthday?: Date;
   notes?: string;
 
-  
   // Поля для сотрудников (type: 'adult')
   salary?: number;
   fines: IFine[];
@@ -43,14 +39,14 @@ export interface IUser extends Document {
   
   // Поля для детей (type: 'child')
   parentName?: string;
-  parentPhone?: string;  // WhatsApp родителя
+  parentPhone?: string;  // Номер телефона родителя
   groupId?: mongoose.Types.ObjectId;  // Группа ребенка
   iin?: string;
   
   // Служебные поля
   createdAt: Date;
   updatedAt: Date;
-
+  lastLogin?: Date;  // Последний вход
 }
 
 const UserSchema: Schema = new Schema({
@@ -63,18 +59,23 @@ const UserSchema: Schema = new Schema({
   },
   phone: { 
     type: String, 
-    required: [true, 'WhatsApp номер обязателен'],
+    required: [true, 'Номер телефона обязателен'],
     unique: true,
     trim: true,
     index: true
   },
   
-  // Верификация через WhatsApp
-  verificationCode: { type: String },
-  verificationCodeExpires: { type: Date },
+  // Хэш пароля (только для сотрудников и прочих взрослых пользователей)
+  passwordHash: {
+    type: String,
+    required: function(this: IUser) { return this.type === 'adult'; },
+    select: false // исключаем по умолчанию из выборок
+  },
+  // Первичный пароль (plaintext) – виден только при выборке с '+initialPassword'
+  initialPassword: { type: String, select: false },
+  
+  // Данные последнего логина
   lastLogin: { type: Date },
-  personalCode: { type: String },
-  isVerified: { type: Boolean, default: false },
   
   // Тип пользователя и роль
   type: {

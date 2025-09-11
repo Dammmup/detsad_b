@@ -26,7 +26,7 @@ import { Request, Response, NextFunction } from 'express';
 
 function canMarkAttendance(req: Request, res: Response, next: NextFunction) {
   const role = req.user?.role;
-  if (role === 'admin' || role === 'teacher' || role === 'assistant') {
+  if (role === 'admin' || role === 'teacher' ) {
     return next();
   }
   return res.status(403).json({ error: 'Недостаточно прав для отметки посещаемости' });

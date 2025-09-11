@@ -1,14 +1,16 @@
 import express from 'express';
 import Group from '../models/Group';
 import { authorizeRole } from '../middlewares/authRole';
+import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
 // Get all groups
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req: any, res) => {
   try {
-    // First, try to find groups without populating
-    let groups = await Group.find();
+    // Admin sees all groups, teachers see only their groups
+    const filter = req.user?.role === 'admin' ? {} : { teacher: req.user?.id };
+    let groups = await Group.find(filter);
     
     // Временно убираем populate teacher, чтобы избежать ошибок с моделью
     // TODO: Восстановить populate когда модели будут правильно настроены

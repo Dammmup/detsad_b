@@ -1,42 +1,11 @@
 import express, { Response, Request } from 'express';
-import User, { IFine, IUser } from '../models/Users';
+import User from '../models/Users';
+import Group from '../models/Group';
+import { authMiddleware } from '../middlewares/authMiddleware';
 import bcrypt from 'bcryptjs';
 import { AuthenticatedRequest } from '../types/express';
 
 const router = express.Router();
-
-/**
- * Генерация персонального кода (6 символов: буквы + цифры)
- */
-function generatePersonalCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
-/**
- * Проверка уникальности персонального кода
- */
-async function generateUniquePersonalCode(): Promise<string> {
-  let attempts = 0;
-  const maxAttempts = 10;
-  
-  while (attempts < maxAttempts) {
-    const code = generatePersonalCode();
-    const existingUser = await User.findOne({ personalCode: code });
-    
-    if (!existingUser) {
-      return code;
-    }
-    
-    attempts++;
-  }
-  
-  throw new Error('Не удалось сгенерировать уникальный персональный код');
-}
 
 // Get available user roles
 router.get('/roles', (req, res) => {
@@ -60,11 +29,22 @@ router.get('/roles', (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req: any, res) => {
   try {
-    const users = await User.find({ role: { $ne: 'admin' } }, '-passwordHash');
+    const includePasswords = req.query.includePasswords === 'true';
+    console.log('🔍 User requesting users list:', req.user?.fullName, 'Role:', req.user?.role);
+    console.log('🔍 Include passwords requested:', includePasswords);
+    
+    // if passwords requested, verify requesting user is admin
+    if (includePasswords && req.user?.role !== 'admin') {
+      console.log('❌ Access denied - user role:', req.user?.role, 'required: admin');
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const projection = includePasswords ? '+initialPassword -passwordHash' : '-passwordHash';
+    const users = await User.find({ role: { $ne: 'admin' } }).select(projection);
     res.json(users);
   } catch (err) {
+    console.error('Error in GET /users:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -127,17 +107,6 @@ router.post('/', async (req, res) => {
       userData.groupId = req.body.groupId;
     }
 
-    // Генерируем персональный код для сотрудников
-    if (type === 'adult') {
-      try {
-        userData.personalCode = await generateUniquePersonalCode();
-        console.log('🔑 Сгенерирован персональный код для сотрудника:', userData.personalCode);
-      } catch (error) {
-        console.error('❌ Ошибка генерации персонального кода:', error);
-        return res.status(500).json({ error: 'Ошибка генерации персонального кода' });
-      }
-    }
-
     console.log('userData перед сохранением:', userData);
     
     const user = new User(userData);
@@ -148,9 +117,7 @@ router.post('/', async (req, res) => {
     delete (userObj as any).passwordHash;
     
     // Логируем успешное создание
-    if (type === 'adult' && userData.personalCode) {
-      console.log(`✅ Сотрудник создан: ${userData.fullName}, персональный код: ${userData.personalCode}`);
-    }
+    console.log(`✅ Сотрудник создан: ${userData.fullName}`);
     
     res.status(201).json(userObj);
   } catch (err: any) {

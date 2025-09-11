@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import { apiLimiter } from './middlewares/rateLimiter';
 import dotenv from 'dotenv';
-import authRoutes from './routes/auth';
+import authRoutes from './routes/authPassword';
 import userRoutes from './routes/user';
 import eventRoutes from './routes/event';
 import fineRoutes from './routes/fine';
