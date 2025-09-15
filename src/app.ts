@@ -6,10 +6,13 @@ import dotenv from 'dotenv';
 // Routes
 import authRoutes from './routes/auth';
 import userRoutes from './routes/user';
-import groupRoutes from './routes/group';
 import attendanceRoutes from './routes/attendance';
+import groupRoutes from './routes/group';
 import timeTrackingRoutes from './routes/timeTrackingSimple'; // Using simplified version
-
+import staffShiftRoutes from './routes/staffShift';
+import childAttendanceRoutes from './routes/childAttendance';
+import staffTimeTrackingRoutes from './routes/staffTimeTracking';
+import payrollRoutes from './routes/payroll';
 dotenv.config();
 
 const app = express();
@@ -26,6 +29,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/time-tracking', timeTrackingRoutes);
+app.use('/api/staff-shifts', staffShiftRoutes);
+app.use('/api/child-attendance', childAttendanceRoutes);
+app.use('/api/staff-time-tracking', staffTimeTrackingRoutes);
+app.use('/api/payroll', payrollRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

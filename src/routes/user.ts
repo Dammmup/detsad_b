@@ -1,6 +1,7 @@
 import express, { Response, Request } from 'express';
 import User from '../models/Users';
 import Group from '../models/Group';
+import ChildAttendance from '../models/ChildAttendance';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import bcrypt from 'bcryptjs';
 import { AuthenticatedRequest } from '../types/express';
@@ -32,16 +33,29 @@ router.get('/roles', (req, res) => {
 router.get('/', authMiddleware, async (req: any, res) => {
   try {
     const includePasswords = req.query.includePasswords === 'true';
+    const typeFilter = req.query.type; // Получаем параметр type из запроса
+    
     console.log('🔍 User requesting users list:', req.user?.fullName, 'Role:', req.user?.role);
     console.log('🔍 Include passwords requested:', includePasswords);
+    console.log('🔍 Type filter:', typeFilter);
     
     // if passwords requested, verify requesting user is admin
     if (includePasswords && req.user?.role !== 'admin') {
       console.log('❌ Access denied - user role:', req.user?.role, 'required: admin');
       return res.status(403).json({ error: 'Forbidden' });
     }
+    
     const projection = includePasswords ? '+initialPassword -passwordHash' : '-passwordHash';
-    const users = await User.find({ role: { $ne: 'admin' } }).select(projection);
+    
+    // Создаем базовый запрос
+    const query: any = { role: { $ne: 'admin' } };
+    
+    // Добавляем фильтр по типу, если он указан
+    if (typeFilter) {
+      query.type = typeFilter;
+    }
+    
+    const users = await User.find(query).select(projection);
     res.json(users);
   } catch (err) {
     console.error('Error in GET /users:', err);
@@ -162,6 +176,33 @@ router.get('/:id', async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(400).json({ error: 'Invalid id format' });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // If deleting a child, also delete all their attendance records
+    if (user.type === 'child') {
+      console.log(`Deleting attendance records for child: ${user.fullName}`);
+      const deletedAttendance = await ChildAttendance.deleteMany({ childId: user._id });
+      console.log(`Deleted ${deletedAttendance.deletedCount} attendance records`);
+    }
+    
+    // Delete the user
+    await User.findByIdAndDelete(req.params.id);
+    
+    res.json({ 
+      message: 'User deleted successfully',
+      attendanceRecordsDeleted: user.type === 'child' ? true : false
+    });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Error deleting user' });
   }
 });
 
