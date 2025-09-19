@@ -110,6 +110,7 @@ router.post('/', async (req, res) => {
     // const newUser = new UserModel(req.body);
     // await newUser.save();
 
+    // Генерация хэшированного пароля для взрослых пользователей без указания пароля
     const userData: any = {
       ...req.body,
       uniqNumber: req.body.iin || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ИИН или временный уникальный ID
@@ -119,6 +120,29 @@ router.post('/', async (req, res) => {
     // Add groupId if provided
     if (req.body.groupId) {
       userData.groupId = req.body.groupId;
+    }
+
+    // Для взрослых пользователей (type === 'adult'), если не указан passwordHash, генерируем его
+    if (type === 'adult' && !userData.passwordHash) {
+      // Генерируем случайный пароль
+      const generateRandomPassword = (length: number = 8): string => {
+        const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let password = '';
+        for (let i = 0; i < length; i++) {
+          const randomIndex = Math.floor(Math.random() * charset.length);
+          password += charset[randomIndex];
+        }
+        return password;
+      };
+
+      const plainPassword = generateRandomPassword();
+      console.log(`🔄 Сгенерирован пароль для нового сотрудника ${userData.fullName}: ${plainPassword}`);
+
+      // Хэшируем пароль
+      const { hashPassword } = await import('../utils/hash');
+      userData.passwordHash = await hashPassword(plainPassword);
+      // Сохраняем оригинальный пароль для отображения в интерфейсе
+      userData.initialPassword = plainPassword;
     }
 
     console.log('userData перед сохранением:', userData);

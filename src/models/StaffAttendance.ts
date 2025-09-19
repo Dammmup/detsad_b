@@ -4,9 +4,9 @@ export interface IStaffAttendance extends Document {
   staffId: mongoose.Types.ObjectId;
   groupId?: mongoose.Types.ObjectId;
   date: Date;
-  shiftType: 'morning' | 'evening' | 'night' | 'full' | 'overtime';
-  scheduledStart: string; // HH:MM format
-  scheduledEnd: string;   // HH:MM format
+  shiftType:  'full' | 'overtime';
+  startTime: string; // HH:MM format
+  endTime: string;   // HH:MM format
   actualStart?: string;   // HH:MM format
   actualEnd?: string;     // HH:MM format
   breakTime?: number;     // minutes
@@ -41,16 +41,16 @@ const StaffAttendanceSchema: Schema = new Schema({
   },
   shiftType: {
     type: String,
-    enum: ['morning', 'evening', 'night', 'full', 'overtime'],
+    enum: ['full', 'day_off', 'vacation', 'sick_leave', 'overtime'],
     required: true,
     default: 'full'
   },
-  scheduledStart: {
+  startTime: {
     type: String,
     required: true,
     match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
   },
-  scheduledEnd: {
+  endTime: {
     type: String,
     required: true,
     match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
@@ -125,8 +125,8 @@ StaffAttendanceSchema.virtual('workMinutes').get(function(this: IStaffAttendance
 });
 
 StaffAttendanceSchema.virtual('scheduledMinutes').get(function(this: IStaffAttendance) {
-  const start = (this.scheduledStart as string).split(':').map(Number);
-  const end = (this.scheduledEnd as string).split(':').map(Number);
+  const start = (this.startTime as string).split(':').map(Number);
+  const end = (this.endTime as string).split(':').map(Number);
   
   const startMinutes = start[0] * 60 + start[1];
   const endMinutes = end[0] * 60 + end[1];
@@ -140,9 +140,9 @@ StaffAttendanceSchema.virtual('workHours').get(function(this: IStaffAttendance) 
 
 // Methods for calculations
 StaffAttendanceSchema.methods.calculateLateness = function() {
-  if (!this.actualStart || !this.scheduledStart) return 0;
+  if (!this.actualStart || !this.startTime) return 0;
   
-  const scheduled = this.scheduledStart.split(':').map(Number);
+  const scheduled = this.startTime.split(':').map(Number);
   const actual = this.actualStart.split(':').map(Number);
   
   const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
@@ -152,9 +152,9 @@ StaffAttendanceSchema.methods.calculateLateness = function() {
 };
 
 StaffAttendanceSchema.methods.calculateEarlyLeave = function() {
-  if (!this.actualEnd || !this.scheduledEnd) return 0;
+  if (!this.actualEnd || !this.endTime) return 0;
   
-  const scheduled = this.scheduledEnd.split(':').map(Number);
+  const scheduled = this.endTime.split(':').map(Number);
   const actual = this.actualEnd.split(':').map(Number);
   
   const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
@@ -164,9 +164,9 @@ StaffAttendanceSchema.methods.calculateEarlyLeave = function() {
 };
 
 StaffAttendanceSchema.methods.calculateOvertime = function() {
-  if (!this.actualEnd || !this.scheduledEnd) return 0;
+  if (!this.actualEnd || !this.endTime) return 0;
   
-  const scheduled = this.scheduledEnd.split(':').map(Number);
+  const scheduled = this.endTime.split(':').map(Number);
   const actual = this.actualEnd.split(':').map(Number);
   
   const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
@@ -177,11 +177,11 @@ StaffAttendanceSchema.methods.calculateOvertime = function() {
 
 // Pre-save middleware to calculate metrics
 StaffAttendanceSchema.pre('save', function(this: IStaffAttendance, next) {
-  if (this.actualStart && this.scheduledStart) {
+  if (this.actualStart && this.startTime) {
     this.lateMinutes = (this as any).calculateLateness();
   }
   
-  if (this.actualEnd && this.scheduledEnd) {
+  if (this.actualEnd && this.endTime) {
     this.earlyLeaveMinutes = (this as any).calculateEarlyLeave();
     this.overtimeMinutes = (this as any).calculateOvertime();
   }

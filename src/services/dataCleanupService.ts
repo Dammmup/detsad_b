@@ -191,7 +191,7 @@ class DataCleanupService {
           staffMember?.fullName || '',
           formattedDate,
           record.shiftType || '',
-          `${record.scheduledStart || ''} - ${record.scheduledEnd || ''}`,
+          `${record.startTime || ''} - ${record.endTime || ''}`,
           `${record.actualStart || ''} - ${record.actualEnd || ''}`,
           record.lateMinutes || 0,
           record.overtimeMinutes || 0,

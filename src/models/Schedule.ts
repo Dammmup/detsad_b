@@ -7,8 +7,8 @@ export interface ISchedule extends Document {
   status: 'scheduled' | 'completed' | 'absent' | 'late' | 'cancelled' | 'no_show';
   actualClockIn?: Date;
   actualClockOut?: Date;
-  scheduledStart: Date; // Calculated from shift + date
-  scheduledEnd: Date; // Calculated from shift + date
+  startTime: Date; // Calculated from shift + date
+  endTime: Date; // Calculated from shift + date
   notes?: string;
   assignedBy: mongoose.Types.ObjectId;
   assignedAt: Date;
@@ -54,11 +54,11 @@ const ScheduleSchema: Schema = new Schema({
   },
   actualClockIn: { type: Date },
   actualClockOut: { type: Date },
-  scheduledStart: { 
+  startTime: { 
     type: Date, 
     required: [true, 'Запланированное время начала обязательно']
   },
-  scheduledEnd: { 
+  endTime: { 
     type: Date, 
     required: [true, 'Запланированное время окончания обязательно']
   },
@@ -141,12 +141,12 @@ ScheduleSchema.pre('save', async function(this: ISchedule, next) {
       const [startHour, startMinute] = shift.startTime.split(':').map(Number);
       const [endHour, endMinute] = shift.endTime.split(':').map(Number);
       
-      this.scheduledStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), startHour, startMinute);
-      this.scheduledEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), endHour, endMinute);
+      this.startTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), startHour, startMinute);
+      this.endTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), endHour, endMinute);
       
       // Handle overnight shifts
-      if (this.scheduledEnd <= this.scheduledStart) {
-        this.scheduledEnd.setDate(this.scheduledEnd.getDate() + 1);
+      if (this.endTime <= this.startTime) {
+        this.endTime.setDate(this.endTime.getDate() + 1);
       }
     } catch (error) {
       return next(error as Error);
@@ -161,7 +161,7 @@ ScheduleSchema.methods.isLate = function(clockInTime?: Date): boolean {
   if (!checkTime) return false;
   
   const graceMinutes = 15; // 15-minute grace period
-  const lateThreshold = new Date(this.scheduledStart.getTime() + (graceMinutes * 60 * 1000));
+  const lateThreshold = new Date(this.startTime.getTime() + (graceMinutes * 60 * 1000));
   
   return checkTime > lateThreshold;
 };
@@ -176,7 +176,7 @@ ScheduleSchema.methods.getHoursWorked = function(): number {
 
 // Method to get shift duration
 ScheduleSchema.methods.getScheduledHours = function(): number {
-  const totalMs = this.scheduledEnd.getTime() - this.scheduledStart.getTime();
+  const totalMs = this.endTime.getTime() - this.startTime.getTime();
   return totalMs / (1000 * 60 * 60); // Convert to hours
 };
 
@@ -188,18 +188,18 @@ ScheduleSchema.statics.findConflicts = function(userId: mongoose.Types.ObjectId,
     $or: [
       // New schedule starts during existing schedule
       {
-        scheduledStart: { $lte: startTime },
-        scheduledEnd: { $gt: startTime }
+        startTime: { $lte: startTime },
+        endTime: { $gt: startTime }
       },
       // New schedule ends during existing schedule
       {
-        scheduledStart: { $lt: endTime },
-        scheduledEnd: { $gte: endTime }
+        startTime: { $lt: endTime },
+        endTime: { $gte: endTime }
       },
       // New schedule encompasses existing schedule
       {
-        scheduledStart: { $gte: startTime },
-        scheduledEnd: { $lte: endTime }
+        startTime: { $gte: startTime },
+        endTime: { $lte: endTime }
       }
     ]
   };

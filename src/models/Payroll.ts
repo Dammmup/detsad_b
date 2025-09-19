@@ -6,6 +6,12 @@ export interface IPayroll extends Document {
   accruals: number; // начисления
   deductions: number; // вычеты
   bonuses: number; // премии
+  fines: Array<{ // штрафы
+    date: Date;
+    type: string;
+    amount: number;
+    comment: string;
+  }>
   penalties: number; // штрафы
   total: number; // итог к выплате
   status: 'draft' | 'approved' | 'paid';

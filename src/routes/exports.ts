@@ -66,8 +66,8 @@ router.post('/schedule', authMiddleware, async (req: any, res) => {
     const events = await Schedule.find({});
     const exportData = events.map(ev => [
       ev.date,
-      ev.scheduledStart || '',
-      ev.scheduledEnd || '',
+      ev.startTime || '',
+      ev.endTime || '',
       ev.status || '',
       ev.userId || '',
       ev.notes || ''
@@ -342,8 +342,8 @@ router.get('/schedule', authMiddleware, authorizeRole(['admin', 'teacher']), asy
         staffName: staffMember?.fullName || '',
         groupName: group?.name || '',
         shiftType: item.shiftType || '',
-        scheduledStart: item.scheduledStart || '',
-        scheduledEnd: item.scheduledEnd || '',
+        startTime: item.startTime || '',
+        endTime: item.endTime || '',
         actualStart: item.actualStart || '',
         actualEnd: item.actualEnd || '',
         status: item.status || '',
@@ -491,7 +491,7 @@ router.get('/staff-attendance', authMiddleware, authorizeRole(['admin']), async 
         staffName: staffMember?.fullName || '',
         date: formattedDate,
         shiftType: record.shiftType || '',
-        scheduledTime: `${record.scheduledStart || ''} - ${record.scheduledEnd || ''}`,
+        scheduledTime: `${record.startTime || ''} - ${record.endTime || ''}`,
         actualTime: `${record.actualStart || ''} - ${record.actualEnd || ''}`,
         lateMinutes: record.lateMinutes || 0,
         overtimeMinutes: record.overtimeMinutes || 0,

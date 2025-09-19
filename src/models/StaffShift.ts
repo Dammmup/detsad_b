@@ -3,9 +3,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IStaffShift extends Document {
   staffId: mongoose.Types.ObjectId;
   date: Date;
-  shiftType: 'morning' | 'evening' | 'night' | 'full';
-  scheduledStart: string; // HH:MM format
-  scheduledEnd: string; // HH:MM format
+  shiftType:  'full';
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
   actualStart?: string; // HH:MM format
   actualEnd?: string; // HH:MM format
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
@@ -22,7 +22,7 @@ export interface IStaffShift extends Document {
 const StaffShiftSchema: Schema = new Schema({
   staffId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'users',
     required: true,
     index: true
   },
@@ -33,15 +33,15 @@ const StaffShiftSchema: Schema = new Schema({
   },
   shiftType: {
     type: String,
-    enum: ['morning', 'evening', 'night', 'full'],
+    enum: ['full', 'day_off', 'vacation', 'sick_leave'],
     required: true
   },
-  scheduledStart: {
+  startTime: {
     type: String,
     required: true,
     match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
   },
-  scheduledEnd: {
+  endTime: {
     type: String,
     required: true,
     match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
@@ -78,7 +78,7 @@ const StaffShiftSchema: Schema = new Schema({
   notes: String,
   createdBy: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'users',
     required: true
   }
 }, {
@@ -104,8 +104,8 @@ StaffShiftSchema.virtual('workMinutes').get(function(this: IStaffShift) {
 });
 
 StaffShiftSchema.virtual('scheduledMinutes').get(function(this: IStaffShift) {
-  const start = (this.scheduledStart as string).split(':').map(Number);
-  const end = (this.scheduledEnd as string).split(':').map(Number);
+  const start = (this.startTime as string).split(':').map(Number);
+  const end = (this.endTime as string).split(':').map(Number);
   
   const startMinutes = start[0] * 60 + start[1];
   const endMinutes = end[0] * 60 + end[1];

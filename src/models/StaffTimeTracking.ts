@@ -164,13 +164,13 @@ StaffTimeTrackingSchema.methods.calculateWorkDuration = function() {
 };
 
 StaffTimeTrackingSchema.methods.calculateLatePenalty = function(
-  scheduledStart: Date, 
+  startTime: Date, 
   penaltyPerMinute: number = 500
 ) {
-  if (!this.checkInTime || !scheduledStart) return { minutes: 0, amount: 0 };
+  if (!this.checkInTime || !startTime) return { minutes: 0, amount: 0 };
   
   const lateMinutes = Math.max(0, 
-    Math.floor((this.checkInTime.getTime() - scheduledStart.getTime()) / (1000 * 60))
+    Math.floor((this.checkInTime.getTime() - startTime.getTime()) / (1000 * 60))
   );
   
   return {
@@ -180,13 +180,13 @@ StaffTimeTrackingSchema.methods.calculateLatePenalty = function(
 };
 
 StaffTimeTrackingSchema.methods.calculateEarlyLeavePenalty = function(
-  scheduledEnd: Date,
+  endTime: Date,
   penaltyPerMinute: number = 500
 ) {
-  if (!this.checkOutTime || !scheduledEnd) return { minutes: 0, amount: 0 };
+  if (!this.checkOutTime || !endTime) return { minutes: 0, amount: 0 };
   
   const earlyMinutes = Math.max(0,
-    Math.floor((scheduledEnd.getTime() - this.checkOutTime.getTime()) / (1000 * 60))
+    Math.floor((endTime.getTime() - this.checkOutTime.getTime()) / (1000 * 60))
   );
   
   return {

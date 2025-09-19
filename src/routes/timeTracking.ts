@@ -173,7 +173,7 @@ router.post('/clock-in', [
     
     if (schedule) {
       schedule.actualClockIn = timeEntry.clockIn;
-      schedule.status = timeEntry.clockIn > new Date(schedule.scheduledStart.getTime() + 15 * 60 * 1000) ? 'late' : 'completed';
+      schedule.status = timeEntry.clockIn > new Date(schedule.startTime.getTime() + 15 * 60 * 1000) ? 'late' : 'completed';
       schedule.timeEntryId = timeEntry._id as any;
       await schedule.save();
     }

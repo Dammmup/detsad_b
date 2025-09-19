@@ -88,7 +88,7 @@ const UserSchema: Schema = new Schema({
     type: String,
     required: [true, 'Роль обязательна'],
     enum: {
-      values: ['admin', 'manager', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse', 'child', 'null', 'doctor'],
+      values: ['admin', 'manager', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse', 'child', 'null', 'doctor', 'psychologist','intern'],
       message: 'Неверная роль: {VALUE}'
     },
     index: true

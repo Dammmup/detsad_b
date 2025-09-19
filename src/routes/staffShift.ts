@@ -7,7 +7,7 @@ import { authorizeRole } from '../middlewares/authRole';
 const router = express.Router();
 
 // Get all shifts (with filters)
-router.get('/', authMiddleware, async (req: any, res) => {
+router.get('/', authMiddleware, authorizeRole(['admin', 'manager']), async (req: any, res) => {
   try {
     const { staffId, date, status, startDate, endDate } = req.query;
     
@@ -50,8 +50,32 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), async (req
   try {
     const shiftData = {
       ...req.body,
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      shiftType: req.body.type
     };
+    
+    // Удаляем поле type, если оно существует, чтобы избежать конфликта
+    delete shiftData.type;
+    
+    // Validate shift data before creating
+    if (!shiftData.staffId) {
+      return res.status(400).json({ error: 'Не указан ID сотрудника' });
+    }
+    if (!shiftData.date) {
+      return res.status(400).json({ error: 'Не указана дата смены' });
+    }
+    if (!shiftData.startTime) {
+      return res.status(400).json({ error: 'Не указано время начала' });
+    }
+    if (!shiftData.endTime) {
+      return res.status(400).json({ error: 'Не указано время окончания' });
+    }
+    if (!shiftData.shiftType) {
+      return res.status(400).json({ error: 'Не указан тип смены' });
+    }
+    if (!shiftData.status) {
+      return res.status(400).json({ error: 'Не указан статус смены' });
+    }
     
     const shift = new StaffShift(shiftData);
     await shift.save();
@@ -61,8 +85,16 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), async (req
       .populate('createdBy', 'fullName');
     
     res.status(201).json(populatedShift);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error creating shift:', err);
+    if (err.name === 'ValidationError') {
+      // Return specific validation error details
+      const errors = Object.values(err.errors).map((e: any) => e.message);
+      return res.status(400).json({
+        error: 'Ошибка валидации данных смены',
+        details: errors
+      });
+    }
     res.status(400).json({ error: 'Ошибка создания смены' });
   }
 });
@@ -111,8 +143,8 @@ router.post('/checkin/:shiftId', authMiddleware, async (req: any, res) => {
     shift.status = 'in_progress';
     
     // Calculate lateness
-    const scheduledStart = new Date(`${shift.date.toDateString()} ${shift.scheduledStart}`);
-    const lateMinutes = Math.max(0, Math.floor((now.getTime() - scheduledStart.getTime()) / (1000 * 60)));
+    const startTime = new Date(`${shift.date.toDateString()} ${shift.startTime}`);
+    const lateMinutes = Math.max(0, Math.floor((now.getTime() - startTime.getTime()) / (1000 * 60)));
     
     if (lateMinutes > 0) {
       shift.lateMinutes = lateMinutes;
@@ -181,15 +213,15 @@ router.post('/checkout/:shiftId', authMiddleware, async (req: any, res) => {
     shift.status = 'completed';
     
     // Calculate early leave
-    const scheduledEnd = new Date(`${shift.date.toDateString()} ${shift.scheduledEnd}`);
-    const earlyMinutes = Math.max(0, Math.floor((scheduledEnd.getTime() - now.getTime()) / (1000 * 60)));
+    const endTime = new Date(`${shift.date.toDateString()} ${shift.endTime}`);
+    const earlyMinutes = Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / (1000 * 60)));
     
     if (earlyMinutes > 0) {
       shift.earlyLeaveMinutes = earlyMinutes;
     }
     
     // Calculate overtime
-    const overtimeMinutes = Math.max(0, Math.floor((now.getTime() - scheduledEnd.getTime()) / (1000 * 60)));
+    const overtimeMinutes = Math.max(0, Math.floor((now.getTime() - endTime.getTime()) / (1000 * 60)));
     if (overtimeMinutes > 0) {
       shift.overtimeMinutes = overtimeMinutes;
     }

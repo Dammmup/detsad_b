@@ -106,8 +106,8 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'teacher', 'assistant']
       groupId, 
       date, 
       shiftType, 
-      scheduledStart, 
-      scheduledEnd,
+      startTime, 
+      endTime,
       actualStart,
       actualEnd,
       breakTime,
@@ -116,9 +116,9 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'teacher', 'assistant']
       notes 
     } = req.body;
     
-    if (!staffId || !date || !shiftType || !scheduledStart || !scheduledEnd) {
+    if (!staffId || !date || !shiftType || !startTime || !endTime) {
       return res.status(400).json({ 
-        error: 'Обязательные поля: staffId, date, shiftType, scheduledStart, scheduledEnd' 
+        error: 'Обязательные поля: staffId, date, shiftType, startTime, endTime' 
       });
     }
     
@@ -133,8 +133,8 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'teacher', 'assistant']
       groupId,
       date: new Date(date),
       shiftType,
-      scheduledStart,
-      scheduledEnd,
+      startTime,
+      endTime,
       actualStart,
       actualEnd,
       breakTime,
