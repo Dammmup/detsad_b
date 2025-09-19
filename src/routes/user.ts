@@ -239,18 +239,15 @@ router.put('/:id', async (req, res) => {
     }
 
     // Обновление заметок
-    if (req.body.notes !== undefined) {
+    if (req.body !== undefined) {
       user.notes = req.body.notes;
-    }
+      user.role=req.body.role;
+      user.fullName=req.body.fullName;
+      user.phone=req.body.phone;
+      user.active=req.body.active;
+      user.iin=req.body.iin;
+      user.groupId=req.body.groupId;
 
-    // Обновление полей пользователя
- 
-    if (req.body.active !== undefined) {
-      user.active = req.body.active;
-    }
-
-    if (req.body.iin !== undefined) {
-      user.iin = req.body.iin;
     }
 
     await user.save();
@@ -380,4 +377,27 @@ router.get('/:id/fines/total', async (req, res) => {
     res.status(500).json({ error: 'Error calculating total fines' });
   }
 });
+// Get children by group ID
+router.get('/group/:groupId/children', authMiddleware, async (req: any, res) => {
+  try {
+    const { groupId } = req.params;
+    
+    console.log('🔍 Requesting children for group:', groupId);
+    
+    // Find all children in the specified group
+    const children = await User.find({
+      type: 'child',
+      groupId: groupId,
+      active: true
+    }).select('-passwordHash').sort({ fullName: 1 });
+    
+    console.log(`✅ Found ${children.length} children in group ${groupId}`);
+    
+    res.json(children);
+  } catch (err) {
+    console.error('Error fetching children by group:', err);
+    res.status(500).json({ error: 'Ошибка при получении детей группы' });
+  }
+});
+
 export default router;
