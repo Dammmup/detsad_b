@@ -67,6 +67,7 @@ export interface IGeolocationSettings extends Document {
     latitude: number;
     longitude: number;
   };
+  yandexApiKey?: string; // API key for Yandex services
   strictMode: boolean;
   allowedDevices: string[];
   updatedBy: mongoose.Types.ObjectId;
@@ -165,10 +166,10 @@ const KindergartenSettingsSchema: Schema = new Schema({
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'users',
-    required: [true, 'Пользователь, обновивший настройки, обязателен']
+    required: false
   }
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
 });
 
 // Notification Settings Schema
@@ -228,10 +229,10 @@ const NotificationSettingsSchema: Schema = new Schema({
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'users',
-    required: [true, 'Пользователь, обновивший настройки, обязателен']
+    required: false
   }
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
 });
 
 // Security Settings Schema
@@ -298,10 +299,10 @@ const SecuritySettingsSchema: Schema = new Schema({
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'users',
-    required: [true, 'Пользователь, обновивший настройки, обязателен']
+    required: false
   }
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
 });
 
 // Geolocation Settings Schema
@@ -331,6 +332,10 @@ const GeolocationSettingsSchema: Schema = new Schema({
       max: [180, 'Долгота должна быть от -180 до 180']
     }
   },
+  yandexApiKey: {
+    type: String,
+    trim: true
+  },
   strictMode: {
     type: Boolean,
     default: false
@@ -342,10 +347,10 @@ const GeolocationSettingsSchema: Schema = new Schema({
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'users',
-    required: [true, 'Пользователь, обновивший настройки, обязателен']
+    required: false
   }
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
 });
 
 // Индексы

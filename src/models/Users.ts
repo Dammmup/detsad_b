@@ -13,7 +13,7 @@ export interface IFine extends Document {
 export interface IUser extends Document {
   // Основная информация
   fullName: string;
-  phone: string;  // WhatsApp номер для входа и верификации
+  phone: string;
 
   // Хэш пароля (только для сотрудников и прочих взрослых пользователей)
   passwordHash?: string; // Хэш пароля
@@ -60,7 +60,6 @@ const UserSchema: Schema = new Schema({
   phone: { 
     type: String, 
     required: [true, 'Номер телефона обязателен'],
-    unique: true,
     trim: true,
     index: true
   },
@@ -128,12 +127,11 @@ const UserSchema: Schema = new Schema({
   },
   parentPhone: { 
     type: String,
-    required: function(this: IUser) { return this.type === 'child'; },
     validate: {
       validator: function(this: IUser, v: string) {
         return this.type !== 'child' || (v && v.length > 0);
       },
-      message: 'WhatsApp номер родителя обязателен для детей'
+      message: 'Номер родителя обязателен для детей'
     }
   },
   groupId: { 

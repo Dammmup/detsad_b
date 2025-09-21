@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { AuthUser } from './authMiddleware';
 
 /**
  * Simple JWT authentication middleware. Ensures the "Authorization" header
@@ -11,7 +12,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as AuthUser;
     (req as any).user = decoded;
     return next();
   } catch (err) {

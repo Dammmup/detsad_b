@@ -14,6 +14,9 @@ import staffShiftRoutes from './routes/staffShift';
 import staffAttendanceRoutes from './routes/staffAttendance';
 import exportsRoutes from './routes/exports';
 import DataCleanupService from './services/dataCleanupService';
+import settingsRoutes from './routes/settings';
+import { authMiddleware } from './middlewares/authMiddleware';
+
 dotenv.config();
 
 const app = express();
@@ -43,6 +46,7 @@ app.use('/api/child-attendance', childAttendanceRoutes);
 app.use('/api/staff-shifts', staffShiftRoutes);
 app.use('/api/staff-attendance', staffAttendanceRoutes);
 app.use('/api/exports', exportsRoutes);
+app.use('/api/settings', authMiddleware, settingsRoutes);
 app.get('/', (req, res) => {
   res.send('Test Backend API');
 });

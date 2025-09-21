@@ -13,6 +13,7 @@ import staffShiftRoutes from './routes/staffShift';
 import childAttendanceRoutes from './routes/childAttendance';
 import staffTimeTrackingRoutes from './routes/staffTimeTracking';
 import payrollRoutes from './routes/payroll';
+import settingsRoutes from './routes/settings';
 dotenv.config();
 
 const app = express();
@@ -33,6 +34,7 @@ app.use('/api/staff-shifts', staffShiftRoutes);
 app.use('/api/child-attendance', childAttendanceRoutes);
 app.use('/api/staff-time-tracking', staffTimeTrackingRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

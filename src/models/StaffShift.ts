@@ -122,4 +122,17 @@ StaffShiftSchema.methods.calculateEarlyLeavePenalty = function(penaltyRatePerMin
   return (this.earlyLeaveMinutes || 0) * penaltyRatePerMinute;
 };
 
+// Метод для расчета опоздания
+StaffShiftSchema.methods.calculateLateness = function() {
+  if (!this.actualStart || !this.startTime) return 0;
+  
+  const scheduled = this.startTime.split(':').map(Number);
+  const actual = this.actualStart.split(':').map(Number);
+  
+  const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
+  const actualMinutes = actual[0] * 60 + actual[1];
+  
+  return Math.max(0, actualMinutes - scheduledMinutes);
+};
+
 export default mongoose.model<IStaffShift>('StaffShift', StaffShiftSchema);

@@ -18,10 +18,6 @@ MONGODB_URI=mongodb://localhost:27017/detsad_crm
 # Сгенерируйте случайную строку длиной минимум 32 символа
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-32chars-min
 
-# WhatsApp Business API (опционально для production)
-WHATSAPP_API_URL=https://graph.facebook.com/v17.0
-WHATSAPP_ACCESS_TOKEN=your-whatsapp-business-api-token
-WHATSAPP_PHONE_NUMBER_ID=your-phone-number-id
 
 # CORS настройки
 CORS_ORIGIN=https://yourdomain.com
@@ -190,15 +186,6 @@ mongodump --db detsad_crm --out /backup/$(date +%Y%m%d)
 # Восстановление
 mongorestore --db detsad_crm /backup/20240101/detsad_crm/
 ```
-
-### 10. WhatsApp Business API (опционально)
-
-Для production WhatsApp интеграции:
-
-1. Зарегистрируйтесь в Facebook Business
-2. Создайте WhatsApp Business аккаунт
-3. Получите токен доступа и Phone Number ID
-4. Обновите переменные окружения
 
 ### 11. Проверка готовности
 

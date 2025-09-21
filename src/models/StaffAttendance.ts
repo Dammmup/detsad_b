@@ -15,8 +15,16 @@ export interface IStaffAttendance extends Document {
   overtimeMinutes?: number;
   earlyLeaveMinutes?: number;
   location?: {
-    checkIn?: string;
-    checkOut?: string;
+    checkIn?: {
+      latitude: number;
+      longitude: number;
+      address?: string;
+    };
+    checkOut?: {
+      latitude: number;
+      longitude: number;
+      address?: string;
+    };
   };
   notes?: string;
   markedBy: mongoose.Types.ObjectId;
@@ -90,8 +98,16 @@ const StaffAttendanceSchema: Schema = new Schema({
     min: 0
   },
   location: {
-    checkIn: String,
-    checkOut: String
+    checkIn: {
+      latitude: Number,
+      longitude: Number,
+      address: String
+    },
+    checkOut: {
+      latitude: Number,
+      longitude: Number,
+      address: String
+    }
   },
   notes: String,
   markedBy: {
@@ -196,4 +212,4 @@ StaffAttendanceSchema.pre('save', function(this: IStaffAttendance, next) {
   next();
 });
 
-export default mongoose.model<IStaffAttendance>('StaffAttendance', StaffAttendanceSchema);
+export default mongoose.model<IStaffAttendance>('StaffAttendance', StaffAttendanceSchema, 'attendances');

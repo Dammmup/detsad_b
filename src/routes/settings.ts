@@ -20,10 +20,10 @@ router.get('/kindergarten', async (req: Request, res: Response) => {
     if (!settings) {
       settings = new KindergartenSettings({
         name: 'Детский сад',
-        address: '',
-        phone: '',
-        email: '',
-        director: '',
+        address: 'г. Алматы ул. Цунвазо 11, 1',
+        phone: '+77476254222',
+        email: 'aldamiram@mail.ru',
+        director: 'Салихарова Зухра ХАрбиевана',
         workingHours: {
           start: '07:00',
           end: '19:00'
@@ -32,7 +32,7 @@ router.get('/kindergarten', async (req: Request, res: Response) => {
         timezone: 'Asia/Almaty',
         language: 'ru',
         currency: 'KZT',
-        updatedBy: req.user?.id || null
+        updatedBy: null
       });
       await settings.save();
     }
@@ -237,6 +237,7 @@ router.get('/geolocation', async (req: Request, res: Response) => {
           latitude: 51.1605, // Astana coordinates
           longitude: 71.4704
         },
+        yandexApiKey: '', // Empty by default
         strictMode: false,
         allowedDevices: [],
         updatedBy: req.user?.id || null
