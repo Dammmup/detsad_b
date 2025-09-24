@@ -15,6 +15,8 @@ import staffTimeTrackingRoutes from './routes/staffTimeTracking';
 import payrollRoutes from './routes/payroll';
 import settingsRoutes from './routes/settings';
 import documentsRoutes from './routes/documents';
+import medicalJournalRoutes from './routes/medicalJournal';
+import documentGenerateRoutes from './routes/documentGenerate';
 import reportsRoutes from './routes/reports';
 import payrollAutomationRoutes from './routes/payrollAutomation';
 import { initializeTaskScheduler } from './services/taskScheduler';
@@ -41,6 +43,8 @@ app.use('/api/payroll', payrollRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/documents', documentsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/medical-journals', medicalJournalRoutes);
+app.use('/api/documents/generate', documentGenerateRoutes);
 app.use('/api/payroll-automation', payrollAutomationRoutes);
 
 // Health check
