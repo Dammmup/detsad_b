@@ -3,10 +3,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ILocation extends Document {
   name: string;
   description?: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
   radius: number; // meters
   address?: string;
   isActive: boolean;
@@ -35,20 +31,6 @@ const LocationSchema: Schema = new Schema({
     type: String,
     trim: true,
     maxlength: [500, 'Описание не может превышать 500 символов']
-  },
-  coordinates: {
-    latitude: { 
-      type: Number, 
-      required: [true, 'Широта обязательна'],
-      min: [-90, 'Широта должна быть от -90 до 90'],
-      max: [90, 'Широта должна быть от -90 до 90']
-    },
-    longitude: { 
-      type: Number, 
-      required: [true, 'Долгота обязательна'],
-      min: [-180, 'Долгота должна быть от -180 до 180'],
-      max: [180, 'Долгота должна быть от -180 до 180']
-    }
   },
   radius: { 
     type: Number, 
@@ -120,7 +102,6 @@ const LocationSchema: Schema = new Schema({
 });
 
 // Indexes for geospatial queries
-LocationSchema.index({ coordinates: '2dsphere' });
 LocationSchema.index({ isActive: 1, type: 1 });
 LocationSchema.index({ kindergartenId: 1, isActive: 1 });
 
@@ -164,58 +145,6 @@ LocationSchema.methods.isActiveAt = function(dateTime: Date, userRole: string): 
   }
   
   return true;
-};
-
-// Method to calculate distance from coordinates
-LocationSchema.methods.getDistanceFrom = function(latitude: number, longitude: number): number {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = this.coordinates.latitude * Math.PI/180;
-  const φ2 = latitude * Math.PI/180;
-  const Δφ = (latitude - this.coordinates.latitude) * Math.PI/180;
-  const Δλ = (longitude - this.coordinates.longitude) * Math.PI/180;
-
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-  return R * c;
-};
-
-// Method to check if coordinates are within radius
-LocationSchema.methods.isWithinRadius = function(latitude: number, longitude: number): boolean {
-  const distance = this.getDistanceFrom(latitude, longitude);
-  return distance <= this.radius;
-};
-
-// Static method to find nearby locations
-LocationSchema.statics.findNearby = function(
-  latitude: number, 
-  longitude: number, 
-  maxDistance: number = 1000,
-  userRole?: string
-) {
-  const query: any = {
-    coordinates: {
-      $near: {
-        $geometry: {
-          type: 'Point',
-          coordinates: [longitude, latitude]
-        },
-        $maxDistance: maxDistance
-      }
-    },
-    isActive: true
-  };
-  
-  if (userRole) {
-    query.$or = [
-      { allowedRoles: { $size: 0 } }, // No role restrictions
-      { allowedRoles: userRole }      // Role is allowed
-    ];
-  }
-  
-  return this.find(query);
 };
 
 export default mongoose.model<ILocation>('Location', LocationSchema);

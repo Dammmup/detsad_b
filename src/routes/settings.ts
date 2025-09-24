@@ -237,10 +237,10 @@ router.get('/geolocation', async (req: Request, res: Response) => {
           latitude: 51.1605, // Astana coordinates
           longitude: 71.4704
         },
-        yandexApiKey: '', // Empty by default
+        yandexApiKey: process.env.YANDEX_API_KEY || '', // From environment variable or empty by default
         strictMode: false,
         allowedDevices: [],
-        updatedBy: req.user?.id || null
+        updatedBy: (req as any).user?.id || null
       });
       await settings.save();
     }
@@ -261,7 +261,7 @@ router.put('/geolocation', async (req: AuthenticatedRequest | Request, res: Resp
 
     const updateData = {
       ...req.body,
-      updatedBy: req.user.id
+      updatedBy: (req as any).user?.id || null
     };
 
     let settings = await GeolocationSettings.findOne();

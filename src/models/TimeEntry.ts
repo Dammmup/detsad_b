@@ -2,10 +2,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ILocation {
   name: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
   radius: number; // meters
   timestamp: Date;
 }
@@ -36,10 +32,6 @@ export interface ITimeEntry extends Document {
 
 const LocationSchema = new Schema({
   name: { type: String, required: true },
-  coordinates: {
-    latitude: { type: Number, required: true },
-    longitude: { type: Number, required: true }
-  },
   radius: { type: Number, required: true, default: 100 },
   timestamp: { type: Date, default: Date.now }
 });
@@ -155,33 +147,6 @@ TimeEntrySchema.pre('save', function(this: ITimeEntry, next) {
   next();
 });
 
-// Method to check if location is within allowed area
-TimeEntrySchema.methods.isLocationValid = function(allowedLocations: ILocation[]) {
-  if (!this.clockInLocation) return false;
-  
-  return allowedLocations.some(location => {
-    const distance = calculateDistance(
-      this.clockInLocation!.coordinates,
-      location.coordinates
-    );
-    return distance <= location.radius;
-  });
-};
 
-// Helper function to calculate distance between coordinates
-function calculateDistance(coord1: {latitude: number, longitude: number}, coord2: {latitude: number, longitude: number}): number {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = coord1.latitude * Math.PI/180;
-  const φ2 = coord2.latitude * Math.PI/180;
-  const Δφ = (coord2.latitude-coord1.latitude) * Math.PI/180;
-  const Δλ = (coord2.longitude-coord1.longitude) * Math.PI/180;
-
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-  return R * c;
-}
 
 export default mongoose.model<ITimeEntry>('TimeEntry', TimeEntrySchema);

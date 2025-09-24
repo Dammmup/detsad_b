@@ -1,5 +1,6 @@
 import express, { Response, Request } from 'express';
 import User from '../models/Users';
+import Fine from '../models/Fine';
 import Group from '../models/Group';
 import ChildAttendance from '../models/ChildAttendance';
 import { authMiddleware } from '../middlewares/authMiddleware';
@@ -50,12 +51,24 @@ router.get('/', authMiddleware, async (req: any, res) => {
     // Создаем базовый запрос
     const query: any = { role: { $ne: 'admin' } };
     
+    console.log('🔍 Базовый фильтр для поиска пользователей:', query);
+    
     // Добавляем фильтр по типу, если он указан
     if (typeFilter) {
       query.type = typeFilter;
+      console.log('🔍 Добавлен фильтр по типу:', typeFilter);
     }
     
     const users = await User.find(query).select(projection);
+    console.log('🔍 Найдено пользователей:', users.length, 'для фильтра:', query);
+    
+    // Добавим логирование активных пользователей
+    if (typeFilter === 'adult') {
+      const activeUsers = users.filter(user => user.active === true);
+      const inactiveUsers = users.filter(user => user.active !== true);
+      console.log(`🔍 Из найденных ${users.length} взрослых пользователей: ${activeUsers.length} активных, ${inactiveUsers.length} неактивных`);
+    }
+    
     res.json(users);
   } catch (err) {
     console.error('Error in GET /users:', err);
@@ -276,7 +289,7 @@ router.put('/:id/salary', async (req, res) => {
   }
 });
 
-// Add a fine to user
+// Add a fine to user (create Fine document, update user's totalFines)
 router.post<{ id: string }, any, { amount: number; reason: string; type?: string; notes?: string }>('/:id/fines', async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -296,42 +309,35 @@ router.post<{ id: string }, any, { amount: number; reason: string; type?: string
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const newFine = {
+    const fineDoc = await Fine.create({
+      user: user._id,
       amount: Number(amount),
       reason,
       type,
       notes,
-      createdBy,
-      approved: true, // Auto-approve for now, can be changed
       date: new Date()
-    };
+    });
 
-    user.fines.push(newFine as any);
     user.totalFines = (user.totalFines || 0) + Number(amount);
     await user.save();
 
-    res.status(201).json(newFine);
+    res.status(201).json(fineDoc);
   } catch (error) {
     console.error('Error adding fine:', error);
     res.status(500).json({ error: 'Error adding fine' });
   }
 });
 
-// Get all fines for a user
+// Get all fines for a user (from Fine collection)
 router.get<{ id: string }>('/:id/fines', async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.params.id, 'fines totalFines')
-      .populate('fines.createdBy', 'firstName lastName')
-      .lean();
-    
+    const user = await User.findById(req.params.id, 'totalFines');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({
-      fines: user.fines,
-      totalFines: user.totalFines || 0
-    });
+    const fines = await Fine.find({ user: req.params.id }).sort({ date: -1 });
+    res.json({ fines, totalFines: user.totalFines || 0 });
   } catch (error) {
     console.error('Error getting fines:', error);
     res.status(500).json({ error: 'Error getting fines' });
@@ -342,21 +348,11 @@ router.get<{ id: string }>('/:id/fines', async (req: Request, res: Response) => 
 router.delete('/:userId/fines/:fineId', async (req, res) => {
   try {
     const { userId, fineId } = req.params;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const fineIndex = user.fines.findIndex((f: any) => f._id && f._id.toString() === fineId);
-    if (fineIndex === -1) {
+    const fine = await Fine.findByIdAndDelete(fineId);
+    if (!fine) {
       return res.status(404).json({ error: 'Fine not found' });
     }
-
-    const [removedFine] = user.fines.splice(fineIndex, 1);
-    user.totalFines = Math.max(0, (user.totalFines || 0) - (removedFine.amount || 0));
-    await user.save();
-
+    await User.findByIdAndUpdate(userId, { $inc: { totalFines: -Number(fine.amount || 0) } });
     res.json({ message: 'Fine removed successfully' });
   } catch (error) {
     console.error('Error removing fine:', error);

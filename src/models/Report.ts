@@ -15,7 +15,7 @@ export interface IReport extends Document {
     status?: string;
   };
   data: any; // JSON data for the report
-  format: 'pdf' | 'excel' | 'csv' | 'json';
+  format: 'pdf' | 'excel' | 'csv' | 'xlsx' | 'xls';
   status: 'generating' | 'completed' | 'failed' | 'scheduled';
   filePath?: string; // Path to generated file
   fileSize?: number; // File size in bytes
@@ -56,11 +56,11 @@ const ReportSchema: Schema = new Schema({
   },
   filters: {
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'users'
     },
     groupId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'Group'
     },
     department: {
@@ -79,7 +79,7 @@ const ReportSchema: Schema = new Schema({
   format: {
     type: String,
     required: [true, 'Формат отчета обязателен'],
-    enum: ['pdf', 'excel', 'csv', 'json'],
+    enum: ['pdf', 'excel', 'csv', 'xlsx', 'xls'],
     default: 'pdf'
   },
   status: {
@@ -112,7 +112,7 @@ const ReportSchema: Schema = new Schema({
     }
   }],
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'users',
     required: [true, 'Создатель отчета обязателен']
   }
@@ -125,6 +125,8 @@ ReportSchema.index({ type: 1, status: 1 });
 ReportSchema.index({ createdBy: 1, createdAt: -1 });
 ReportSchema.index({ 'dateRange.startDate': 1, 'dateRange.endDate': 1 });
 ReportSchema.index({ scheduledFor: 1, status: 1 });
+ReportSchema.index({ 'filters.userId': 1 });
+ReportSchema.index({ 'filters.groupId': 1 });
 
 // Валидация дат
 ReportSchema.pre('validate', function(this: IReport) {

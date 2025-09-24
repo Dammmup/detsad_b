@@ -13,6 +13,7 @@ export interface IPayroll extends Document {
     comment: string;
   }>
   penalties: number; // штрафы
+  userFines?: number; // штрафы из профиля пользователя
   total: number; // итог к выплате
   status: 'draft' | 'approved' | 'paid';
   history: Array<{
@@ -40,6 +41,7 @@ const PayrollSchema = new Schema<IPayroll>({
     }
   ],
   penalties: { type: Number, default: 0 },
+  userFines: { type: Number, default: 0 }, // штрафы из профиля пользователя
   total: { type: Number, default: 0 },
   status: { type: String, enum: ['draft', 'approved', 'paid'], default: 'draft' },
   history: [

@@ -1,20 +1,33 @@
 import express from 'express';
 import StaffTimeTracking from '../models/StaffTimeTracking';
 import { authorizeRole } from '../middlewares/authRole';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { GeolocationSettings } from '../models/Settings';
 
 const router = express.Router();
 
 // POST /api/staff-time-tracking — создать/отметить время
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, authorizeRole(['admin', 'staff']), async (req: any, res) => {
   try {
+    console.log('=== POST /api/staff-time-tracking ===');
+    console.log('User:', req.user);
+    console.log('Body:', req.body);
+    
     // Геофенсинг: сравнить координаты с эталонной точкой учреждения и радиусом
     const { location } = req.body;
-    // Эталонная точка (можно вынести в настройки)
-    const refLat = 43.222;
-    const refLon = 76.851;
+    
+    // Получаем настройки геолокации
+    const geolocationSettings = await GeolocationSettings.findOne();
+    
+    // Используем координаты из настроек или значения по умолчанию
+    const refLat = geolocationSettings?.coordinates?.latitude || 43.222;
+    const refLon = geolocationSettings?.coordinates?.longitude || 76.851;
+    const defaultRadius = geolocationSettings?.radius || 100;
+    
     const lat = Number(location?.latitude);
     const lon = Number(location?.longitude);
-    const radius = Number(location?.radius) || 100;
+    const radius = Number(location?.radius) || defaultRadius;
+    
     // Haversine formula
     function isInsideRadius(lat1: number, lon1: number, lat2: number, lon2: number, radius: number) {
       const R = 6371000;
@@ -25,6 +38,7 @@ router.post('/', async (req, res) => {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       return R * c <= radius;
     }
+    
     const inZone = isInsideRadius(refLat, refLon, lat, lon, radius);
     const record = new StaffTimeTracking({ ...req.body, inZone });
     await record.save();
@@ -35,8 +49,12 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/staff-time-tracking — получить табель по сотруднику/периоду
-router.get('/', authorizeRole(['admin', 'staff']), async (req, res) => {
+router.get('/', authorizeRole(['admin', 'staff']), async (req: any, res) => {
   try {
+    console.log('=== GET /api/staff-time-tracking ===');
+    console.log('User:', req.user);
+    console.log('Query:', req.query);
+    
     const { staffId, from, to } = req.query;
     const filter: any = {};
     if (staffId) filter.staffId = staffId;

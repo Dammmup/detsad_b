@@ -14,6 +14,10 @@ import childAttendanceRoutes from './routes/childAttendance';
 import staffTimeTrackingRoutes from './routes/staffTimeTracking';
 import payrollRoutes from './routes/payroll';
 import settingsRoutes from './routes/settings';
+import documentsRoutes from './routes/documents';
+import reportsRoutes from './routes/reports';
+import payrollAutomationRoutes from './routes/payrollAutomation';
+import { initializeTaskScheduler } from './services/taskScheduler';
 dotenv.config();
 
 const app = express();
@@ -35,6 +39,9 @@ app.use('/api/child-attendance', childAttendanceRoutes);
 app.use('/api/staff-time-tracking', staffTimeTrackingRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/documents', documentsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/payroll-automation', payrollAutomationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -85,6 +92,9 @@ const startServer = async () => {
       console.log(`👥 Users API: http://localhost:${PORT}/api/users`);
       console.log(`📚 Groups API: http://localhost:${PORT}/`);
       console.log(`⏰ Time Tracking API: http://localhost:${PORT}/api/time-tracking`);
+      
+      // Инициализируем планировщик задач
+      initializeTaskScheduler();
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

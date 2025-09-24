@@ -16,13 +16,9 @@ export interface IStaffAttendance extends Document {
   earlyLeaveMinutes?: number;
   location?: {
     checkIn?: {
-      latitude: number;
-      longitude: number;
       address?: string;
     };
     checkOut?: {
-      latitude: number;
-      longitude: number;
       address?: string;
     };
   };
@@ -99,13 +95,9 @@ const StaffAttendanceSchema: Schema = new Schema({
   },
   location: {
     checkIn: {
-      latitude: Number,
-      longitude: Number,
       address: String
     },
     checkOut: {
-      latitude: Number,
-      longitude: Number,
       address: String
     }
   },

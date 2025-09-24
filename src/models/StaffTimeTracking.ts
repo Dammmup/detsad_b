@@ -7,13 +7,9 @@ export interface IStaffTimeTracking extends Document {
   checkInTime?: Date;
   checkOutTime?: Date;
   checkInLocation?: {
-    latitude: number;
-    longitude: number;
     address?: string;
   };
   checkOutLocation?: {
-    latitude: number;
-    longitude: number;
     address?: string;
   };
   workDuration?: number; // minutes
@@ -72,13 +68,9 @@ const StaffTimeTrackingSchema: Schema = new Schema({
   checkInTime: Date,
   checkOutTime: Date,
   checkInLocation: {
-    latitude: Number,
-    longitude: Number,
     address: String
   },
   checkOutLocation: {
-    latitude: Number,
-    longitude: Number,
     address: String
   },
   workDuration: {

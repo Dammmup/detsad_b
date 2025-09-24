@@ -15,8 +15,10 @@ import staffAttendanceRoutes from './routes/staffAttendance';
 import exportsRoutes from './routes/exports';
 import DataCleanupService from './services/dataCleanupService';
 import settingsRoutes from './routes/settings';
+import reportsRoutes from './routes/reports';
 import { authMiddleware } from './middlewares/authMiddleware';
-
+import payrollAutomationRoutes from './routes/payrollAutomation';
+import payrollRoutes from './routes/payroll';
 dotenv.config();
 
 const app = express();
@@ -47,6 +49,10 @@ app.use('/api/staff-shifts', staffShiftRoutes);
 app.use('/api/staff-attendance', staffAttendanceRoutes);
 app.use('/api/exports', exportsRoutes);
 app.use('/api/settings', authMiddleware, settingsRoutes);
+app.use('/api/documents', authMiddleware);
+app.use('/api/reports', authMiddleware, reportsRoutes);
+app.use('/api/payroll-automation', authMiddleware, payrollAutomationRoutes);
+app.use('/api/payroll', authMiddleware, payrollRoutes);
 app.get('/', (req, res) => {
   res.send('Test Backend API');
 });

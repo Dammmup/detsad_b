@@ -34,7 +34,6 @@ export interface IUser extends Document {
 
   // Поля для сотрудников (type: 'adult')
   salary?: number;
-  fines: IFine[];
   totalFines: number;
   
   // Поля для детей (type: 'child')
@@ -108,15 +107,6 @@ const UserSchema: Schema = new Schema({
     default: 0,
     min: [0, 'Зарплата не может быть отрицательной']
   },
-  fines: [{
-    amount: { type: Number, required: true },
-    reason: { type: String, required: true },
-    date: { type: Date, default: Date.now },
-    type: { type: String, enum: ['late', 'other'], default: 'other' },
-    approved: { type: Boolean, default: false },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    notes: String
-  }],
   totalFines: { type: Number, default: 0 },
   
   // Поля для детей (type: 'child')
