@@ -20,7 +20,7 @@ router.get('/debug', authMiddleware, async (req: any, res) => {
     res.json({
       totalRecords,
       recentRecords,
-      collectionName: 'staffattendances'
+      collectionName: 'attendances'
     });
   } catch (err) {
     console.error('Debug endpoint error:', err);
@@ -285,14 +285,24 @@ router.post('/check-in', authMiddleware, async (req: any, res) => {
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
     attendance.actualStart = currentTime;
-    attendance.status = 'in_progress';
+    attendance.actualStart = currentTime;
     
-    // Calculate lateness
-    // StaffShift model doesn't have calculateLateness method, so we'll skip this for now
-    // In a real implementation, you would add this method to StaffShift model
-    console.log('Lateness calculation skipped (StaffShift model limitation)');
-    // Set status to in_progress
-    attendance.status = 'in_progress';
+    // Calculate lateness manually
+    if (attendance.startTime) {
+      const scheduled = attendance.startTime.split(':').map(Number);
+      const actual = currentTime.split(':').map(Number);
+      
+      const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
+      const actualMinutes = actual[0] * 60 + actual[1];
+      
+      const lateMinutes = Math.max(0, actualMinutes - scheduledMinutes);
+      attendance.lateMinutes = lateMinutes;
+      
+      // For StaffShift model, we keep the status as 'in_progress' regardless of lateness
+      attendance.status = 'in_progress';
+    } else {
+      attendance.status = 'in_progress';
+    }
     
     await attendance.save();
     
@@ -361,17 +371,36 @@ router.post('/check-out', authMiddleware, async (req: any, res) => {
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
     attendance.actualEnd = currentTime;
-    attendance.status = 'completed';
     
-    // Calculate overtime and early leave
-    // StaffShift model doesn't have calculateOvertime and calculateEarlyLeave methods, so we'll skip this for now
-    // In a real implementation, you would add these methods to StaffShift model
-    console.log('Overtime and early leave calculation skipped (StaffShift model limitation)');
-    const overtimeMinutes = 0;
-    const earlyLeaveMinutes = 0;
+    // Calculate overtime and early leave manually
+    let overtimeMinutes = 0;
+    let earlyLeaveMinutes = 0;
+    
+    if (attendance.endTime) {
+      const scheduled = attendance.endTime.split(':').map(Number);
+      const actual = currentTime.split(':').map(Number);
+      
+      const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
+      const actualMinutes = actual[0] * 60 + actual[1];
+      
+      if (actualMinutes > scheduledMinutes) {
+        overtimeMinutes = actualMinutes - scheduledMinutes;
+      } else {
+        earlyLeaveMinutes = scheduledMinutes - actualMinutes;
+      }
+    }
     
     attendance.overtimeMinutes = overtimeMinutes;
     attendance.earlyLeaveMinutes = earlyLeaveMinutes;
+    
+    // Update status based on existing status and new information
+    // For StaffShift model, we just set the status to completed
+    attendance.status = 'completed';
+    
+    // Update lateMinutes field if it exists
+    if (attendance.lateMinutes && attendance.lateMinutes > 0) {
+      // We keep the late minutes information but don't change the status
+    }
     
     await attendance.save();
     

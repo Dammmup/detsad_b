@@ -19,6 +19,7 @@ import medicalJournalRoutes from './routes/medicalJournal';
 import documentGenerateRoutes from './routes/documentGenerate';
 import reportsRoutes from './routes/reports';
 import payrollAutomationRoutes from './routes/payrollAutomation';
+import taskListRoutes from './routes/taskList';
 import { initializeTaskScheduler } from './services/taskScheduler';
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/medical-journals', medicalJournalRoutes);
 app.use('/api/documents/generate', documentGenerateRoutes);
 app.use('/api/payroll-automation', payrollAutomationRoutes);
+app.use('/api/task-list', taskListRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

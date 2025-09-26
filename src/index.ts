@@ -19,6 +19,8 @@ import reportsRoutes from './routes/reports';
 import { authMiddleware } from './middlewares/authMiddleware';
 import payrollAutomationRoutes from './routes/payrollAutomation';
 import payrollRoutes from './routes/payroll';
+import taskListRoutes from './routes/taskList';
+
 dotenv.config();
 
 const app = express();
@@ -53,6 +55,7 @@ app.use('/api/documents', authMiddleware);
 app.use('/api/reports', authMiddleware, reportsRoutes);
 app.use('/api/payroll-automation', authMiddleware, payrollAutomationRoutes);
 app.use('/api/payroll', authMiddleware, payrollRoutes);
+app.use('/api/task-list', authMiddleware, taskListRoutes);
 app.get('/', (req, res) => {
   res.send('Test Backend API');
 });
