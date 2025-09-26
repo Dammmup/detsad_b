@@ -125,7 +125,6 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           staffId: employee._id,
           month,
           accruals: baseSalary,
-          bonuses: 0, // Пока без премий
           penalties: totalPenalties,
           // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
           latePenalties: attendancePenalties.latePenalties,

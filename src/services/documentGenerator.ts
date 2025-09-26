@@ -4,7 +4,7 @@ import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { IUser } from '../models/Users';
 
-export async function generateDocx(templateName: string, user: IUser, date: string, extra: Record<string, any> = {}) {
+export async function generateDocx(templateName: string, user: IUser | null, date: string, extra: Record<string, any> = {}) {
   // Путь к шаблону
   const templatePath = path.join(__dirname, '../../templates', `${templateName}.docx`);
   const content = fs.readFileSync(templatePath, 'binary');
@@ -13,10 +13,10 @@ export async function generateDocx(templateName: string, user: IUser, date: stri
 
   // Формируем данные для шаблона
   const data = {
-    fullName: user.fullName,
-    parentName: user.parentName,
-    parentPhone: user.parentPhone,
-    birthday: user.birthday ? user.birthday.toLocaleDateString() : '',
+    fullName: user?.fullName || '',
+    parentName: user?.parentName || '',
+    parentPhone: user?.parentPhone || '',
+    birthday: user?.birthday ? (user.birthday as any).toLocaleDateString ? (user.birthday as any).toLocaleDateString() : user.birthday.toString() : '',
     date,
     ...extra
   };

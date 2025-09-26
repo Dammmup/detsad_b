@@ -13,8 +13,11 @@ const router = express.Router();
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { template, userId, date, extra = {}, format = 'docx', entries = [] } = req.body;
-    const user = userId ? await Users.findById(userId) : null;
-    if (userId && !user) return res.status(404).json({ message: 'Пользователь не найден' });
+    let user = null;
+    if (userId) {
+      user = await Users.findById(userId);
+      if (!user) return res.status(404).json({ message: 'Пользователь не найден' });
+    }
 
     let fileBuffer: Buffer;
     let filename = '';
@@ -34,7 +37,7 @@ router.post('/', async (req: Request, res: Response) => {
       // PDF справка
       fileBuffer = await generateCertificatePDF({
         fullName: user?.fullName || extra.fullName || '',
-        birthday: user?.birthday ? user.birthday.toLocaleDateString() : extra.birthday,
+        birthday: user?.birthday ? (user.birthday as any).toLocaleDateString ? (user.birthday as any).toLocaleDateString() : user.birthday.toString() : extra.birthday,
         parentName: user?.parentName || extra.parentName,
         date,
         reason: extra.reason

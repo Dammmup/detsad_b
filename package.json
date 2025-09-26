@@ -41,6 +41,7 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^20.11.30",
     "@types/nodemailer": "^7.0.1",
+    "@types/pdfkit": "^0.17.3",
     "@types/supertest": "^6.0.3",
     "axios": "^1.11.0",
     "dotenv": "^17.2.2",

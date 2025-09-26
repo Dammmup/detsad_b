@@ -403,7 +403,6 @@ router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest |
           { id: 'staffName', title: 'Сотрудник' },
           { id: 'month', title: 'Месяц' },
           { id: 'accruals', title: 'Начисления' },
-          { id: 'bonuses', title: 'Премии' },
           { id: 'penalties', title: 'Штрафы' },
           { id: 'total', title: 'Итого' }
         ]
@@ -431,7 +430,6 @@ router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest |
         { header: 'Сотрудник', key: 'staffName', width: 30 },
         { header: 'Месяц', key: 'month', width: 15 },
         { header: 'Начисления', key: 'accruals', width: 15 },
-        { header: 'Премии', key: 'bonuses', width: 15 },
         { header: 'Штрафы', key: 'penalties', width: 15 },
         { header: 'Итого', key: 'total', width: 15 }
       ];
