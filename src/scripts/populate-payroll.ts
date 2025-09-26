@@ -63,7 +63,6 @@ const populatePayrollData = async () => {
     let totalPenalties = 0;
     let totalPayout = 0;
     
-    const baseSalary = 150000;
     for (const employee of staff) {
       const accruals = baseSalary + Math.floor(Math.random() * 50000);
       const bonuses = Math.floor(Math.random() * 50000);
