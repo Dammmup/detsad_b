@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import Report, { IReport } from '../models/Report';
 import User from '../models/Users';
 import Group from '../models/Group';
-import StaffAttendance from '../models/StaffAttendance';
+import StaffAttendance from '../models/StaffShift';
 import { AuthenticatedRequest } from '../types/express';
 import Payroll from '../models/Payroll';
 import { createObjectCsvStringifier } from 'csv-writer';
@@ -33,10 +33,10 @@ router.get('/attendance-statistics', async (req: Request, res: Response) => {
     const uniqueDays = new Set(records.map(r => new Date(r.date).toDateString()));
     const totalDays = uniqueDays.size;
     const presentDays = new Set(records
-      .filter(r => ['in_progress','completed','late'].includes(r.status))
+      .filter(r => ['in_progress','completed'].includes(r.status))
       .map(r => new Date(r.date).toDateString())
     ).size;
-    const lateDays = records.filter(r => (r.lateMinutes || 0) > 0 || r.status === 'late').length;
+    const lateDays = records.filter(r => (r.lateMinutes || 0) > 0).length;
     const absentDays = records.filter(r => r.status === 'no_show').length;
     const earlyLeaveDays = records.filter(r => (r.earlyLeaveMinutes || 0) > 0).length;
     const sickDays = records.filter((r: any) => r.shiftType === 'sick_leave').length;
@@ -380,23 +380,28 @@ router.post('/:id/export', authMiddleware, async (req: AuthenticatedRequest | Re
 // Export salary report
 router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest | Request, res: Response) => {
   try {
+    console.log('[salary/export] req.user:', req.user);
+    console.log('[salary/export] req.body:', req.body);
+    const { startDate, endDate, userId, format } = req.body as any;
     if (!req.user) {
+      console.error('[salary/export] Нет пользователя!');
       return res.status(401).json({ error: 'Authentication required' });
     }
-
-    const { startDate, endDate, userId, format } = req.body as any;
     if (!startDate || !endDate) {
+      console.error('[salary/export] Нет дат:', { startDate, endDate });
       return res.status(400).json({ error: 'Дата начала и окончания обязательны' });
     }
-
+    if (!format) {
+      console.error('[salary/export] Нет формата:', { format });
+      return res.status(400).json({ error: 'Формат файла обязателен (csv, excel, json)'});
+    }
     const filter: any = {};
     if (userId) filter.staffId = userId;
     if (startDate && endDate) {
       filter.month = { $gte: startDate, $lte: endDate };
     }
-
+    console.log('[salary/export] filter:', filter);
     const payrolls = await Payroll.find(filter).populate('staffId', 'fullName role email');
-
     if (format === 'csv') {
       const csvWriter = createObjectCsvStringifier({
         header: [
@@ -407,7 +412,6 @@ router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest |
           { id: 'total', title: 'Итого' }
         ]
       });
-
       const records = payrolls.map(p => ({
         staffName: (p.staffId as any)?.fullName || 'Неизвестно',
         month: p.month,
@@ -416,13 +420,11 @@ router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest |
         penalties: p.penalties,
         total: p.total
       }));
-
       const csvContent = csvWriter.getHeaderString() + csvWriter.stringifyRecords(records);
       res.header('Content-Type', 'text/csv');
       res.attachment('salary_report.csv');
       return res.send(csvContent);
     }
-
     if (format === 'excel') {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Отчет по зарплатам');
@@ -433,7 +435,6 @@ router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest |
         { header: 'Штрафы', key: 'penalties', width: 15 },
         { header: 'Итого', key: 'total', width: 15 }
       ];
-
       payrolls.forEach(p => {
         worksheet.addRow({
           staffName: (p.staffId as any)?.fullName || 'Неизвестно',
@@ -444,13 +445,11 @@ router.post('/salary/export', authMiddleware, async (req: AuthenticatedRequest |
           total: p.total
         });
       });
-
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="salary_report.xlsx"');
       const buffer = await workbook.xlsx.writeBuffer();
       return res.send(Buffer.from(buffer));
     }
-
     // default JSON
     return res.json({ success: true, data: payrolls });
   } catch (error) {

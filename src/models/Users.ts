@@ -32,8 +32,10 @@ export interface IUser extends Document {
   birthday?: Date;
   notes?: string;
 
-  // Поля для сотрудников (type: 'adult')
   salary?: number;
+  salaryType?: 'per_day' | 'per_month';
+  penaltyType?: 'per_minute' | 'per_5_minutes' | 'per_10_minutes';
+  penaltyAmount?: number;
   totalFines: number;
   
   // Поля для детей (type: 'child')
@@ -107,7 +109,24 @@ const UserSchema: Schema = new Schema({
     default: 0,
     min: [0, 'Зарплата не может быть отрицательной']
   },
-  totalFines: { type: Number, default: 0 },
+  salaryType: {
+    type: String,
+    enum: ['per_day', 'per_month'],
+    default: 'per_month',
+    required: function(this: IUser) { return this.type === 'adult'; }
+  },
+  penaltyType: {
+    type: String,
+    enum: ['per_minute', 'per_5_minutes', 'per_10_minutes'],
+    default: 'per_5_minutes',
+    required: function(this: IUser) { return this.type === 'adult'; }
+  },
+  penaltyAmount: {
+    type: Number,
+    default: 0,
+    min: [0, 'Штраф не может быть отрицательным']
+  },
+  // totalFines убран, штрафы считаются через коллекцию Fine
   
   // Поля для детей (type: 'child')
   parentName: { 

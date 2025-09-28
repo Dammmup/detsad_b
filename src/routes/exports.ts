@@ -1,8 +1,9 @@
 import express from 'express';
 import User from '../models/Users';
+import Child from '../models/Child';
 import Group from '../models/Group';
 import ChildAttendance from '../models/ChildAttendance';
-import StaffAttendance from '../models/StaffAttendance';
+import StaffAttendance from '../models/StaffShift';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { authorizeRole } from '../middlewares/authRole';
 import DataCleanupService from '../services/dataCleanupService';
@@ -93,7 +94,7 @@ router.post('/schedule', authMiddleware, async (req: any, res) => {
 router.post('/children-attendance', authMiddleware, async (req: any, res) => {
   try {
     const attendance = await ChildAttendance.find({});
-    const children = await User.find({ type: 'child' });
+    const children = await Child.find({});
     const groups = await Group.find({});
     const exportData = attendance.map(record => {
       const child = children.find(c => (c as any)._id.toString() === record.childId.toString());
@@ -139,8 +140,8 @@ router.post('/staff-attendance', authMiddleware, async (req: any, res) => {
         group?.name || '',
         record.date,
         record.status,
-        record.location?.checkIn || '',
-        record.location?.checkOut || '',
+        record.actualStart || '',
+        record.actualEnd || '',
         record.notes || ''
       ];
     });
@@ -165,9 +166,10 @@ router.post('/staff-attendance', authMiddleware, async (req: any, res) => {
 router.post('/children', authMiddleware, async (req: any, res) => {
   try {
     const groupId = req.body.groupId || req.query.groupId || 'all';
-    const users = await User.find({ type: 'child', ...(groupId !== 'all' ? { groupId } : {}) });
+    const filter: any = groupId !== 'all' ? { groupId } : {};
+    const children = await Child.find(filter);
     const groups = await Group.find({});
-    const exportData = users.map(child => {
+    const exportData = children.map(child => {
       const group = groups.find(g => (g as any)._id.toString() === child.groupId?.toString());
       return {
         fullName: child.fullName || '',
@@ -211,18 +213,10 @@ router.post('/children', authMiddleware, async (req: any, res) => {
 router.get('/children', authMiddleware, authorizeRole(['admin', 'teacher']), async (req: any, res) => {
   try {
     console.log('📊 Export children list request from:', req.user.fullName);
-    
     const { groupId } = req.query;
-    
-    // Фильтр для детей
-    const filter: any = { type: 'child' };
-    if (groupId && groupId !== 'all') {
-      filter.groupId = groupId;
-    }
-    
-    const children = await User.find(filter);
+    const filter: any = groupId && groupId !== 'all' ? { groupId } : {};
+    const children = await Child.find(filter);
     const groups = await Group.find({});
-    
     // Подготавливаем данные для экспорта
     const exportData = children.map(child => {
       const group = groups.find(g => (g as any)._id.toString() === child.groupId?.toString());
@@ -237,11 +231,9 @@ router.get('/children', authMiddleware, authorizeRole(['admin', 'teacher']), asy
         status: 'Активный'
       };
     });
-    
     const groupName = groupId && groupId !== 'all' 
       ? groups.find(g => g?._id?.toString() === groupId)?.name 
       : null;
-    
     res.json({
       success: true,
       data: exportData,
@@ -249,7 +241,6 @@ router.get('/children', authMiddleware, authorizeRole(['admin', 'teacher']), asy
       totalCount: children.length,
       exportDate: new Date().toISOString()
     });
-    
   } catch (error) {
     console.error('Error exporting children list:', error);
     res.status(500).json({ error: 'Ошибка экспорта списка детей' });

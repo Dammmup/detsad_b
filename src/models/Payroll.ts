@@ -1,20 +1,29 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+
+/**
+ * Модель Payroll (зарплата сотрудника за месяц)
+ *
+ * - staffId: сотрудник
+ * - month: месяц (YYYY-MM)
+ * - accruals: начисления (оклад, надбавки)
+ * - deductions: вычеты (налоги, удержания)
+ * - bonuses: премии
+ * - total: итог к выплате (accruals + bonuses - deductions - штрафы)
+ * - status: статус (draft, approved, paid)
+ * - history: история изменений
+ * - createdAt, updatedAt: служебные поля
+ *
+ * Детализация штрафов берётся из коллекции Fine по staffId и периоду.
+ */
 export interface IPayroll extends Document {
   staffId: mongoose.Types.ObjectId;
   month: string; // YYYY-MM
-  accruals: number; // начисления
-  deductions: number; // вычеты
-  bonuses: number; // премии
-  fines: Array<{ // штрафы
-    date: Date;
-    type: string;
-    amount: number;
-    comment: string;
-  }>
-  penalties: number; // штрафы
-  userFines?: number; // штрафы из профиля пользователя
-  total: number; // итог к выплате
+  accruals: number;
+  deductions: number;
+  bonuses: number;
+  penalties: number;
+  total: number;
   status: 'draft' | 'approved' | 'paid';
   history: Array<{
     date: Date;
@@ -31,17 +40,9 @@ const PayrollSchema = new Schema<IPayroll>({
   month: { type: String, required: true },
   accruals: { type: Number, default: 0 },
   deductions: { type: Number, default: 0 },
-  bonuses: { type: Number, default: 0 },
-  fines: [
-    {
-      date: { type: Date, default: Date.now },
-      type: String, // например, 'late', 'absence', 'other'
-      amount: Number,
-      comment: String
-    }
-  ],
   penalties: { type: Number, default: 0 },
-  userFines: { type: Number, default: 0 }, // штрафы из профиля пользователя
+  bonuses: { type: Number, default: 0 },
+  // Детализация штрафов берётся из коллекции Fine по staffId и периоду
   total: { type: Number, default: 0 },
   status: { type: String, enum: ['draft', 'approved', 'paid'], default: 'draft' },
   history: [

@@ -1,5 +1,5 @@
 import Payroll from '../models/Payroll';
-import StaffAttendance from '../models/StaffAttendance';
+import StaffShift, { IStaffShift } from '../models/StaffShift';
 import User, { IUser } from '../models/Users';
 import Fine from '../models/Fine';
 import EmailService from './emailService';
@@ -22,7 +22,7 @@ const calculatePenalties = async (staffId: string, month: string) => {
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   
   // Получаем посещаемость сотрудника за указанный месяц
-  const attendanceRecords = await StaffAttendance.find({
+  const attendanceRecords: IStaffShift[] = await StaffShift.find({
     staffId,
     date: {
       $gte: startDate,
@@ -35,8 +35,8 @@ const calculatePenalties = async (staffId: string, month: string) => {
   let absencePenalties = 0;
   
   // Штрафы за опоздания: 100 тг за каждые 5 минут опоздания
- const lateRecords = attendanceRecords.filter(record => record.lateMinutes && record.lateMinutes > 0);
-  latePenalties = lateRecords.reduce((sum, record) => {
+  const lateRecords = attendanceRecords.filter((record: IStaffShift) => record.lateMinutes && record.lateMinutes > 0);
+  latePenalties = lateRecords.reduce((sum: number, record: IStaffShift) => {
     if (record.lateMinutes) {
       return sum + Math.ceil(record.lateMinutes / 5) * 100;
     }
@@ -44,7 +44,7 @@ const calculatePenalties = async (staffId: string, month: string) => {
   }, 0);
   
   // Штрафы за неявки: 630 тг за каждый случай (60*10,5 минут как в задании)
-  const absenceRecords = attendanceRecords.filter(record => record.status === 'no_show');
+  const absenceRecords = attendanceRecords.filter((record: IStaffShift) => record.status === 'no_show');
   absencePenalties = absenceRecords.length * 630;
   
   totalPenalty = latePenalties + absencePenalties;
@@ -200,7 +200,7 @@ const clearAttendancePenalties = async (month: string) => {
     
     // Помечаем записи посещаемости как обработанные
     // В реальной системе здесь может быть архивирование или удаление записей
-    await StaffAttendance.updateMany(
+  await StaffShift.updateMany(
       {
         date: {
           $gte: new Date(`${month}-01`),

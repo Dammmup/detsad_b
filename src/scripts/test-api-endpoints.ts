@@ -275,7 +275,7 @@ class ApiEndpointTester {
       endDate: '2025-09-30'
     };
     
-    await this.testPostEndpoint('/payroll/export', exportData, 'Экспорт отчета по зарплатам');
+    await this.testPostEndpoint('/api/payroll/export', exportData, 'Экспорт отчета по зарплатам');
   }
 
   // Запуск всех тестов

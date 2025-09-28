@@ -11,7 +11,7 @@ dotenv.config();
 const populatePayrollAndReportsData = async () => {
   try {
     // Подключение к базе данных
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kindergarten';
+    const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/kindergarten';
     await mongoose.connect(mongoURI);
     console.log('✅ Подключено к базе данных');
 

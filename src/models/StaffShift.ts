@@ -8,10 +8,12 @@ export interface IStaffShift extends Document {
   endTime: string; // HH:MM format
   actualStart?: string; // HH:MM format
   actualEnd?: string; // HH:MM format
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'late';
   breakTime?: number; // minutes
   overtimeMinutes?: number;
   lateMinutes?: number;
+  groupId?: mongoose.Types.ObjectId;
+  location: string;
   earlyLeaveMinutes?: number;
   notes?: string;
   createdBy: mongoose.Types.ObjectId;

@@ -1,7 +1,8 @@
 import cron from 'node-cron';
 import ChildAttendance from '../models/ChildAttendance';
-import StaffAttendance from '../models/StaffAttendance';
+import StaffAttendance from '../models/StaffShift';
 import User from '../models/Users';
+import Child from '../models/Child';
 import Group from '../models/Group';
 import EmailService, { ExcelReportData } from './emailService';
 
@@ -15,7 +16,7 @@ class DataCleanupService {
   // Получение данных для отчетов
   private async getChildrenListData(): Promise<ExcelReportData> {
     try {
-      const children = await User.find({ type: 'child' });
+  const children = await Child.find({});
       const groups = await Group.find({});
       
       const data = children.map(child => {
@@ -110,7 +111,7 @@ class DataCleanupService {
         }
       });
 
-      const children = await User.find({ type: 'child' });
+  const children = await Child.find({});
       const groups = await Group.find({});
       
       const data = attendance.map(record => {

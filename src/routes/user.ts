@@ -1,5 +1,6 @@
 import express, { Response, Request } from 'express';
 import User from '../models/Users';
+import Payroll from '../models/Payroll';
 import Fine from '../models/Fine';
 import Group from '../models/Group';
 import ChildAttendance from '../models/ChildAttendance';
@@ -8,6 +9,26 @@ import bcrypt from 'bcryptjs';
 import { AuthenticatedRequest } from '../types/express';
 
 const router = express.Router();
+
+// Обновить зарплатные и штрафные настройки сотрудника
+router.put('/:id/payroll-settings', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (req.body.salaryType) user.salaryType = req.body.salaryType;
+    if (req.body.salary !== undefined) user.salary = req.body.salary;
+    if (req.body.penaltyType) user.penaltyType = req.body.penaltyType;
+    if (req.body.penaltyAmount !== undefined) user.penaltyAmount = req.body.penaltyAmount;
+    await user.save();
+    const userObj = user.toObject();
+    delete (userObj as any).passwordHash;
+    res.json(userObj);
+  } catch (err) {
+    res.status(500).json({ error: 'Error updating payroll settings' });
+  }
+});
 
 // Get available user roles
 router.get('/roles', (req, res) => {
@@ -34,41 +55,18 @@ router.get('/roles', (req, res) => {
 router.get('/', authMiddleware, async (req: any, res) => {
   try {
     const includePasswords = req.query.includePasswords === 'true';
-    const typeFilter = req.query.type; // Получаем параметр type из запроса
-    
     console.log('🔍 User requesting users list:', req.user?.fullName, 'Role:', req.user?.role);
     console.log('🔍 Include passwords requested:', includePasswords);
-    console.log('🔍 Type filter:', typeFilter);
-    
     // if passwords requested, verify requesting user is admin
     if (includePasswords && req.user?.role !== 'admin') {
       console.log('❌ Access denied - user role:', req.user?.role, 'required: admin');
       return res.status(403).json({ error: 'Forbidden' });
     }
-    
     const projection = includePasswords ? '+initialPassword -passwordHash' : '-passwordHash';
-    
-    // Создаем базовый запрос
+    // Только staff/adult
     const query: any = { role: { $ne: 'admin' } };
-    
-    console.log('🔍 Базовый фильтр для поиска пользователей:', query);
-    
-    // Добавляем фильтр по типу, если он указан
-    if (typeFilter) {
-      query.type = typeFilter;
-      console.log('🔍 Добавлен фильтр по типу:', typeFilter);
-    }
-    
     const users = await User.find(query).select(projection);
     console.log('🔍 Найдено пользователей:', users.length, 'для фильтра:', query);
-    
-    // Добавим логирование активных пользователей
-    if (typeFilter === 'adult') {
-      const activeUsers = users.filter(user => user.active === true);
-      const inactiveUsers = users.filter(user => user.active !== true);
-      console.log(`🔍 Из найденных ${users.length} взрослых пользователей: ${activeUsers.length} активных, ${inactiveUsers.length} неактивных`);
-    }
-    
     res.json(users);
   } catch (err) {
     console.error('Error in GET /users:', err);
@@ -84,33 +82,21 @@ router.post('/', async (req, res) => {
     // Логируем тело запроса для отладки
     console.log('POST /users req.body:', req.body);
 
-    // Валидация
-    const { type = 'adult' } = req.body;
-    let requiredFields: string[] = ['fullName'];
-
-    if (type === 'adult') {
-      requiredFields.push('phone', 'role', 'active');
-    }
-    if (type === 'child') {
-      requiredFields.push('iin', 'groupId', 'parentPhone', 'parentName');
-    }
-
+    // Валидация только для staff/adult
+    let requiredFields: string[] = ['fullName', 'phone', 'role', 'active'];
     // Детальная проверка каждого поля для отладки
     console.log('Проверка обязательных полей:');
     requiredFields.forEach(field => {
       const val = req.body[field];
       console.log(`${field}:`, val, typeof val, val === undefined, val === null, typeof val === 'string' && val.trim().length === 0);
     });
-
     const missingFields = requiredFields.filter(field => {
       const val = req.body[field];
-      // Более гибкая проверка
       if (val === undefined || val === null) return true;
       if (typeof val === 'string' && val.trim().length === 0) return true;
       if (typeof val === 'number' && isNaN(val)) return true;
       return false;
     });
-
     if (missingFields.length > 0) {
       return res.status(400).json({
         error: 'Не заполнены обязательные поля',
@@ -135,8 +121,8 @@ router.post('/', async (req, res) => {
       userData.groupId = req.body.groupId;
     }
 
-    // Для взрослых пользователей (type === 'adult'), если не указан passwordHash, генерируем его
-    if (type === 'adult' && !userData.passwordHash) {
+  // Для staff/adult, если не указан passwordHash, генерируем его
+  if (!userData.passwordHash) {
       // Генерируем случайный пароль
       const generateRandomPassword = (length: number = 8): string => {
         const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -170,6 +156,29 @@ router.post('/', async (req, res) => {
     // Логируем успешное создание
     console.log(`✅ Сотрудник создан: ${userData.fullName}`);
     
+    // После создания сотрудника — создать payroll на текущий месяц (если не admin и не child)
+    if (user.role !== 'admin' && user.role !== 'child') {
+      try {
+        const month = new Date().toISOString().slice(0, 7);
+        const exists = await Payroll.findOne({ staffId: user._id, month });
+        if (!exists) {
+          await Payroll.create({
+            staffId: user._id,
+            month,
+            accruals: 0,
+            deductions: 0,
+            bonuses: 0,
+            penalties: 0,
+            total: 0,
+            status: 'draft',
+            history: []
+          });
+          console.log(`✅ Payroll создан для сотрудника ${user.fullName} за ${month}`);
+        }
+      } catch (e) {
+        console.error('Ошибка при автосоздании payroll:', e);
+      }
+    }
     res.status(201).json(userObj);
   } catch (err: any) {
     console.error('Ошибка при создании пользователя:', err);
@@ -223,19 +232,10 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // If deleting a child, also delete all their attendance records
-    if (user.type === 'child') {
-      console.log(`Deleting attendance records for child: ${user.fullName}`);
-      const deletedAttendance = await ChildAttendance.deleteMany({ childId: user._id });
-      console.log(`Deleted ${deletedAttendance.deletedCount} attendance records`);
-    }
-    
     // Delete the user
     await User.findByIdAndDelete(req.params.id);
-    
     res.json({ 
-      message: 'User deleted successfully',
-      attendanceRecordsDeleted: user.type === 'child' ? true : false
+      message: 'User deleted successfully'
     });
   } catch (err) {
     console.error('Error deleting user:', err);
@@ -373,27 +373,6 @@ router.get('/:id/fines/total', async (req, res) => {
     res.status(500).json({ error: 'Error calculating total fines' });
   }
 });
-// Get children by group ID
-router.get('/group/:groupId/children', authMiddleware, async (req: any, res) => {
-  try {
-    const { groupId } = req.params;
-    
-    console.log('🔍 Requesting children for group:', groupId);
-    
-    // Find all children in the specified group
-    const children = await User.find({
-      type: 'child',
-      groupId: groupId,
-      active: true
-    }).select('-passwordHash').sort({ fullName: 1 });
-    
-    console.log(`✅ Found ${children.length} children in group ${groupId}`);
-    
-    res.json(children);
-  } catch (err) {
-    console.error('Error fetching children by group:', err);
-    res.status(500).json({ error: 'Ошибка при получении детей группы' });
-  }
-});
+// (Удалён endpoint получения детей по группе)
 
 export default router;
