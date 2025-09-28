@@ -82,10 +82,24 @@ app.use('/api/food-staff-health', foodStaffHealthRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Kindergarten Management System API',
     timestamp: new Date().toISOString()
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Kindergarten Management System API',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      users: '/api/users',
+      health: '/api/health'
+    },
+    documentation: 'Refer to the API documentation for details'
   });
 });
 
