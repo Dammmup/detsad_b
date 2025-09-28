@@ -30,22 +30,56 @@ router.post('/login', async (req, res) => {
   const { phone, password } = req.body;
   console.log('login:', phone, password);
   try {
-    const user = await User.findOne({ phone: phone || '' });
+    const user = await User.findOne({ phone: phone || '' }).select('+initialPassword');
     if (!user) {
       return res.status(401).json({ error: 'No account with this data' });
     }
-    // Проверяем пароль с использованием bcrypt
-    if (!user.passwordHash) {
+    
+    console.log('Found user:', {
+      _id: user._id,
+      fullName: user.fullName,
+      phone: user.phone,
+      hasPasswordHash: !!user.passwordHash,
+      hasInitialPassword: !!user.initialPassword,
+      initialPassword: user.initialPassword
+    });
+    
+    let isAuthenticated = false;
+    
+    // Проверяем пароль с использованием bcrypt, если passwordHash существует
+    if (user.passwordHash) {
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (isMatch) {
+        isAuthenticated = true;
+      }
+    }
+    
+    // Если не прошла проверка по passwordHash, пробуем проверить initialPassword
+    if (!isAuthenticated && user.initialPassword) {
+      if (password === user.initialPassword) {
+        isAuthenticated = true;
+      }
+    }
+    
+    console.log('Authentication result:', { isAuthenticated, password, initialPassword: user.initialPassword });
+    
+    if (!isAuthenticated) {
       return res.status(401).json({ error: 'incorrect password' });
     }
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'incorrect password' });
-    }
+    
     console.log('user for JWT:', user);
     const token = createJwtToken(user);
-    res.json({ token, role: user.role, fullName: user.fullName, id: user._id });
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        role: user.role,
+        phone: user.phone
+      }
+    });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

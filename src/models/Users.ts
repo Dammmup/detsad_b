@@ -19,11 +19,11 @@ export interface IUser extends Document {
   passwordHash?: string; // Хэш пароля
 
   // Первичный пароль (plaintext) для админа, удаляется после смены
-  initialPassword?: string;
+ initialPassword?: string;
 
   // Тип пользователя и роль
-  type: 'adult' | 'child';  // Взрослый (сотрудник) или ребенок
-  role: string;  // Для взрослых: admin, teacher, assistant, cook, cleaner, security, nurse, manager
+ type: 'adult' | 'child';  // Взрослый (сотрудник) или ребенок
+  role: string; // Для взрослых: admin, teacher, assistant, cook, cleaner, security, nurse, manager
                  // Для детей: child
   
   // Общие поля
@@ -74,7 +74,7 @@ const UserSchema: Schema = new Schema({
   // Первичный пароль (plaintext) – виден только при выборке с '+initialPassword'
   initialPassword: { type: String, select: false },
   
-  // Данные последнего логина
+ // Данные последнего логина
   lastLogin: { type: Date },
   
   // Тип пользователя и роль
