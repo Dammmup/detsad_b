@@ -37,35 +37,49 @@ import somaticJournalRoutes from './routes/somaticJournal';
 
 const app = express();
 
-// CORS configuration to handle credentials (cookies)
+const allowedLocalhosts = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:8080',
+  'http://localhost:5173', // для Vite
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+  'http://localhost:3006',
+  'http://localhost:3007',
+  'http://localhost:3008',
+  'http://localhost:3009',
+  'http://localhost:3010',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173'
+];
+
+const configuredOrigin = process.env.CORS_ORIGIN;
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN ||
-          (process.env.NODE_ENV === 'development' ?
-            [
-              'http://localhost:3000',
-              'http://localhost:3001',
-              'http://localhost:8080',
-              'http://localhost:5173', // для Vite
-              'http://localhost:3002',
-              'http://localhost:3003',
-              'http://localhost:3004',
-              'http://localhost:3005',
-              'http://localhost:3006',
-              'http://localhost:3007',
-              'http://localhost:3008',
-              'http://localhost:3009',
-              'http://localhost:3010',
-              'http://127.0.0.1:3000',
-              'http://127.0.0.1:301',
-              'http://127.0.0.1:5173'
-            ] :
-            ''), // Frontend URL
- credentials: true, // Enable credentials (cookies, authorization headers)
+  origin: (origin: any, callback: any) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+
+    // If CORS_ORIGIN is explicitly set, allow only that origin
+    if (configuredOrigin) {
+      return callback(null, origin === configuredOrigin);
+    }
+
+    // Otherwise, in development or when not configured, allow common localhost origins
+    if (allowedLocalhosts.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Fallback: reject other origins
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true, // Enable credentials (cookies, authorization headers)
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 };
-
 // Middleware
 app.use(cors(corsOptions));
 app.use(cookieParser());

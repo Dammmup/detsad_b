@@ -1,27 +1,24 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
+import User from '../models/Users'; // Импортируем модель User для проверки существования пользователя
 
 
 export interface AuthUser {
   id: string;
   role: string;
   [key: string]: any;
-  phone: string;
-  fullName: string;
+ phone: string;
+ fullName: string;
 }
 
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Нет токена авторизации' });
-  }
+  // Извлекаем токен из cookie
+  const token = req.cookies.auth_token;
   
-  const token = authHeader.split(' ')[1];
   if (!token) {
-    return res.status(401).json({ error: 'Неверный формат токена' });
-  }
+    return res.status(401).json({ error: 'Токен не предоставлен в cookie' });
+ }
   
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -31,8 +28,19 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   
   try {
     const decoded = jwt.verify(token, secret) as AuthUser;
-    req.user = decoded;
-    next();
+    
+    // Проверяем, что пользователь все еще существует в базе данных
+    User.findById(decoded.id).then(user => {
+      if (!user || !user.active) {
+        return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
+      }
+      
+      req.user = decoded;
+      next();
+    }).catch(err => {
+      console.error('❌ Ошибка проверки пользователя:', err);
+      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя' });
+    });
   } catch (err: any) {
     let errorMessage = 'Неверный токен';
     
