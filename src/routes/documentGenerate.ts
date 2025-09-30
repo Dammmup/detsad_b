@@ -9,7 +9,7 @@ import path from 'path';
 
 const router = express.Router();
 
-// POST /api/documents/generate
+// POST /documents/generate
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { template, userId, date, extra = {}, format = 'docx', entries = [] } = req.body;

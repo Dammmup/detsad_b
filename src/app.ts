@@ -6,6 +6,7 @@ import contactInfectionJournalRoutes from './routes/contactInfectionJournal';
 import riskGroupChildrenRoutes from './routes/riskGroupChildren';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import organolepticJournalRoutes from './routes/organolepticJournal';
 import perishableBrakRoutes from './routes/perishableBrak';
 import productCertificateRoutes from './routes/productCertificate';
@@ -24,7 +25,6 @@ import settingsRoutes from './routes/settings';
 import documentsRoutes from './routes/documents';
 import reportsRoutes from './routes/reports';
 import medicalJournalRoutes from './routes/medicalJournal';
-import vitaminizationJournalRoutes from './routes/vitaminizationJournal';
 import menuItemsRoutes from './routes/menuItems';
 import healthPassportRoutes from './routes/healthPassport';
 import documentGenerateRoutes from './routes/documentGenerate';
@@ -34,54 +34,84 @@ import childrenRoutes from './routes/children';
 import { initializeTaskScheduler } from './services/taskScheduler';
 import mantouxJournalRoutes from './routes/mantouxJournal';
 import somaticJournalRoutes from './routes/somaticJournal';
+
 const app = express();
 
+// CORS configuration to handle credentials (cookies)
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN ||
+          (process.env.NODE_ENV === 'development' ?
+            [
+              'http://localhost:3000',
+              'http://localhost:3001',
+              'http://localhost:8080',
+              'http://localhost:5173', // для Vite
+              'http://localhost:3002',
+              'http://localhost:3003',
+              'http://localhost:3004',
+              'http://localhost:3005',
+              'http://localhost:3006',
+              'http://localhost:3007',
+              'http://localhost:3008',
+              'http://localhost:3009',
+              'http://localhost:3010',
+              'http://127.0.0.1:3000',
+              'http://127.0.0.1:301',
+              'http://127.0.0.1:5173'
+            ] :
+            ''), // Frontend URL
+ credentials: true, // Enable credentials (cookies, authorization headers)
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/groups', groupRoutes);
-app.use('/api/time-tracking', timeTrackingRoutes);
-app.use('/api/staff-shifts', staffShiftRoutes);
-app.use('/api/child-attendance', childAttendanceRoutes);
-app.use('/api/staff-time-tracking', staffTimeTrackingRoutes);
-app.use('/api/payroll', payrollRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/documents', documentsRoutes);
-app.use('/api/reports', reportsRoutes);
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/groups', groupRoutes);
+app.use('/time-tracking', timeTrackingRoutes);
+app.use('/staff-shifts', staffShiftRoutes);
+app.use('/child-attendance', childAttendanceRoutes);
+app.use('/staff-time-tracking', staffTimeTrackingRoutes);
+app.use('/payroll', payrollRoutes);
+app.use('/settings', settingsRoutes);
+app.use('/documents', documentsRoutes);
+app.use('/reports', reportsRoutes);
 // Алиасы для простых путей экспорта
 const reportsRoutesModule = require('./routes/reports').default || require('./routes/reports');
-app.post('/api/salary/export', reportsRoutesModule);
-app.post('/api/children/export', reportsRoutesModule);
-app.post('/api/attendance/export', reportsRoutesModule);
-app.use('/api/medical-journals', medicalJournalRoutes);
-app.use('/api/vitaminization-journal', vitaminizationJournalRoutes);
-app.use('/api/menu-items', menuItemsRoutes);
-app.use('/api/health-passport', healthPassportRoutes);
-app.use('/api/documents/generate', documentGenerateRoutes);
-app.use('/api/payroll-automation', payrollAutomationRoutes);
-app.use('/api/task-list', taskListRoutes);
-app.use('/api/children', childrenRoutes);
-app.use('/api/somatic-journal', somaticJournalRoutes);
-app.use('/api/mantoux-journal', mantouxJournalRoutes);
-app.use('/api/helminth-journal', helminthJournalRoutes);
-app.use('/api/tub-positive-journal', tubPositiveJournalRoutes);
-app.use('/api/infectious-diseases-journal', infectiousDiseasesJournalRoutes);
-app.use('/api/contact-infection-journal', contactInfectionJournalRoutes);
-app.use('/api/risk-group-children', riskGroupChildrenRoutes);
-app.use('/api/organoleptic-journal', organolepticJournalRoutes);
-app.use('/api/perishable-brak', perishableBrakRoutes);
-app.use('/api/product-certificates', productCertificateRoutes);
-app.use('/api/detergent-log', detergentLogRoutes);
-app.use('/api/food-stock-log', foodStockLogRoutes);
-app.use('/api/food-staff-health', foodStaffHealthRoutes);
+app.post('/salary/export', reportsRoutesModule);
+app.post('/children/export', reportsRoutesModule);
+app.post('/attendance/export', reportsRoutesModule);
+app.use('/medical-journals', medicalJournalRoutes);
+app.use('/menu-items', menuItemsRoutes);
+app.use('/health-passport', healthPassportRoutes);
+app.use('/documents/generate', documentGenerateRoutes);
+app.use('/payroll-automation', payrollAutomationRoutes);
+app.use('/task-list', taskListRoutes);
+app.use('/children', childrenRoutes);
+app.use('/somatic-journal', somaticJournalRoutes);
+app.use('/mantoux-journal', mantouxJournalRoutes);
+app.use('/helminth-journal', helminthJournalRoutes);
+app.use('/tub-positive-journal', tubPositiveJournalRoutes);
+app.use('/infectious-diseases-journal', infectiousDiseasesJournalRoutes);
+app.use('/contact-infection-journal', contactInfectionJournalRoutes);
+app.use('/risk-group-children', riskGroupChildrenRoutes);
+app.use('/organoleptic-journal', organolepticJournalRoutes);
+app.use('/perishable-brak', perishableBrakRoutes);
+app.use('/product-certificates', productCertificateRoutes);
+app.use('/detergent-log', detergentLogRoutes);
+app.use('/food-stock-log', foodStockLogRoutes);
+app.use('/food-staff-health', foodStaffHealthRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'Kindergarten Management System API',
@@ -95,9 +125,9 @@ app.get('/', (req, res) => {
     message: 'Kindergarten Management System API',
     version: '1.0.0',
     endpoints: {
-      auth: '/api/auth',
-      users: '/api/users',
-      health: '/api/health'
+      auth: '/auth',
+      users: '/users',
+      health: '/health'
     },
     documentation: 'Refer to the API documentation for details'
   });

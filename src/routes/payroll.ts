@@ -5,16 +5,29 @@ import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/auth';
 
 const router = express.Router();
 
-// GET /api/payroll — список всех расчетных листов (с фильтрами)
+// GET /payroll — список расчетных листов (с фильтрами)
 router.get('/', authMiddleware, async (req, res) => {
   try {
     console.log('🔍 Запрос получения расчетных листов:', req.query);
     const { staffId, month } = req.query;
+    const user = (req as any).user;
+    
+    // Фильтр по умолчанию
     const filter: any = {};
-    if (staffId) filter.staffId = staffId;
+    
+    // Если пользователь не администратор, он может видеть только свои данные
+    if (user.role !== 'admin') {
+      filter.staffId = user._id;
+    } else {
+      // Администратор может фильтровать по staffId
+      if (staffId) filter.staffId = staffId;
+    }
+    
+    // Фильтр по месяцу
     if (month) filter.month = month;
     
     console.log('🔍 Фильтр для поиска расчетных листов:', filter);
@@ -28,8 +41,8 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/payroll — создать расчетный лист
-router.post('/', authMiddleware, async (req, res) => {
+// POST /payroll — создать расчетный лист
+router.post('/', authMiddleware, requireRole(['admin']), async (req, res) => {
   try {
     const payroll = new Payroll(req.body);
     await payroll.save();
@@ -39,8 +52,8 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/payroll/:id — обновить расчетный лист
-router.put('/:id', authMiddleware, async (req, res) => {
+// PUT /payroll/:id — обновить расчетный лист
+router.put('/:id', authMiddleware, requireRole(['admin']), async (req, res) => {
   try {
     const updated = await Payroll.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json({ success: true, data: updated });
@@ -49,8 +62,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// DELETE /api/payroll/:id — удалить расчетный лист
-router.delete('/:id', authMiddleware, async (req, res) => {
+// DELETE /payroll/:id — удалить расчетный лист
+router.delete('/:id', authMiddleware, requireRole(['admin']), async (req, res) => {
   try {
     await Payroll.findByIdAndDelete(req.params.id);
     res.json({ success: true });
@@ -59,14 +72,23 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/payroll/export — экспорт отчета по зарплатам
+// POST /payroll/export — экспорт отчета по зарплатам
 router.post('/export', authMiddleware, async (req, res) => {
   try {
     const { format, startDate, endDate, staffId } = req.body;
+    const user = (req as any).user;
     
     // Фильтрация данных
     const filter: any = {};
-    if (staffId) filter.staffId = staffId;
+    
+    // Если пользователь не администратор, он может экспортировать только свои данные
+    if (user.role !== 'admin') {
+      filter.staffId = user._id;
+    } else {
+      // Администратор может фильтровать по staffId
+      if (staffId) filter.staffId = staffId;
+    }
+    
     if (startDate && endDate) {
       const startMonth = String(startDate).slice(0, 7);
       const endMonth = String(endDate).slice(0, 7);

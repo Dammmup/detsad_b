@@ -49,7 +49,7 @@ const handleValidationErrors = (req: express.Request, res: express.Response, nex
   next();
 };
 
-// GET /api/time-tracking/status - Get current time tracking status for user
+// GET /time-tracking/status - Get current time tracking status for user
 // router.get('/status', authenticateToken, async (req, res) => {
 //   try {
 //     if (!req.user) {
@@ -87,7 +87,7 @@ const handleValidationErrors = (req: express.Request, res: express.Response, nex
 //   }
 // });
 
-// POST /api/time-tracking/clock-in - Clock in
+// POST /time-tracking/clock-in - Clock in
 router.post('/clock-in', [
   authenticateToken,
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
@@ -191,7 +191,7 @@ router.post('/clock-in', [
   }
 });
 
-// POST /api/time-tracking/clock-out - Clock out
+// POST /time-tracking/clock-out - Clock out
 router.post('/clock-out', [
   authenticateToken,
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
@@ -255,7 +255,7 @@ router.post('/clock-out', [
   }
 });
 
-// POST /api/time-tracking/break-start - Start break
+// POST /time-tracking/break-start - Start break
 router.post('/break-start', authenticateToken, async (req, res) => {
   try {
     if (!req.user) {
@@ -289,7 +289,7 @@ router.post('/break-start', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/time-tracking/break-end - End break
+// POST /time-tracking/break-end - End break
 router.post('/break-end', authenticateToken, async (req, res) => {
   try {
     if (!req.user) {
@@ -333,7 +333,7 @@ router.post('/break-end', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/time-tracking/entries - Get time entries with pagination
+// GET /time-tracking/entries - Get time entries with pagination
 router.get('/entries', [
   authenticateToken,
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
@@ -393,7 +393,7 @@ router.get('/entries', [
   }
 });
 
-// GET /api/time-tracking/summary - Get time summary for period
+// GET /time-tracking/summary - Get time summary for period
 router.get('/summary', [
   authenticateToken,
   query('startDate').isISO8601().withMessage('Invalid start date format'),

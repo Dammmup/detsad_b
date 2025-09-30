@@ -33,8 +33,9 @@ export interface IUser extends Document {
   notes?: string;
 
   salary?: number;
-  salaryType?: 'per_day' | 'per_month';
-  penaltyType?: 'per_minute' | 'per_5_minutes' | 'per_10_minutes';
+  shiftRate?: number;
+ salaryType?: 'per_day' | 'per_month' | 'per_shift';
+  penaltyType?: 'per_minute' | 'per_5_minutes' | 'per_10_minutes' | 'fixed' | 'percent';
   penaltyAmount?: number;
   totalFines: number;
   
@@ -111,13 +112,18 @@ const UserSchema: Schema = new Schema({
   },
   salaryType: {
     type: String,
-    enum: ['per_day', 'per_month'],
+    enum: ['per_day', 'per_month', 'per_shift'],
     default: 'per_month',
     required: function(this: IUser) { return this.type === 'adult'; }
   },
+  shiftRate: {
+    type: Number,
+    default: 0,
+    min: [0, 'Ставка за смену не может быть отрицательной']
+  },
   penaltyType: {
     type: String,
-    enum: ['per_minute', 'per_5_minutes', 'per_10_minutes'],
+    enum: ['per_minute', 'per_5_minutes', 'per_10_minutes', 'fixed', 'percent'],
     default: 'per_5_minutes',
     required: function(this: IUser) { return this.type === 'adult'; }
   },

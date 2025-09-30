@@ -7,7 +7,7 @@
 ## Базовый URL
 
 ```
-/api/documents
+/documents
 ```
 
 ## Аутентификация
@@ -23,7 +23,7 @@ Authorization: Bearer <your-jwt-token>
 ### Получение списка документов
 
 ```
-GET /api/documents
+GET /documents
 ```
 
 #### Параметры запроса
@@ -82,7 +82,7 @@ GET /api/documents
 ### Получение конкретного документа
 
 ```
-GET /api/documents/:id
+GET /documents/:id
 ```
 
 #### Ответ
@@ -120,7 +120,7 @@ GET /api/documents/:id
 ### Создание документа
 
 ```
-POST /api/documents
+POST /documents
 ```
 
 #### Тело запроса (multipart/form-data)
@@ -174,7 +174,7 @@ POST /api/documents
 ### Обновление документа
 
 ```
-PUT /api/documents/:id
+PUT /documents/:id
 ```
 
 #### Тело запроса (application/json)
@@ -228,7 +228,7 @@ PUT /api/documents/:id
 ### Удаление документа
 
 ```
-DELETE /api/documents/:id
+DELETE /documents/:id
 ```
 
 #### Ответ
@@ -243,7 +243,7 @@ DELETE /api/documents/:id
 ### Скачивание документа
 
 ```
-GET /api/documents/:id/download
+GET /documents/:id/download
 ```
 
 #### Ответ
@@ -255,7 +255,7 @@ GET /api/documents/:id/download
 ### Получение списка шаблонов документов
 
 ```
-GET /api/documents/templates
+GET /documents/templates
 ```
 
 #### Параметры запроса
@@ -304,7 +304,7 @@ GET /api/documents/templates
 ### Получение конкретного шаблона документа
 
 ```
-GET /api/documents/templates/:id
+GET /documents/templates/:id
 ```
 
 #### Ответ
@@ -334,7 +334,7 @@ GET /api/documents/templates/:id
 ### Создание шаблона документа
 
 ```
-POST /api/documents/templates
+POST /documents/templates
 ```
 
 #### Тело запроса (multipart/form-data)
@@ -378,7 +378,7 @@ POST /api/documents/templates
 ### Обновление шаблона документа
 
 ```
-PUT /api/documents/templates/:id
+PUT /documents/templates/:id
 ```
 
 #### Тело запроса (application/json)
@@ -421,7 +421,7 @@ PUT /api/documents/templates/:id
 ### Удаление шаблона документа
 
 ```
-DELETE /api/documents/templates/:id
+DELETE /documents/templates/:id
 ```
 
 #### Ответ
@@ -436,7 +436,7 @@ DELETE /api/documents/templates/:id
 ### Скачивание шаблона документа
 
 ```
-GET /api/documents/templates/:id/download
+GET /documents/templates/:id/download
 ```
 
 #### Ответ
@@ -448,7 +448,7 @@ GET /api/documents/templates/:id/download
 ### Экспорт списка документов
 
 ```
-POST /api/documents/export
+POST /documents/export
 ```
 
 #### Тело запроса (application/json)
@@ -469,7 +469,7 @@ POST /api/documents/export
 ### Экспорт списка шаблонов документов
 
 ```
-POST /api/documents/templates/export
+POST /documents/templates/export
 ```
 
 #### Тело запроса (application/json)
@@ -503,7 +503,7 @@ API может возвращать следующие коды ошибок:
 
 ```javascript
 // Получение всех активных документов сотрудников
-fetch('/api/documents?type=contract&category=staff&status=active', {
+fetch('/documents?type=contract&category=staff&status=active', {
   headers: {
     'Authorization': 'Bearer <your-jwt-token>'
   }
@@ -524,7 +524,7 @@ formData.append('category', 'staff');
 formData.append('relatedId', 'user123');
 formData.append('relatedType', 'staff');
 
-fetch('/api/documents', {
+fetch('/documents', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer <your-jwt-token>'
@@ -539,7 +539,7 @@ fetch('/api/documents', {
 
 ```javascript
 // Экспорт документов в Excel
-fetch('/api/documents/export', {
+fetch('/documents/export', {
   method: 'POST',
   headers: {
     'Authorization': 'Bearer <your-jwt-token>',

@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Конфигурация
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
 const TEST_TIMEOUT = 5000; // 5 секунд
 
 interface EndpointTestResult {
@@ -275,7 +275,7 @@ class ApiEndpointTester {
       endDate: '2025-09-30'
     };
     
-    await this.testPostEndpoint('/api/payroll/export', exportData, 'Экспорт отчета по зарплатам');
+    await this.testPostEndpoint('/payroll/export', exportData, 'Экспорт отчета по зарплатам');
   }
 
   // Запуск всех тестов

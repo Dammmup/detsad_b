@@ -53,7 +53,7 @@ const upload = multer({
     }
   }
 });
-// GET /api/documents - Получение списка документов с фильтрацией
+// GET /documents - Получение списка документов с фильтрацией
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
 
   try {
@@ -118,7 +118,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
     });
   }
 });
-// GET /api/documents/:id - Получение конкретного документа
+// GET /documents/:id - Получение конкретного документа
 router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 
   try {
@@ -146,7 +146,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     });
   }
 });
-// POST /api/documents - Создение нового документа с файлом
+// POST /documents - Создение нового документа с файлом
 router.post('/', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
 try {
   // Проверка наличия файла
@@ -203,7 +203,7 @@ try {
     });
   }
 });
-// PUT /api/documents/:id - Обновление документа
+// PUT /documents/:id - Обновление документа
 router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
 
   try {
@@ -236,7 +236,7 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
     });
   }
 });
-// DELETE /api/documents/:id - Удаление документа
+// DELETE /documents/:id - Удаление документа
 router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
 
   try {
@@ -270,7 +270,7 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
     });
   }
 });
-// GET /api/documents/templates - Получение списка шаблонов документов
+// GET /documents/templates - Получение списка шаблонов документов
 router.get('/templates', authMiddleware, async (req: Request, res: Response) => {
 try {
   const {
@@ -327,7 +327,7 @@ try {
     });
   }
 });
-// POST /api/documents/templates - Создание нового шаблона документа
+// POST /documents/templates - Создание нового шаблона документа
 router.post('/templates', authMiddleware, authorizeRole(['admin']), upload.single('file'), async (req: Request, res: Response) => {
 
   try {
@@ -368,7 +368,7 @@ router.post('/templates', authMiddleware, authorizeRole(['admin']), upload.singl
     });
   }
 });
-// PUT /api/documents/templates/:id - Обновление шаблона документа
+// PUT /documents/templates/:id - Обновление шаблона документа
 router.put('/templates/:id', authMiddleware, authorizeRole(['admin']), async (req: Request, res: Response) => {
 
   try {
@@ -399,7 +399,7 @@ router.put('/templates/:id', authMiddleware, authorizeRole(['admin']), async (re
     });
   }
 });
-// DELETE /api/documents/templates/:id - Удаление шаблона документа
+// DELETE /documents/templates/:id - Удаление шаблона документа
 router.delete('/templates/:id', authMiddleware, authorizeRole(['admin']), async (req: Request, res: Response) => {
 
   try {
@@ -433,7 +433,7 @@ router.delete('/templates/:id', authMiddleware, authorizeRole(['admin']), async 
     });
   }
 });
-// GET /api/documents/templates/:id/download - Скачивание файла шаблона
+// GET /documents/templates/:id/download - Скачивание файла шаблона
 router.get('/templates/:id/download', authMiddleware, async (req: Request, res: Response) => {
 
   try {
@@ -473,7 +473,7 @@ router.get('/templates/:id/download', authMiddleware, async (req: Request, res: 
     });
   }
 });
-// GET /api/documents/:id/download - Скачивание файла документа
+// GET /documents/:id/download - Скачивание файла документа
 router.get('/:id/download', authMiddleware, async (req: Request, res: Response) => {
 
   try {

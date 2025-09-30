@@ -6,10 +6,10 @@ import { GeolocationSettings } from '../models/Settings';
 
 const router = express.Router();
 
-// POST /api/staff-time-tracking — создать/отметить время
+// POST /staff-time-tracking — создать/отметить время
 router.post('/', authMiddleware, authorizeRole(['admin', 'staff']), async (req: any, res) => {
   try {
-    console.log('=== POST /api/staff-time-tracking ===');
+    console.log('=== POST /staff-time-tracking ===');
     console.log('User:', req.user);
     console.log('Body:', req.body);
     
@@ -48,10 +48,10 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'staff']), async (req: 
   }
 });
 
-// GET /api/staff-time-tracking — получить табель по сотруднику/периоду
+// GET /staff-time-tracking — получить табель по сотруднику/периоду
 router.get('/', authorizeRole(['admin', 'staff']), async (req: any, res) => {
   try {
-    console.log('=== GET /api/staff-time-tracking ===');
+    console.log('=== GET /staff-time-tracking ===');
     console.log('User:', req.user);
     console.log('Query:', req.query);
     
@@ -70,7 +70,7 @@ router.get('/', authorizeRole(['admin', 'staff']), async (req: any, res) => {
   }
 });
 
-// PUT /api/staff-time-tracking/:id — редактировать отметку
+// PUT /staff-time-tracking/:id — редактировать отметку
 router.put('/:id', authorizeRole(['admin', 'staff']), async (req, res) => {
   try {
     const updated = await StaffTimeTracking.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -80,7 +80,7 @@ router.put('/:id', authorizeRole(['admin', 'staff']), async (req, res) => {
   }
 });
 
-// DELETE /api/staff-time-tracking/:id — удалить отметку
+// DELETE /staff-time-tracking/:id — удалить отметку
 router.delete('/:id', authorizeRole(['admin', 'staff']), async (req, res) => {
   try {
     await StaffTimeTracking.findByIdAndDelete(req.params.id);

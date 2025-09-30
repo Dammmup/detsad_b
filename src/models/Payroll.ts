@@ -33,6 +33,18 @@ export interface IPayroll extends Document {
   }>;
   createdAt: Date;
   updatedAt: Date;
+  
+  // Дополнительные поля для детализации расчета
+  baseSalary?: number;        // базовая зарплата
+  baseSalaryType?: 'day' | 'month' | 'shift'; // тип базовой зарплаты
+  shiftRate?: number;         // ставка за смену
+  penaltyDetails?: {          // детали штрафов
+    type: 'fixed' | 'percent' | 'per_minute' | 'per_5_minutes' | 'per_10_minutes';
+    amount: number;
+    latePenalties?: number;    // штрафы за опоздания
+    absencePenalties?: number; // штрафы за неявки
+    userFines?: number;        // штрафы из профиля сотрудника
+  };
 }
 
 const PayrollSchema = new Schema<IPayroll>({
@@ -52,7 +64,21 @@ const PayrollSchema = new Schema<IPayroll>({
       amount: Number,
       comment: String
     }
-  ]
+  ],
+  // Дополнительные поля для детализации расчета
+  baseSalary: { type: Number, default: 0 },
+  baseSalaryType: { type: String, enum: ['day', 'month', 'shift'] },
+  shiftRate: { type: Number, default: 0 },
+  penaltyDetails: {
+    type: {
+      type: String,
+      enum: ['fixed', 'percent', 'per_minute', 'per_5_minutes', 'per_10_minutes']
+    },
+    amount: Number,
+    latePenalties: Number,
+    absencePenalties: Number,
+    userFines: Number
+  }
 }, { timestamps: true });
 
 export default mongoose.model<IPayroll>('Payroll', PayrollSchema);

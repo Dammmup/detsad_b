@@ -5,7 +5,7 @@ const router = express.Router();
 
 /**
  * Ручной запуск автоматического расчета зарплат
- * POST /api/payroll-automation/manual-run
+ * POST /payroll-automation/manual-run
  */
 router.post('/manual-run', async (req, res) => {
   try {
@@ -57,7 +57,7 @@ router.post('/manual-run', async (req, res) => {
 
 /**
  * Получение статуса автоматического расчета
- * GET /api/payroll-automation/status
+ * GET /payroll-automation/status
  */
 router.get('/status', (req, res) => {
   try {

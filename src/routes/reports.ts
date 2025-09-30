@@ -366,7 +366,7 @@ router.post('/:id/export', authMiddleware, async (req: AuthenticatedRequest | Re
     const exportResult = {
       success: true,
       format,
-      downloadUrl: `/api/reports/${req.params.id}/download`,
+      downloadUrl: `/reports/${req.params.id}/download`,
       message: `Отчет успешно экспортирован в формате ${format.toUpperCase()}`
     };
     

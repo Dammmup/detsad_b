@@ -69,8 +69,16 @@ router.post('/login', async (req, res) => {
     
     console.log('user for JWT:', user);
     const token = createJwtToken(user);
+    
+    // Установка токена в httpOnly cookie
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Устанавливаем secure в true для production
+      sameSite: 'strict', // Защита от CSRF
+      maxAge: 24 * 60 * 60 * 1000 // 24 часа в миллисекундах
+    });
+    
     res.json({
-      token,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -90,7 +98,7 @@ router.post('/login', async (req, res) => {
 
 
 router.get('/validate', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
+  const token = req.cookies.auth_token; // Получаем токен из cookie
   
   if (!token) {
     return res.status(401).json({ error: 'Токен не предоставлен' });
@@ -109,26 +117,29 @@ router.get('/validate', async (req, res) => {
   } catch (error) {
     console.error('❌ Ошибка валидации токена:', error);
     res.status(401).json({ error: 'Недействительный токен' });
-  }
+ }
 });
 
 // ===== ВЫХОД ИЗ СИСТЕМЫ =====
 
 /**
  * Выход из системы (logout)
- * POST /api/auth/logout
+ * POST /auth/logout
  */
 router.post('/logout', (req, res) => {
   try {
     console.log('👋 Пользователь вышел из системы');
     
-    // В JWT-based системе logout обычно происходит на клиенте
-    // (удаление токена из localStorage)
-    // Здесь мы просто подтверждаем успешный выход
+    // Удаляем токен из cookie
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
     
-    res.json({ 
-      success: true, 
-      message: 'Успешный выход из системы' 
+    res.json({
+      success: true,
+      message: 'Успешный выход из системы'
     });
     
   } catch (error) {
