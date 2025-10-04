@@ -44,6 +44,11 @@ export class ReportController {
   async createReport(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       const reportData = {
         ...req.body,
         generatedBy: user._id
@@ -61,6 +66,11 @@ export class ReportController {
     try {
       const { id } = req.params;
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       const reportData = {
         ...req.body,
         updatedBy: user._id
@@ -135,6 +145,11 @@ export class ReportController {
   async createReportTemplate(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       const templateData = {
         ...req.body,
         createdBy: user._id
@@ -152,6 +167,11 @@ export class ReportController {
     try {
       const { id } = req.params;
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       const templateData = {
         ...req.body,
         updatedBy: user._id
@@ -193,6 +213,10 @@ export class ReportController {
       const { templateId } = req.params;
       const { parameters } = req.body;
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
       
       if (!parameters) {
         return res.status(400).json({ success: false, message: 'Необходимо указать параметры' });

@@ -45,6 +45,11 @@ export class ChildAttendanceController {
   async createChildAttendance(req: Request, res: Response, next: NextFunction) {
     try {
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       const attendanceData = {
         ...req.body,
         recordedBy: user._id

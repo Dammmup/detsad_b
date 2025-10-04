@@ -8,6 +8,10 @@ export class PayrollController {
       const { staffId, month } = req.query;
       const user = req.user;
       
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       // Фильтр по умолчанию
       const filter: any = {};
       
@@ -35,6 +39,10 @@ export class PayrollController {
       const { id } = req.params;
       const user = req.user;
       
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Пользователь не авторизован' });
+      }
+      
       const payroll = await payrollService.getPayrollById(id);
       
       if (!payroll) {
@@ -42,7 +50,7 @@ export class PayrollController {
       }
       
       // Проверяем, что пользователь запрашивает свои данные или является администратором
-      if (user.role !== 'admin' && payroll.staffId._id.toString() !== user._id.toString()) {
+      if (user.role !== 'admin' && payroll.staffId.toString() !== user._id.toString()) {
         return res.status(403).json({ success: false, message: 'Нет доступа к этим данным' });
       }
       

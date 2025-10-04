@@ -24,7 +24,7 @@ export const requireRole = (roles: UserRole[]) => {
       }
       
       // Проверяем, имеет ли пользователь одну из требуемых ролей
-      if (!roles.includes(user.role)) {
+      if (!roles.includes(user.role as UserRole)) {
         console.log('❌ У пользователя нет требуемой роли:', user.role);
         return res.status(403).json({ 
           success: false, 

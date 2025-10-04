@@ -283,7 +283,7 @@ export class ReportService {
         if (filter.month) targetDate.setMonth(parseInt(filter.month as string) - 1);
         
         filteredUsers = users.filter(user => {
-          const userDate = new Date(user.createdAt);
+          const userDate = new Date(user.createdAt as any);
           return userDate.getFullYear() === targetDate.getFullYear() && 
                  userDate.getMonth() === targetDate.getMonth();
         });

@@ -1,6 +1,5 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { getModelForClass } from '@typegoose/typegoose';
 import dotenv from 'dotenv';
 import app from './app';
 // import { initializeTaskScheduler } from './services/taskScheduler'; // Временно отключено, так как файл не найден

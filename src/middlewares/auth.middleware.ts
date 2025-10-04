@@ -56,7 +56,13 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
     
     // Добавляем пользователя в объект запроса
-    req.user = user;
+    req.user = {
+      _id: (user._id as any).toString(),
+      role: user.role,
+      phone: user.phone,
+      fullName: user.fullName,
+      active: user.active
+    };
     console.log('✅ Аутентификация успешна');
     
     next();
