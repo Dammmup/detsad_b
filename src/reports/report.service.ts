@@ -263,6 +263,51 @@ export class ReportService {
     }
   }
 
+  // === Salary Reports ===
+  
+  // Получение отчетов по зарплате
+  async getSalaryReports(filter: any = {}) {
+    try {
+      // Получаем всех сотрудников с зарплатой
+      const users = await User.find({
+        role: { $in: ['admin', 'manager', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse', 'doctor', 'psychologist', 'intern'] },
+        active: true,
+        ...(filter.staffId && { _id: filter.staffId })
+      }).select('fullName role salary salaryType shiftRate totalFines createdAt');
+
+      // Фильтруем по месяцу и году если указаны
+      let filteredUsers = users;
+      if (filter.month || filter.year) {
+        const targetDate = new Date();
+        if (filter.year) targetDate.setFullYear(parseInt(filter.year as string));
+        if (filter.month) targetDate.setMonth(parseInt(filter.month as string) - 1);
+        
+        filteredUsers = users.filter(user => {
+          const userDate = new Date(user.createdAt);
+          return userDate.getFullYear() === targetDate.getFullYear() && 
+                 userDate.getMonth() === targetDate.getMonth();
+        });
+      }
+
+      // Формируем отчет по зарплате
+      const salaryReports = filteredUsers.map(user => ({
+        staffId: user._id,
+        fullName: user.fullName,
+        role: user.role,
+        salary: user.salary || 0,
+        salaryType: user.salaryType || 'per_month',
+        shiftRate: user.shiftRate || 0,
+        totalFines: user.totalFines || 0,
+        netSalary: (user.salary || 0) - (user.totalFines || 0),
+        createdAt: user.createdAt
+      }));
+
+      return salaryReports;
+    } catch (error) {
+      throw new Error(`Error getting salary reports: ${error}`);
+    }
+  }
+
   // === Report Cleanup ===
   
   // Удаление устаревших отчетов

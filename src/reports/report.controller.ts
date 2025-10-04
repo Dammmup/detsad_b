@@ -43,7 +43,7 @@ export class ReportController {
   // Создание нового отчета
   async createReport(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const reportData = {
         ...req.body,
         generatedBy: user._id
@@ -60,7 +60,7 @@ export class ReportController {
   async updateReport(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = (req as any).user;
+      const user = req.user;
       const reportData = {
         ...req.body,
         updatedBy: user._id
@@ -134,7 +134,7 @@ export class ReportController {
   // Создание нового шаблона отчета
   async createReportTemplate(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const templateData = {
         ...req.body,
         createdBy: user._id
@@ -151,7 +151,7 @@ export class ReportController {
   async updateReportTemplate(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = (req as any).user;
+      const user = req.user;
       const templateData = {
         ...req.body,
         updatedBy: user._id
@@ -192,7 +192,7 @@ export class ReportController {
     try {
       const { templateId } = req.params;
       const { parameters } = req.body;
-      const user = (req as any).user;
+      const user = req.user;
       
       if (!parameters) {
         return res.status(400).json({ success: false, message: 'Необходимо указать параметры' });
@@ -258,6 +258,25 @@ export class ReportController {
       
       const templates = await reportService.searchReportTemplatesByName(term as string);
       res.json({ success: true, data: templates });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // === Salary Reports ===
+  
+  // Получение отчетов по зарплате
+  async getSalaryReports(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { month, year, staffId } = req.query;
+      
+      const filter: any = {};
+      if (month) filter.month = month;
+      if (year) filter.year = year;
+      if (staffId) filter.staffId = staffId;
+      
+      const reports = await reportService.getSalaryReports(filter);
+      res.json({ success: true, data: reports });
     } catch (error) {
       next(error);
     }

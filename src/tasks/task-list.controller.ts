@@ -41,7 +41,7 @@ export class TaskListController {
     try {
       const taskListData = req.body;
       // Устанавливаем пользователя, создавшего список задач
-      taskListData.createdBy = (req as any).user._id;
+      taskListData.createdBy = req.user!._id;
       
       const taskList = await taskListService.createTaskList(taskListData);
       res.status(201).json({ success: true, data: taskList });
@@ -56,7 +56,7 @@ export class TaskListController {
       const { id } = req.params;
       const taskListData = req.body;
       // Устанавливаем пользователя, обновившего список задач
-      taskListData.updatedBy = (req as any).user._id;
+      taskListData.updatedBy = req.user!._id;
       
       const taskList = await taskListService.updateTaskList(id, taskListData);
       
@@ -91,7 +91,7 @@ export class TaskListController {
     try {
       const { taskListId, taskId } = req.params;
       const { completed } = req.body;
-      const userId = (req as any).user._id;
+      const userId = req.user!._id;
       
       const updatedTaskList = await taskListService.updateTaskStatus(
         taskListId, 
@@ -161,7 +161,7 @@ export class TaskListController {
   // Получение списков задач текущего пользователя
  async getUserTaskLists(req: Request, res: Response, next: NextFunction) {
     try {
-      const userId = (req as any).user._id;
+      const userId = req.user!._id;
       const taskLists = await taskListService.getTaskListsByUser(userId);
       res.json({ success: true, data: taskLists });
     } catch (error) {

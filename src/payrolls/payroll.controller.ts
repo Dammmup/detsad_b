@@ -6,7 +6,7 @@ export class PayrollController {
   async getPayrolls(req: Request, res: Response, next: NextFunction) {
     try {
       const { staffId, month } = req.query;
-      const user = (req as any).user;
+      const user = req.user;
       
       // Фильтр по умолчанию
       const filter: any = {};
@@ -33,7 +33,7 @@ export class PayrollController {
   async getPayrollById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const user = (req as any).user;
+      const user = req.user;
       
       const payroll = await payrollService.getPayrollById(id);
       

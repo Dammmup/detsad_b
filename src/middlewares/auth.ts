@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import User from '../users/user.model';
+import Group from '../groups/group.model';
+import Child from '../children/child.model';
 
 // Типы ролей пользователей
 export type UserRole = 'admin' | 'manager' | 'teacher' | 'assistant' | 'cook' | 'cleaner' | 'security' | 'nurse' | 'child' | 'null' | 'doctor' | 'psychologist' | 'intern';
@@ -8,7 +10,7 @@ export type UserRole = 'admin' | 'manager' | 'teacher' | 'assistant' | 'cook' | 
 export const requireRole = (roles: UserRole[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       
       console.log('🔍 Проверка роли пользователя:', user?.role, 'в списке:', roles);
       
@@ -46,7 +48,7 @@ export const requireRole = (roles: UserRole[]) => {
 export const requireGroupMembership = (groupIdParam: string = 'groupId') => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const groupId = req.params[groupIdParam] || req.body[groupIdParam] || req.query[groupIdParam];
       
       console.log('🔍 Проверка принадлежности к группе:', groupId, 'для пользователя:', user?._id);
@@ -104,7 +106,7 @@ export const requireGroupMembership = (groupIdParam: string = 'groupId') => {
 export const requireChildOwnership = (childIdParam: string = 'childId') => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const childId = req.params[childIdParam] || req.body[childIdParam] || req.query[childIdParam];
       
       console.log('🔍 Проверка принадлежности к ребенку:', childId, 'для пользователя:', user?._id);
@@ -173,7 +175,7 @@ export const requireChildOwnership = (childIdParam: string = 'childId') => {
 export const requireStaffOwnership = (staffIdParam: string = 'staffId') => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const staffId = req.params[staffIdParam] || req.body[staffIdParam] || req.query[staffIdParam];
       
       console.log('🔍 Проверка принадлежности к сотруднику:', staffId, 'для пользователя:', user?._id);
@@ -213,7 +215,3 @@ export const requireStaffOwnership = (staffIdParam: string = 'staffId') => {
     }
   };
 };
-
-// Экспортируем Group и Child для использования в middleware
-import Group from '../groups/group.model';
-import Child from '../children/child.model';

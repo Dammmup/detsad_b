@@ -44,7 +44,7 @@ export class ChildAttendanceController {
   // Создание новой записи посещаемости
   async createChildAttendance(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const attendanceData = {
         ...req.body,
         recordedBy: user._id

@@ -34,7 +34,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
     
     // Получаем пользователя из базы данных
-    const user = await User.findById(decoded.userId).select('+passwordHash');
+    const user = await User.findById(decoded.userId);
     console.log('🔍 Найден пользователь:', user?._id);
     
     // Проверяем, существует ли пользователь
@@ -56,7 +56,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
     
     // Добавляем пользователя в объект запроса
-    (req as any).user = user;
+    req.user = user;
     console.log('✅ Аутентификация успешна');
     
     next();

@@ -26,6 +26,9 @@ router.delete('/templates/:id', authMiddleware, requireRole(['admin', 'manager']
 // === Report Generation ===
 router.post('/generate/:templateId', authMiddleware, requireRole(['admin', 'manager']), reportController.generateReportFromTemplate);
 
+// === Salary Reports ===
+router.get('/salary', authMiddleware, requireRole(['admin', 'manager']), reportController.getSalaryReports);
+
 // === Report Cleanup ===
 router.delete('/cleanup/expired', authMiddleware, requireRole(['admin']), reportController.cleanupExpiredReports);
 
