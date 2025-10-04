@@ -1,8 +1,9 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import { getModelForClass } from '@typegoose/typegoose';
 import dotenv from 'dotenv';
 import app from './app';
-import { initializeTaskScheduler } from './services/taskScheduler';
+// import { initializeTaskScheduler } from './services/taskScheduler'; // Временно отключено, так как файл не найден
 
 dotenv.config();
 
@@ -26,7 +27,7 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       // Инициализируем планировщик задач
-      initializeTaskScheduler();
+      // initializeTaskScheduler(); // Временно отключено, так как файл не найден
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

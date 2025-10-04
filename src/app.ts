@@ -1,41 +1,46 @@
-// ...existing code...
-import helminthJournalRoutes from './routes/helminthJournal';
-import tubPositiveJournalRoutes from './routes/tubPositiveJournal';
-import infectiousDiseasesJournalRoutes from './routes/infectiousDiseasesJournal';
-import contactInfectionJournalRoutes from './routes/contactInfectionJournal';
-import riskGroupChildrenRoutes from './routes/riskGroupChildren';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import organolepticJournalRoutes from './routes/organolepticJournal';
-import perishableBrakRoutes from './routes/perishableBrak';
-import productCertificateRoutes from './routes/productCertificate';
-import detergentLogRoutes from './routes/detergentLog';
-import foodStockLogRoutes from './routes/foodStockLog';
-import foodStaffHealthRoutes from './routes/foodStaffHealth';
-import authRoutes from './routes/auth';
-import userRoutes from './routes/user';
-import groupRoutes from './routes/group';
-import timeTrackingRoutes from './routes/timeTracking';
-import staffShiftRoutes from './routes/staffShift';
-import childAttendanceRoutes from './routes/childAttendance';
-import staffTimeTrackingRoutes from './routes/staffTimeTracking';
-import payrollRoutes from './routes/payroll';
-import settingsRoutes from './routes/settings';
-import documentsRoutes from './routes/documents';
-import reportsRoutes from './routes/reports';
-import medicalJournalRoutes from './routes/medicalJournal';
-import menuItemsRoutes from './routes/menuItems';
-import healthPassportRoutes from './routes/healthPassport';
-import documentGenerateRoutes from './routes/documentGenerate';
-import payrollAutomationRoutes from './routes/payrollAutomation';
-import taskListRoutes from './routes/taskList';
-import childrenRoutes from './routes/children';
-import { initializeTaskScheduler } from './services/taskScheduler';
-import mantouxJournalRoutes from './routes/mantouxJournal';
-import somaticJournalRoutes from './routes/somaticJournal';
 
-const app = express();
+// Подключение Swagger
+import { setupSwagger } from './utils/swagger';
+
+
+// Импорт новых маршрутов
+import userRoutes from './users/user.routes';
+import payrollRoutesNew from './payrolls/payroll.routes';
+import shiftRoutes from './shifts/shift.routes';
+import childRoutes from './children/child.routes';
+import reportRoutes from './reports/report.routes';
+import documentRoutes from './documents/document.routes';
+import groupRoutesNew from './groups/group.routes';
+import settingRoutes from './settings/setting.routes';
+import childAttendanceRoutesNew from './attendance/child-attendance.routes';
+import medicalRoutes from './medical/medical.routes';
+import menuRoutes from './menu/menu.routes';
+import timeTrackingRoutes from './time-tracking/time-tracking.routes';
+import staffShiftRoutes from './shifts/shift.routes';
+import staffTimeTrackingRoutes from './time-tracking/time-tracking.routes';
+import healthPassportRoutes from './medical/medical.routes';
+import documentGenerateRoutes from './documents/document.routes';
+import payrollAutomationRoutes from './payrolls/payroll.routes';
+import taskListRoutes from './tasks/task-list.routes';
+import mantouxJournalRoutes from './medical/medical.routes';
+import somaticJournalRoutes from './medical/medical.routes';
+import fineRoutes from './finance/finance.routes';
+import helminthJournalRoutes from './medical/medical.routes';
+import tubPositiveJournalRoutes from './medical/medical.routes';
+import infectiousDiseasesJournalRoutes from './medical/medical.routes';
+import contactInfectionJournalRoutes from './medical/medical.routes';
+import riskGroupChildrenRoutes from './medical/medical.routes';
+import organolepticJournalRoutes from './food-control/food-control.routes';
+import perishableBrakRoutes from './food-control/food-control.routes';
+import productCertificateRoutes from './food-control/food-control.routes';
+import detergentLogRoutes from './food-control/food-control.routes';
+import foodStockLogRoutes from './food-control/food-control.routes';
+import foodStaffHealthRoutes from './food-control/food-control.routes';
+import authRoutes from './auth/auth.routes';
+import settingsRoutes from './settings/setting.routes';
 
 const allowedLocalhosts = [
   'http://localhost:3000',
@@ -59,27 +64,39 @@ const configuredOrigin = process.env.CORS_ORIGIN;
 
 const corsOptions = {
   origin: (origin: any, callback: any) => {
+    console.log('🔍 CORS проверка origin:', origin);
     // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-
-    // If CORS_ORIGIN is explicitly set, allow only that origin
-    if (configuredOrigin) {
-      return callback(null, origin === configuredOrigin);
-    }
-
-    // Otherwise, in development or when not configured, allow common localhost origins
-    if (allowedLocalhosts.includes(origin)) {
+    if (!origin) {
+      console.log('🔍 Origin отсутствует, разрешаем');
       return callback(null, true);
     }
 
-    // Fallback: reject other origins
-    return callback(new Error('Not allowed by CORS'));
+    // If CORS_ORIGIN is explicitly set, allow only that origin
+    if (configuredOrigin) {
+      const allowed = origin === configuredOrigin;
+      console.log('🔍 Проверка configuredOrigin:', origin, '===', configuredOrigin, ':', allowed);
+      return callback(null, allowed);
+    }
+
+    // Otherwise, in development or when not configured, allow common localhost origins
+    const allowed = allowedLocalhosts.includes(origin);
+    console.log('🔍 Проверка allowedLocalhosts:', origin, 'в списке:', allowed);
+    if (allowed) {
+      console.log('🔍 Origin разрешен:', origin);
+    } else {
+      console.log('❌ Origin запрещен:', origin);
+    }
+    return callback(null, allowed);
   },
   credentials: true, // Enable credentials (cookies, authorization headers)
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 };
+
+
+const app = express();
+setupSwagger(app);
 // Middleware
 app.use(cors(corsOptions));
 app.use(cookieParser());
@@ -89,27 +106,22 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
-app.use('/groups', groupRoutes);
+app.use('/groups', groupRoutesNew);
 app.use('/time-tracking', timeTrackingRoutes);
 app.use('/staff-shifts', staffShiftRoutes);
-app.use('/child-attendance', childAttendanceRoutes);
+app.use('/child-attendance', childAttendanceRoutesNew);
 app.use('/staff-time-tracking', staffTimeTrackingRoutes);
-app.use('/payroll', payrollRoutes);
-app.use('/settings', settingsRoutes);
-app.use('/documents', documentsRoutes);
-app.use('/reports', reportsRoutes);
-// Алиасы для простых путей экспорта
-const reportsRoutesModule = require('./routes/reports').default || require('./routes/reports');
-app.post('/salary/export', reportsRoutesModule);
-app.post('/children/export', reportsRoutesModule);
-app.post('/attendance/export', reportsRoutesModule);
-app.use('/medical-journals', medicalJournalRoutes);
-app.use('/menu-items', menuItemsRoutes);
+app.use('/payroll', payrollRoutesNew);
+app.use('/settings', settingRoutes);
+app.use('/documents', documentRoutes);
+app.use('/reports', reportRoutes);
+app.use('/medical-journals', medicalRoutes);
+app.use('/menu-items', menuRoutes);
 app.use('/health-passport', healthPassportRoutes);
 app.use('/documents/generate', documentGenerateRoutes);
 app.use('/payroll-automation', payrollAutomationRoutes);
 app.use('/task-list', taskListRoutes);
-app.use('/children', childrenRoutes);
+app.use('/children', childRoutes);
 app.use('/somatic-journal', somaticJournalRoutes);
 app.use('/mantoux-journal', mantouxJournalRoutes);
 app.use('/helminth-journal', helminthJournalRoutes);
@@ -123,6 +135,8 @@ app.use('/product-certificates', productCertificateRoutes);
 app.use('/detergent-log', detergentLogRoutes);
 app.use('/food-stock-log', foodStockLogRoutes);
 app.use('/food-staff-health', foodStaffHealthRoutes);
+app.use('/fine', fineRoutes);
+app.use('/settings', settingsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -149,18 +163,46 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
+  console.error('❌ Global error handler:', err);
+  console.error('❌ Error stack:', err.stack);
+  console.error('❌ Request URL:', req.url);
+  console.error('❌ Request method:', req.method);
+  console.error('❌ Request headers:', req.headers);
+  
+  // Проверяем, является ли ошибка ошибкой маршрута (404)
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Invalid JSON in request body'
+    });
+  }
+  
+  res.status(500).json({
     error: 'Internal server error',
-    message: err.message 
+    message: err.message,
+    timestamp: new Date().toISOString()
   });
 });
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({ 
+  console.log(`🔍 404 Route not found: ${req.originalUrl}`);
+  console.log(`🔍 Request headers:`, req.headers);
+  console.log(`🔍 Request method:`, req.method);
+  
+  // Проверяем, запрашивает ли клиент HTML
+  const acceptHeader = req.headers.accept || '';
+  const isHtmlRequest = acceptHeader.includes('text/html');
+  
+  if (isHtmlRequest) {
+    console.log('🔍 Client is requesting HTML, returning JSON anyway for API consistency');
+  }
+  
+  res.status(404).json({
     error: 'Route not found',
-    path: req.originalUrl 
+    path: req.originalUrl,
+    method: req.method,
+    timestamp: new Date().toISOString()
   });
 });
 
