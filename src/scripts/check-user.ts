@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import User from '../models/Users';
+import User from '../entities/users/model';
 
 dotenv.config();
 

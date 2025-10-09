@@ -1,7 +1,7 @@
-import Payroll from '../models/Payroll';
-import StaffShift, { IStaffShift } from '../models/StaffShift';
-import User, { IUser } from '../models/Users';
-import Fine from '../models/Fine';
+import Payroll from '.././entities/payroll/model';
+import StaffShift, { IStaffShift } from '.././entities/staffShifts/newModel';
+import User, { IUser } from '.././entities/users/model';
+import Fine from '.././entities/fine/model';
 import EmailService from './emailService';
 
 // Создаем экземпляр EmailService
@@ -24,11 +24,11 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   // Получаем посещаемость сотрудника за указанный месяц
   const attendanceRecords: IStaffShift[] = await StaffShift.find({
     staffId,
-    date: {
-      $gte: startDate,
-      $lte: endDate
+    "shifts.date": {
+      $gte: startDate.toISOString().split('T')[0],
+      $lte: endDate.toISOString().split('T')[0]
     }
- });
+  });
   
   let totalPenalty = 0;
   let latePenalties = 0;
@@ -38,23 +38,35 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   const penaltyType = employee.penaltyType || 'per_5_minutes';
   const penaltyAmount = employee.penaltyAmount || 0;
   
-  // Штрафы за опоздания: рассчитываем в зависимости от типа штрафа
- const lateRecords = attendanceRecords.filter((record: IStaffShift) => record.lateMinutes && record.lateMinutes > 0);
+  // Извлекаем все смены из всех найденных записей
+  const allShifts: any[] = [];
+  for (const record of attendanceRecords) {
+    for (const [date, shift] of Object.entries(record.shifts)) {
+      // Проверяем, попадает ли дата в нужный диапазон
+      const shiftDate = new Date(date);
+      if (shiftDate >= startDate && shiftDate <= endDate) {
+        allShifts.push(shift);
+      }
+    }
+  }
   
-  for (const record of lateRecords) {
-    if (record.lateMinutes) {
+  // Штрафы за опоздания: рассчитываем в зависимости от типа штрафа
+ const lateShifts = allShifts.filter((shift: any) => shift.lateMinutes && shift.lateMinutes > 0);
+  
+  for (const shift of lateShifts) {
+    if (shift.lateMinutes) {
       switch (penaltyType) {
         case 'per_minute':
           // Штраф за каждую минуту опоздания
-          latePenalties += record.lateMinutes * penaltyAmount;
+          latePenalties += shift.lateMinutes * penaltyAmount;
           break;
         case 'per_5_minutes':
           // Штраф за каждые 5 минут опоздания
-          latePenalties += Math.ceil(record.lateMinutes / 5) * penaltyAmount;
+          latePenalties += Math.ceil(shift.lateMinutes / 5) * penaltyAmount;
           break;
         case 'per_10_minutes':
           // Штраф за каждые 10 минут опоздания
-          latePenalties += Math.ceil(record.lateMinutes / 10) * penaltyAmount;
+          latePenalties += Math.ceil(shift.lateMinutes / 10) * penaltyAmount;
           break;
         case 'fixed':
           // Фиксированная сумма за опоздание
@@ -68,14 +80,14 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
           break;
         default:
           // По умолчанию - штраф за каждые 5 минут
-          latePenalties += Math.ceil(record.lateMinutes / 5) * penaltyAmount;
+          latePenalties += Math.ceil(shift.lateMinutes / 5) * penaltyAmount;
       }
     }
-  }
+ }
   
   // Штрафы за неявки: 630 тг за каждый случай (60*10,5 минут как в задании)
-  const absenceRecords = attendanceRecords.filter((record: IStaffShift) => record.status === 'no_show');
-  absencePenalties = absenceRecords.length * 630;
+  const absenceShifts = allShifts.filter((shift: any) => shift.status === 'no_show');
+  absencePenalties = absenceShifts.length * 630;
   
   totalPenalty = latePenalties + absencePenalties;
   
@@ -138,9 +150,9 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       // Получаем посещаемость сотрудника за указанный месяц
       const attendanceRecords: IStaffShift[] = await StaffShift.find({
         staffId: (employee as any)._id,
-        date: {
-          $gte: startDate,
-          $lte: endDate
+        "shifts.date": {
+          $gte: startDate.toISOString().split('T')[0],
+          $lte: endDate.toISOString().split('T')[0]
         }
       });
       
@@ -167,7 +179,18 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           break;
         case 'per_shift':
           // Для оплаты за смену умножаем на количество отработанных смен
-          const shiftsCount = attendanceRecords.filter((record: IStaffShift) => record.status === 'completed' || record.status === 'in_progress').length;
+          // Извлекаем все смены из всех найденных записей
+          const allShiftsForCalc: any[] = [];
+          for (const record of attendanceRecords) {
+            for (const [date, shift] of Object.entries(record.shifts)) {
+              // Проверяем, попадает ли дата в нужный диапазон
+              const shiftDate = new Date(date);
+              if (shiftDate >= startDate && shiftDate <= endDate) {
+                allShiftsForCalc.push(shift);
+              }
+            }
+          }
+          const shiftsCount = allShiftsForCalc.filter((shift: any) => shift.status === 'completed' || shift.status === 'in_progress').length;
           accruals = shiftRate * shiftsCount;
           break;
         default:
@@ -202,11 +225,8 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         // Обновляем существующую запись
         payroll.accruals = accruals;
         payroll.penalties = totalPenalties;
-        // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
         payroll.latePenalties = attendancePenalties.latePenalties;
-        // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
         payroll.absencePenalties = attendancePenalties.absencePenalties;
-        // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
         payroll.userFines = userFinesTotal;
         payroll.total = accruals - totalPenalties;
         
@@ -233,11 +253,8 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           month,
           accruals: accruals,
           penalties: totalPenalties,
-          // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
           latePenalties: attendancePenalties.latePenalties,
-          // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
           absencePenalties: attendancePenalties.absencePenalties,
-          // @ts-ignore - игнорируем ошибки TypeScript для дополнительных полей
           userFines: userFinesTotal,
           total: accruals - totalPenalties,
           status: 'calculated',
@@ -322,11 +339,11 @@ const clearAttendancePenalties = async (month: string) => {
     
     // Помечаем записи посещаемости как обработанные
     // В реальной системе здесь может быть архивирование или удаление записей
-  await StaffShift.updateMany(
+    await StaffShift.updateMany(
       {
-        date: {
-          $gte: new Date(`${month}-01`),
-          $lte: new Date(new Date(`${month}-01`).getFullYear(), new Date(`${month}-01`).getMonth() + 1, 0)
+        "shifts.date": {
+          $gte: new Date(`${month}-01`).toISOString().split('T')[0],
+          $lte: new Date(new Date(`${month}-01`).getFullYear(), new Date(`${month}-01`).getMonth() + 1, 0).toISOString().split('T')[0]
         }
       },
       {

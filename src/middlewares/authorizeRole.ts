@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { IUser } from '../models/Users';
+import { IUser } from '../entities/users/model';
 
 type UserRole = 'admin' | 'teacher' | 'student';
 

@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import Document from '../models/Document';
-import User from '../models/Users';
+import Document from '../entities/documents/model';
+import User from '../entities/users/model';
 
 dotenv.config();
 

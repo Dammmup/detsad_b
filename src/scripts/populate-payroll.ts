@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
-import User from '../models/Users';
-import Payroll from '../models/Payroll';
-import Report from '../models/Report';
+import User from '../entities/users/model';
+import Payroll from '../entities/payroll/model';
+import Report from '../entities/reports/model';
 import dotenv from 'dotenv';
 
 dotenv.config();

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../models/Users'; // Импортируем модель User для проверки существования пользователя
+import User from '../entities/users/model'; // Импортируем модель User для проверки существования пользователя
 
 
 export interface AuthUser {

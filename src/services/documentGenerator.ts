@@ -2,9 +2,9 @@ import path from 'path';
 import fs from 'fs';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import { IUser } from '../models/Users';
+import { IChild } from '.././entities/children/model';
 
-export async function generateDocx(templateName: string, user: IUser | null, date: string, extra: Record<string, any> = {}) {
+export async function generateDocx(templateName: string, user: IChild | null, date: string, extra: Record<string, any> = {}) {
   // Путь к шаблону
   const templatePath = path.join(__dirname, '../../templates', `${templateName}.docx`);
   const content = fs.readFileSync(templatePath, 'binary');

@@ -1,9 +1,9 @@
 import cron from 'node-cron';
-import ChildAttendance from '../models/ChildAttendance';
-import StaffAttendance from '../models/StaffShift';
-import User from '../models/Users';
-import Child from '../models/Child';
-import Group from '../models/Group';
+import ChildAttendance from '../entities/childAttendance/model';
+import StaffAttendance from '../entities/staffAttendanceTracking/model';
+import User from '../entities/users/model';
+import Child from '../entities/children/model';
+import Group from '../entities/groups/model';
 import EmailService, { ExcelReportData } from './emailService';
 
 class DataCleanupService {
@@ -175,7 +175,7 @@ class DataCleanupService {
           $gte: startOfMonth,
           $lte: endOfMonth
         }
-      });
+      }).populate('staffId', 'fullName').populate('groupId', 'name');
 
       const staff = await User.find({ type: 'adult' });
       const groups = await Group.find({});
@@ -188,18 +188,31 @@ class DataCleanupService {
         const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
         const formattedDate = `${date.toLocaleDateString('ru-RU')} (${weekdays[date.getDay()]})`;
         
+        // Рассчитываем плановое время из checkInTime и checkOutTime
+        const checkInTimeStr = record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        const checkOutTimeStr = record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        const plannedTime = `${checkInTimeStr} - ${checkOutTimeStr}`;
+        
+        // Рассчитываем фактическое время из workDuration
+        const workDurationStr = record.workDuration ? `${Math.floor(record.workDuration / 60)}:${(record.workDuration % 60).toString().padStart(2, '0')}` : '0:00';
+        
         return [
           staffMember?.fullName || '',
           formattedDate,
-          record.shiftType || '',
-          `${record.startTime || ''} - ${record.endTime || ''}`,
-          `${record.actualStart || ''} - ${record.actualEnd || ''}`,
-          record.lateMinutes || 0,
-          record.overtimeMinutes || 0,
+          '', // shiftType больше нет в модели
+          plannedTime,
+          workDurationStr,
+          record.penalties?.late?.amount || 0,
+          record.overtimeDuration || 0,
           record.status === 'completed' ? 'Завершено' :
-          record.status === 'in_progress' ? 'В процессе' :
-          record.status === 'late' ? 'Опоздание' :
-          record.status === 'no_show' ? 'Не явился' : record.status || '',
+          record.status === 'active' ? 'Активный' :
+          record.status === 'checked_in' ? 'Отметился' :
+          record.status === 'checked_out' ? 'Ушел' :
+          record.status === 'on_break' ? 'На перерыве' :
+          record.status === 'overtime' ? 'Сверхурочные' :
+          record.status === 'absent' ? 'Отсутствовал' :
+          record.status === 'missed' ? 'Пропущено' :
+          record.status === 'pending_approval' ? 'Ожидает одобрения' : record.status || '',
           group?.name || '',
           record.notes || ''
         ];
