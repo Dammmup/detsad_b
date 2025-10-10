@@ -52,7 +52,7 @@ const allowedOrigins = [
   'http://localhost:3010',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
-  'https://detsad-b.vercel.app', // домен Vercel для фронтенда
+  'https://aldamiram.vercel.app', // домен Vercel для фронтенда
   'https://*.vercel.app' // поддержка других Vercel доменов
 ];
 
