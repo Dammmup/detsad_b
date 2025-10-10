@@ -36,60 +36,28 @@ import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/ro
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:8080',
-  'http://localhost:5173', // для Vite
-  'http://localhost:3002',
-  'http://localhost:3003',
-  'http://localhost:3004',
-  'http://localhost:3005',
-  'http://localhost:3006',
-  'http://localhost:3007',
-  'http://localhost:3008',
-  'http://localhost:3009',
-  'http://localhost:3010',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173',
-  'https://aldamiram.vercel.app', // домен Vercel для фронтенда
-  'https://*.vercel.app' // поддержка других Vercel доменов
-];
-
-// Проверяем, установлены ли специфичные CORS переменные
-const configuredOrigin = process.env.CORS_ORIGIN;
+// Разрешаем все источники для подключения
+const allowedOrigins = '*';
 
 const corsOptions = {
-  origin: (origin: any, callback: any) => {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-
-    // If CORS_ORIGIN is explicitly set, allow only that origin
-    if (configuredOrigin) {
-      if (Array.isArray(configuredOrigin)) {
-        return callback(null, configuredOrigin.includes(origin));
-      } else {
-        // Поддержка нескольких доменов через запятую
-        const origins = configuredOrigin.split(',').map(o => o.trim());
-        return callback(null, origins.includes(origin));
-      }
-    }
-
-    // Otherwise, in development or when not configured, allow common localhost origins and Vercel domains
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Fallback: reject other origins
-    return callback(new Error('Not allowed by CORS'));
-  },
+  origin: allowedOrigins,
   credentials: true, // Enable credentials (cookies, authorization headers)
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Access-Control-Allow-Origin'] // Экспонируем заголовок для доступа клиенту
 };
 // Middleware
 app.use(cors(corsOptions));
+
+// Добавляем заголовки CORS ко всем ответам
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -153,17 +121,22 @@ app.get('/', (req, res) => {
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
-  res.status(500).json({ 
+  
+  // Отправляем ошибку в Sentry
+  const Sentry = require('./sentry').default;
+  Sentry.captureException(err);
+  
+  res.status(500).json({
     error: 'Internal server error',
-    message: err.message 
+    message: err.message
   });
 });
 
 // 404 handler
 app.use('*', (req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Route not found',
-    path: req.originalUrl 
+    path: req.originalUrl
   });
 });
 

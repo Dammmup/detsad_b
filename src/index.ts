@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import app from './app';
 import { initializeTaskScheduler } from './services/taskScheduler';
+import './sentry'; // Инициализируем Sentry
 
 dotenv.config();
 
