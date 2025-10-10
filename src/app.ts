@@ -97,11 +97,6 @@ app.use('/payroll', payrollRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/documents', documentsRoutes);
 app.use('/reports', reportsRoutes);
-// Алиасы для простых путей экспорта
-const reportsRoutesModule = require('./entities/reports/route').default || require('./entities/reports/route');
-app.post('/salary/export', reportsRoutesModule);
-app.post('/children/export', reportsRoutesModule);
-app.post('/attendance/export', reportsRoutesModule);
 app.use('/medical-journals', medicalJournalRoutes);
 app.use('/menu-items', menuItemsRoutes);
 app.use('/health-passport', healthPassportRoutes);

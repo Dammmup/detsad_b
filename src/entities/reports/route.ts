@@ -1,5 +1,5 @@
 import express from 'express';
-import { 
+import {
   getAllReports,
   getReportById,
   createReport,
@@ -8,7 +8,9 @@ import {
   generateReport,
   sendReport,
   getReportsByType,
-  getRecentReports
+  getRecentReports,
+  exportSalaryReport,
+  getSalarySummary
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -41,5 +43,11 @@ router.post('/:id/generate', authMiddleware, authorizeRole(['admin', 'manager'])
 
 // Отправить отчет
 router.post('/:id/send', authMiddleware, authorizeRole(['admin', 'manager']), sendReport);
+
+// Экспорт отчета по зарплатам
+router.post('/salary/export', authMiddleware, authorizeRole(['admin', 'manager']), exportSalaryReport);
+
+// Получение сводки по зарплатам
+router.get('/salary/summary', authMiddleware, authorizeRole(['admin', 'manager']), getSalarySummary);
 
 export default router;

@@ -1,5 +1,6 @@
 import Report from './model';
 import { IReport } from './model';
+import { PayrollService } from '../payroll/service';
 
 export class ReportsService {
   async getAll(filters: { type?: string, status?: string, generatedById?: string }) {
@@ -134,5 +135,29 @@ export class ReportsService {
       .limit(limit);
     
     return reports;
-  }
+ }
+  
+  // Метод для получения сводки по зарплатам
+  async getSalarySummary(month: string) {
+    const payrollService = new PayrollService();
+    
+    // Получаем все зарплаты за указанный месяц
+    const payrolls = await payrollService.getAllWithUsers({
+      period: month,
+      status: undefined
+    });
+    
+    // Формируем сводку
+    const summary = {
+      totalEmployees: payrolls.length,
+      totalAccruals: payrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
+      totalPenalties: payrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalPayout: payrolls.reduce((sum, p) => sum + (p.total || 0), 0),
+      averageSalary: payrolls.length > 0
+        ? payrolls.reduce((sum, p) => sum + (p.total || 0), 0) / payrolls.length
+        : 0
+    };
+    
+    return summary;
+ }
 }

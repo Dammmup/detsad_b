@@ -18,7 +18,7 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
     const { userId, period, status } = req.query;
     
     const payrolls = await payrollService.getAll({
-      userId: userId as string,
+      staffId: userId as string,
       period: period as string,
       status: status as string
     });
@@ -39,7 +39,7 @@ export const getAllPayrollsByUsers = async (req: AuthenticatedRequest, res: Resp
     const { userId, period, status } = req.query;
     
     const payrolls = await payrollService.getAllWithUsers({
-      userId: userId as string,
+      staffId: userId as string,
       period: period as string,
       status: status as string
     });

@@ -4,10 +4,10 @@ import User from '../users/model';
 import { IUser } from '../users/model';
 
 export class PayrollService {
-  async getAll(filters: { userId?: string, period?: string, status?: string }) {
+  async getAll(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
     
-    if (filters.userId) filter.userId = filters.userId;
+    if (filters.staffId) filter.staffId = filters.staffId;
     if (filters.period) filter.period = filters.period;
     if (filters.status) filter.status = filters.status;
     
@@ -18,10 +18,11 @@ export class PayrollService {
     return payrolls;
   }
 
-  async getAllWithUsers(filters: { userId?: string, period?: string, status?: string }) {
+  async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
     
-    if (filters.userId) filter._id = filters.userId;
+    // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll
+    // Вместо этого мы получаем всех пользователей и затем фильтруем по наличию записей в Payroll
     if (filters.status) filter.status = filters.status;
     
     // Получаем всех пользователей, подходящих под фильтр
