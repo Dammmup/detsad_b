@@ -36,7 +36,7 @@ import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/ro
 
 const app = express();
 
-const allowedLocalhosts = [
+const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:8080',
@@ -51,9 +51,12 @@ const allowedLocalhosts = [
   'http://localhost:3009',
   'http://localhost:3010',
   'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173'
+  'http://127.0.0.1:5173',
+  'https://detsad-b.vercel.app', // домен Vercel для фронтенда
+  'https://*.vercel.app' // поддержка других Vercel доменов
 ];
 
+// Проверяем, установлены ли специфичные CORS переменные
 const configuredOrigin = process.env.CORS_ORIGIN;
 
 const corsOptions = {
@@ -63,11 +66,17 @@ const corsOptions = {
 
     // If CORS_ORIGIN is explicitly set, allow only that origin
     if (configuredOrigin) {
-      return callback(null, origin === configuredOrigin);
+      if (Array.isArray(configuredOrigin)) {
+        return callback(null, configuredOrigin.includes(origin));
+      } else {
+        // Поддержка нескольких доменов через запятую
+        const origins = configuredOrigin.split(',').map(o => o.trim());
+        return callback(null, origins.includes(origin));
+      }
     }
 
-    // Otherwise, in development or when not configured, allow common localhost origins
-    if (allowedLocalhosts.includes(origin)) {
+    // Otherwise, in development or when not configured, allow common localhost origins and Vercel domains
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
