@@ -10,7 +10,7 @@ import {
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
-import { StaffShiftsService } from './newService';
+import { StaffShiftsService } from './service';
 
 const router = express.Router();
 const staffShiftsService = new StaffShiftsService();

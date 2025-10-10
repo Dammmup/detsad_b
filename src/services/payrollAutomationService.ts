@@ -1,5 +1,5 @@
 import Payroll from '.././entities/payroll/model';
-import StaffShift, { IStaffShift } from '.././entities/staffShifts/newModel';
+import StaffShift, { IStaffShift as IStaffShift } from '.././entities/staffShifts/model';
 import User, { IUser } from '.././entities/users/model';
 import Fine from '.././entities/fine/model';
 import EmailService from './emailService';
