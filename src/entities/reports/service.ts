@@ -159,5 +159,37 @@ export class ReportsService {
     };
     
     return summary;
- }
+  }
+  
+  // Метод для получения сводки по зарплатам по диапазону дат
+  async getSalarySummaryByDateRange(startDate: string, endDate: string) {
+    const payrollService = new PayrollService();
+    
+    // Получаем все зарплаты за указанный период
+    const payrolls = await payrollService.getAllWithUsers({
+      period: undefined,
+      status: undefined
+    });
+    
+    // Фильтруем данные по диапазону дат
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const filteredPayrolls = payrolls.filter(item => {
+      const itemDate = new Date(item.period ? item.period : item.createdAt);
+      return itemDate >= start && itemDate <= end;
+    });
+    
+    // Формируем сводку
+    const summary = {
+      totalEmployees: filteredPayrolls.length,
+      totalAccruals: filteredPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
+      totalPenalties: filteredPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalPayout: filteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
+      averageSalary: filteredPayrolls.length > 0
+        ? filteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / filteredPayrolls.length
+        : 0
+    };
+    
+    return summary;
+  }
 }

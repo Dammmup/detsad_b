@@ -1,9 +1,15 @@
 import { Request, Response } from 'express';
+import { AuthUser } from '../../middlewares/authMiddleware';
 import { ChildAttendanceService } from './service';
+
+// Расширяем интерфейс Request для добавления свойства user
+interface AuthenticatedRequest extends Request {
+  user?: AuthUser;
+}
 
 const childAttendanceService = new ChildAttendanceService();
 
-export const getAllAttendance = async (req: Request, res: Response) => {
+export const getAllAttendance = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -18,13 +24,13 @@ export const getAllAttendance = async (req: Request, res: Response) => {
     );
     
     res.json(attendance);
-  } catch (err) {
+ } catch (err) {
     console.error('Error fetching child attendance:', err);
     res.status(500).json({ error: 'Ошибка получения посещаемости' });
- }
+  }
 };
 
-export const createOrUpdateAttendance = async (req: Request, res: Response) => {
+export const createOrUpdateAttendance = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -38,7 +44,7 @@ export const createOrUpdateAttendance = async (req: Request, res: Response) => {
   }
 };
 
-export const bulkCreateOrUpdateAttendance = async (req: Request, res: Response) => {
+export const bulkCreateOrUpdateAttendance = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -54,7 +60,7 @@ export const bulkCreateOrUpdateAttendance = async (req: Request, res: Response) 
   }
 };
 
-export const getAttendanceStats = async (req: Request, res: Response) => {
+export const getAttendanceStats = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -73,8 +79,8 @@ export const getAttendanceStats = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteAttendance = async (req: Request, res: Response) => {
-  try {
+export const deleteAttendance = async (req: AuthenticatedRequest, res: Response) => {
+ try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -87,7 +93,7 @@ export const deleteAttendance = async (req: Request, res: Response) => {
   }
 };
 
-export const debugAttendance = async (req: Request, res: Response) => {
+export const debugAttendance = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -98,5 +104,5 @@ export const debugAttendance = async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Debug endpoint error:', err);
     res.status(500).json({ error: 'Debug error' });
- }
+  }
 };

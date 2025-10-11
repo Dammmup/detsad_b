@@ -171,13 +171,22 @@ export const getSalarySummary = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { month } = req.query;
+    const { month, startDate, endDate } = req.query;
     
-    if (!month) {
-      return res.status(400).json({ error: 'Не указан параметр month' });
+    // Проверяем наличие параметра month или диапазона дат
+    if (!month && (!startDate || !endDate)) {
+      return res.status(400).json({ error: 'Не указан параметр month или диапазон дат (startDate и endDate)' });
     }
     
-    const summary = await reportsService.getSalarySummary(month as string);
+    let summary;
+    if (month) {
+      // Если указан month, используем его
+      summary = await reportsService.getSalarySummary(month as string);
+    } else {
+      // Если указан диапазон дат, используем его
+      summary = await reportsService.getSalarySummaryByDateRange(startDate as string, endDate as string);
+    }
+    
     res.json(summary);
   } catch (err: any) {
     console.error('Error fetching salary summary:', err);
