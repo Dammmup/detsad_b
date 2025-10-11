@@ -35,29 +35,29 @@ import somaticJournalRoutes from './entities/somaticJournal/route';
 import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/route';
 
 const app = express();
-
-// Разрешаем все источники для подключения
-const allowedOrigins = '*';
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://aldamiram.vercel.app'
+];
 
 const corsOptions = {
-  origin: allowedOrigins,
-  credentials: true, // Enable credentials (cookies, authorization headers)
-  optionsSuccessStatus: 200,
+  origin: (origin: string | undefined, callback: Function) => {
+    // Разрешаем запросы без origin (например, из Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin} not allowed`));
+    }
+  },
+  credentials: true, // ✅ для cookies / авторизации
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  exposedHeaders: ['Access-Control-Allow-Origin'] // Экспонируем заголовок для доступа клиенту
 };
-// Middleware
-app.use(cors(corsOptions));
 
-// Добавляем заголовки CORS ко всем ответам
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  next();
-});
+// ✅ Добавляем CORS до всех роутов
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -116,6 +116,16 @@ app.get('/', (req, res) => {
     },
     documentation: 'Refer to the API documentation for details'
   });
+});
+
+// Тестовый endpoint для проверки Sentry
+app.get('/sentry-test', (req, res) => {
+  // Отправляем тестовое сообщение в Sentry
+  const Sentry = require('./sentry').default;
+  Sentry.captureMessage('Sentry тестовое сообщение из бэкенда');
+  
+  // Вызываем тестовую ошибку
+  throw new Error('Sentry тестовая ошибка из бэкенда');
 });
 
 // Error handling middleware
