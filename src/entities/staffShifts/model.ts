@@ -1,40 +1,35 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface IShiftEntry {
-  /**
-   * Дата смены в формате YYYY-MM-DD
-   */
-  date: string;
+export interface ISimpleShift extends Document {
+  staffId: mongoose.Types.ObjectId;
+  date: string; // YYYY-MM-DD format
   shiftType: 'full' | 'day_off' | 'vacation' | 'sick_leave';
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
   actualStart?: string; // HH:MM format
-  actualEnd?: string; // HH:MM format
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'late';
+ actualEnd?: string; // HH:MM format
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'late' | 'active';
   breakTime?: number; // minutes
   overtimeMinutes?: number;
   lateMinutes?: number;
   earlyLeaveMinutes?: number;
   notes?: string;
-}
-
-export interface IStaffShift extends Document {
-  staffId: mongoose.Types.ObjectId;
-  /**
-   * Объект смен, где ключ - дата в формате YYYY-MM-DD
-   */
-  shifts: {
-    [date: string]: IShiftEntry;
-  };
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const ShiftEntrySchema = new Schema({
+const Shiftschema: Schema = new Schema({
+  staffId: {
+    type: Schema.Types.ObjectId,
+    ref: 'users',
+    required: true,
+    index: true
+  },
   date: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   shiftType: {
     type: String,
@@ -45,7 +40,7 @@ const ShiftEntrySchema = new Schema({
     type: String,
     required: true,
     match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
-  },
+ },
   endTime: {
     type: String,
     required: true,
@@ -61,7 +56,7 @@ const ShiftEntrySchema = new Schema({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'late', 'confirmed'],
+    enum: ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'late', 'confirmed', 'active'],
     default: 'scheduled'
   },
   breakTime: {
@@ -80,21 +75,7 @@ const ShiftEntrySchema = new Schema({
     type: Number,
     default: 0
   },
-  notes: String
-});
-
-const StaffShiftSchema: Schema = new Schema({
-  staffId: {
-    type: Schema.Types.ObjectId,
-    ref: 'users',
-    required: true,
-    index: true
-  },
-  shifts: {
-    type: Map,
-    of: ShiftEntrySchema,
-    default: {}
-  },
+  notes: String,
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'users',
@@ -104,27 +85,43 @@ const StaffShiftSchema: Schema = new Schema({
   timestamps: true
 });
 
-
-// Методы для расчетов по конкретной дате
-StaffShiftSchema.methods.getWorkMinutesForDate = function(date: string) {
-  const shift = this.shifts[date];
-  if (!shift || !shift.actualStart || !shift.actualEnd) return 0;
+// Pre-save middleware to update status based on check-in/check-out times
+Shiftschema.pre('save', function(this: ISimpleShift, next) {
+  // If we have actual start time but no actual end time, set status to in_progress
+  if (this.actualStart && !this.actualEnd && this.status !== 'active') {
+    this.status = 'in_progress';
+  }
+  // If we have both actual start and end times, set status to completed
+  else if (this.actualStart && this.actualEnd) {
+    this.status = 'completed';
+  }
+  // If we have no actual times, keep original status or set to scheduled
+  else if (!this.actualStart && !this.actualEnd) {
+    // Only set to scheduled if status is not already set to a specific value
+    if (!this.status) {
+      this.status = 'scheduled';
+    }
+  }
   
-  const start = shift.actualStart.split(':').map(Number);
-  const end = shift.actualEnd.split(':').map(Number);
+  next();
+});
+
+// Методы для расчетов
+Shiftschema.methods.getWorkMinutes = function() {
+ if (!this.actualStart || !this.actualEnd) return 0;
+  
+ const start = this.actualStart.split(':').map(Number);
+ const end = this.actualEnd.split(':').map(Number);
   
   const startMinutes = start[0] * 60 + start[1];
   const endMinutes = end[0] * 60 + end[1];
   
-  return endMinutes - startMinutes - (shift.breakTime || 0);
+  return endMinutes - startMinutes - (this.breakTime || 0);
 };
 
-StaffShiftSchema.methods.getScheduledMinutesForDate = function(date: string) {
-  const shift = this.shifts[date];
- if (!shift) return 0;
-  
-  const start = shift.startTime.split(':').map(Number);
-  const end = shift.endTime.split(':').map(Number);
+Shiftschema.methods.getScheduledMinutes = function() {
+ const start = this.startTime.split(':').map(Number);
+  const end = this.endTime.split(':').map(Number);
   
   const startMinutes = start[0] * 60 + start[1];
   const endMinutes = end[0] * 60 + end[1];
@@ -133,25 +130,20 @@ StaffShiftSchema.methods.getScheduledMinutesForDate = function(date: string) {
 };
 
 // Методы для расчета штрафов
-StaffShiftSchema.methods.calculateLatePenaltyForDate = function(date: string, penaltyRatePerMinute: number = 500) {
-  const shift = this.shifts[date];
-  if (!shift) return 0;
-  return (shift.lateMinutes || 0) * penaltyRatePerMinute;
+Shiftschema.methods.calculateLatePenalty = function(penaltyRatePerMinute: number = 500) {
+  return (this.lateMinutes || 0) * penaltyRatePerMinute;
 };
 
-StaffShiftSchema.methods.calculateEarlyLeavePenaltyForDate = function(date: string, penaltyRatePerMinute: number = 50) {
-  const shift = this.shifts[date];
-  if (!shift) return 0;
-  return (shift.earlyLeaveMinutes || 0) * penaltyRatePerMinute;
+Shiftschema.methods.calculateEarlyLeavePenalty = function(penaltyRatePerMinute: number = 50) {
+  return (this.earlyLeaveMinutes || 0) * penaltyRatePerMinute;
 };
 
 // Метод для расчета опоздания
-StaffShiftSchema.methods.calculateLatenessForDate = function(date: string) {
-  const shift = this.shifts[date];
- if (!shift || !shift.actualStart || !shift.startTime) return 0;
+Shiftschema.methods.calculateLateness = function() {
+  if (!this.actualStart || !this.startTime) return 0;
   
-  const scheduled = shift.startTime.split(':').map(Number);
-  const actual = shift.actualStart.split(':').map(Number);
+  const scheduled = this.startTime.split(':').map(Number);
+  const actual = this.actualStart.split(':').map(Number);
   
   const scheduledMinutes = scheduled[0] * 60 + scheduled[1];
   const actualMinutes = actual[0] * 60 + actual[1];
@@ -159,4 +151,4 @@ StaffShiftSchema.methods.calculateLatenessForDate = function(date: string) {
   return Math.max(0, actualMinutes - scheduledMinutes);
 };
 
-export default mongoose.model<IStaffShift>('StaffShift', StaffShiftSchema);
+export default mongoose.model<ISimpleShift>('Shift', Shiftschema);

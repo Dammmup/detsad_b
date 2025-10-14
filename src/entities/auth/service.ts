@@ -1,5 +1,5 @@
-import { IUser } from './model';
-import User from './model';
+import { IUser } from '../users/model';
+import User from '../users/model';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { hashPassword, comparePassword } from '../../utils/hash';

@@ -1,6 +1,6 @@
 import ChildHealthPassport from './model';
 import { IChildHealthPassport } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 
 export class ChildHealthPassportService {
   async getAll(filters: { childId?: string, status?: string, bloodType?: string, rhesusFactor?: string, startDate?: string, endDate?: string, nextExaminationDate?: string, vaccinationDate?: string, doctorExaminationDate?: string }) {

@@ -1,6 +1,6 @@
 import OrganolepticJournal from './model';
 import { IOrganolepticJournal } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 
 export class OrganolepticJournalService {
   async getAll(filters: { childId?: string, date?: string, inspectorId?: string, status?: string, productName?: string, supplier?: string, startDate?: string, endDate?: string }) {

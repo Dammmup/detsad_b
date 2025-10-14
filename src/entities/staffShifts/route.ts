@@ -1,25 +1,26 @@
 import express from 'express';
 import {
   getAllShifts,
-  createShift,
-  updateShift,
-  checkIn,
-  checkOut,
-  getTimeTracking,
-  updateAdjustments
+  createSimpleShift,
+  updateSimpleShift,
+  deleteSimpleShift,
+  checkInSimple,
+  checkOutSimple,
+  getTimeTrackingSimple,
+  updateAdjustmentsSimple
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
-import { StaffShiftsService } from './service';
+import { ShiftsService } from './service';
 
 const router = express.Router();
-const staffShiftsService = new StaffShiftsService();
+const shiftsService = new ShiftsService();
 
 // Get all shifts (with filters)
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager']), getAllShifts);
+router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse']), getAllShifts);
 
 // Create new shift
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createShift);
+router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createSimpleShift);
 
 // Bulk create shifts
 router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
@@ -28,7 +29,7 @@ router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async 
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const shifts = await staffShiftsService.bulkCreate(req.body.shifts || req.body, req.user.id as string);
+    const shifts = await shiftsService.bulkCreate(req.body.shifts || req.body, req.user.id as string);
     res.status(201).json(shifts);
   } catch (err: any) {
     console.error('Error bulk creating shifts:', err);
@@ -37,18 +38,21 @@ router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async 
 });
 
 // Update shift
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager']), updateShift);
+router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager']), updateSimpleShift);
+
+// Delete shift
+router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager']), deleteSimpleShift);
 
 // Check in/out for staff
-router.post('/checkin/:shiftId', authMiddleware, checkIn);
+router.post('/checkin/:shiftId', authMiddleware, checkInSimple);
 
 // Check out
-router.post('/checkout/:shiftId', authMiddleware, checkOut);
+router.post('/checkout/:shiftId', authMiddleware, checkOutSimple);
 
 // Get time tracking records
-router.get('/timetracking', authMiddleware, getTimeTracking);
+router.get('/timetracking', authMiddleware, getTimeTrackingSimple);
 
 // Update penalties/bonuses (admin only)
-router.put('/timetracking/:id/adjustments', authMiddleware, authorizeRole(['admin', 'manager']), updateAdjustments);
+router.put('/timetracking/:id/adjustments', authMiddleware, authorizeRole(['admin', 'manager']), updateAdjustmentsSimple);
 
 export default router;

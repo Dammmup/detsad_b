@@ -1,6 +1,6 @@
 import TubPositiveJournal from './model';
 import { ITubPositiveJournal } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../../entities/users/model'; // Using the user model
 
 export class TubPositiveJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {

@@ -1,5 +1,5 @@
 import Payroll from '.././entities/payroll/model';
-import StaffShift, { IStaffShift as IStaffShift } from '.././entities/staffShifts/model';
+import Shift, { ISimpleShift } from '.././entities/staffShifts/model';
 import User, { IUser } from '.././entities/users/model';
 import Fine from '.././entities/fine/model';
 import EmailService from './emailService';
@@ -22,9 +22,9 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   
   // Получаем посещаемость сотрудника за указанный месяц
-  const attendanceRecords: IStaffShift[] = await StaffShift.find({
+  const attendanceRecords: ISimpleShift[] = await Shift.find({
     staffId,
-    "shifts.date": {
+    date: {
       $gte: startDate.toISOString().split('T')[0],
       $lte: endDate.toISOString().split('T')[0]
     }
@@ -34,24 +34,17 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   let latePenalties = 0;
   let absencePenalties = 0;
   
-  // Получаем параметры штрафов из профиля сотрудника
-  const penaltyType = employee.penaltyType || 'per_5_minutes';
-  const penaltyAmount = employee.penaltyAmount || 0;
+  // В новой архитектуре параметры штрафов могут быть в связанной записи зарплаты
+ // или в отдельной коллекции настроек. Пока используем значения по умолчанию.
+  const penaltyType: string = (employee as any).penaltyType || 'per_5_minutes';
+  const penaltyAmount: number = Number((employee as any).penaltyAmount ?? 500);
   
-  // Извлекаем все смены из всех найденных записей
-  const allShifts: any[] = [];
-  for (const record of attendanceRecords) {
-    for (const [date, shift] of Object.entries(record.shifts)) {
-      // Проверяем, попадает ли дата в нужный диапазон
-      const shiftDate = new Date(date);
-      if (shiftDate >= startDate && shiftDate <= endDate) {
-        allShifts.push(shift);
-      }
-    }
-  }
+  // В новой архитектуре "1 смена - 1 запись", attendanceRecords уже содержит все смены
+  // для указанного сотрудника в заданном диапазоне дат
+  const allShifts = attendanceRecords;
   
   // Штрафы за опоздания: рассчитываем в зависимости от типа штрафа
- const lateShifts = allShifts.filter((shift: any) => shift.lateMinutes && shift.lateMinutes > 0);
+  const lateShifts = allShifts.filter((shift: any) => shift.lateMinutes && shift.lateMinutes > 0);
   
   for (const shift of lateShifts) {
     if (shift.lateMinutes) {
@@ -103,24 +96,41 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
  * Рассчитывает дневную ставку сотрудника на основе его зарплаты и типа оплаты
  */
 const calculateDailyRate = (employee: IUser): number => {
-  const salary = employee.salary || 0;
-  const salaryType = employee.salaryType || 'per_month';
-  const shiftRate = employee.shiftRate || 0;
-  
+  const salaryType = ((employee as any).salaryType as string) || 'month';
+  const salary = Number((employee as any).salary || 0);
+  const shiftRate = Number((employee as any).shiftRate || 0);
   switch (salaryType) {
-    case 'per_month':
-      // Если зарплата в месяц, делим на 2 рабочих дня
-      return salary / 22;
-    case 'per_day':
-      // Если зарплата в день, возвращаем как есть
+    case 'day':
       return salary;
-    case 'per_shift':
-      // Если зарплата за смену, возвращаем ставку за смену
+    case 'shift':
       return shiftRate;
+    case 'month':
     default:
-      // По умолчанию - месячная ставка
+      // По умолчанию 22 рабочих дня, реальный расчет ниже при начислении
       return salary / 22;
   }
+};
+
+// Рабочие дни в месяце (пн-пт)
+const getWorkingDaysInMonth = (date: Date): number => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  let workdays = 0;
+  for (let d = 1; d <= lastDay; d++) {
+    const day = new Date(year, month, d).getDay();
+    if (day !== 0 && day !== 6) workdays++; // exclude Sun(0) and Sat(6)
+  }
+  return workdays;
+};
+
+// Смена засчитывается, если завершена и checkout не позже расписания
+const shouldCountShift = (shift: any): boolean => {
+  if (shift.status !== 'completed') return false;
+  if (!shift.actualEnd || !shift.endTime) return false;
+  const actualEndTime = new Date(`${shift.date} ${shift.actualEnd}`);
+  const scheduledEndTime = new Date(`${shift.date} ${shift.endTime}`);
+  return actualEndTime.getTime() <= scheduledEndTime.getTime();
 };
 
 /**
@@ -130,10 +140,10 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
   try {
     console.log(`Начинаем автоматический расчет зарплат за ${month}`);
     
-    // Получаем всех активных сотрудников
+    // Получаем всех активных сотрудников (кроме админов)
     const staff = await User.find({ 
-      type: 'adult', 
-      status: { $ne: 'inactive' } 
+      role: { $ne: 'admin' },
+      isActive: true
     });
     
     console.log(`Найдено ${staff.length} сотрудников для расчета`);
@@ -148,9 +158,9 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
       
       // Получаем посещаемость сотрудника за указанный месяц
-      const attendanceRecords: IStaffShift[] = await StaffShift.find({
+      const attendanceRecords: ISimpleShift[] = await Shift.find({
         staffId: (employee as any)._id,
-        "shifts.date": {
+        date: {
           $gte: startDate.toISOString().split('T')[0],
           $lte: endDate.toISOString().split('T')[0]
         }
@@ -160,39 +170,29 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employee);
       console.log(`📊 Штрафы из посещаемости для ${employee.fullName}:`, attendancePenalties);
       
-      // Получаем базовую информацию о сотруднике (оклад и тип оплаты)
-      const baseSalary = employee.salary || 0;
-      const baseSalaryType = employee.salaryType || 'per_month';
-      const shiftRate = employee.shiftRate || 0;
+      // Берем настройки зарплаты из пользователя
+      const baseSalary = Number((employee as any).salary || 0);
+      let baseSalaryType: string = ((employee as any).salaryType as string) || 'month';
+      const shiftRate = Number((employee as any).shiftRate || 0);
       
       // Рассчитываем начисления в зависимости от типа оплаты
       let accruals = 0;
+      const countedShifts = attendanceRecords.filter(s => shouldCountShift(s));
       switch (baseSalaryType) {
-        case 'per_month':
-          accruals = baseSalary;
+        case 'month': {
+          const workDaysInMonth = getWorkingDaysInMonth(startDate);
+          accruals = workDaysInMonth > 0 ? (baseSalary / workDaysInMonth) * countedShifts.length : 0;
           break;
-        case 'per_day':
-          // Для дневной оплаты умножаем на количество рабочих дней в месяце
-          // Временно используем 22 рабочих дня в месяце
-          const workDays = 22;
-          accruals = baseSalary * workDays;
+        }
+        case 'day': {
+          // Оплата за день * количество дней, когда смена засчитана
+          accruals = baseSalary * countedShifts.length;
           break;
-        case 'per_shift':
-          // Для оплаты за смену умножаем на количество отработанных смен
-          // Извлекаем все смены из всех найденных записей
-          const allShiftsForCalc: any[] = [];
-          for (const record of attendanceRecords) {
-            for (const [date, shift] of Object.entries(record.shifts)) {
-              // Проверяем, попадает ли дата в нужный диапазон
-              const shiftDate = new Date(date);
-              if (shiftDate >= startDate && shiftDate <= endDate) {
-                allShiftsForCalc.push(shift);
-              }
-            }
-          }
-          const shiftsCount = allShiftsForCalc.filter((shift: any) => shift.status === 'completed' || shift.status === 'in_progress').length;
-          accruals = shiftRate * shiftsCount;
+        }
+        case 'shift': {
+          accruals = shiftRate * countedShifts.length;
           break;
+        }
         default:
           accruals = baseSalary;
       }
@@ -218,7 +218,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       // Создаем или обновляем запись о зарплате
       let payroll = await Payroll.findOne({
         staffId: employee._id,
-        month
+        period: month
       });
       
       if (payroll) {
@@ -233,13 +233,11 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         // Добавляем дополнительные поля
         payroll.baseSalary = baseSalary;
         // Преобразуем типы из формата User в формат Payroll
-        payroll.baseSalaryType = baseSalaryType === 'per_day' ? 'day' :
-                                baseSalaryType === 'per_month' ? 'month' :
-                                baseSalaryType === 'per_shift' ? 'shift' : 'month';
+        payroll.baseSalaryType = baseSalaryType;
         payroll.shiftRate = shiftRate;
         payroll.penaltyDetails = {
-          type: employee.penaltyType || 'per_5_minutes',
-          amount: employee.penaltyAmount || 0,
+          type: 'per_5_minutes', // используем значение по умолчанию
+          amount: 0, // используем значение по умолчанию
           latePenalties: attendancePenalties.latePenalties,
           absencePenalties: attendancePenalties.absencePenalties,
           userFines: userFinesTotal
@@ -250,25 +248,23 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         // Создаем новую запись
         payroll = new Payroll({
           staffId: employee._id,
-          month,
+          period: month,
           accruals: accruals,
           penalties: totalPenalties,
           latePenalties: attendancePenalties.latePenalties,
           absencePenalties: attendancePenalties.absencePenalties,
           userFines: userFinesTotal,
           total: accruals - totalPenalties,
-          status: 'calculated',
+          status: 'draft',
           
           // Добавляем дополнительные поля
           baseSalary: baseSalary,
           // Преобразуем типы из формата User в формат Payroll
-          baseSalaryType: baseSalaryType === 'per_day' ? 'day' :
-                          baseSalaryType === 'per_month' ? 'month' :
-                          baseSalaryType === 'per_shift' ? 'shift' : 'month',
+          baseSalaryType: baseSalaryType,
           shiftRate: shiftRate,
           penaltyDetails: {
-            type: employee.penaltyType || 'per_5_minutes',
-            amount: employee.penaltyAmount || 0,
+            type: 'per_5_minutes', // используем значение по умолчанию
+            amount: 0, // используем значение по умолчанию
             latePenalties: attendancePenalties.latePenalties,
             absencePenalties: attendancePenalties.absencePenalties,
             userFines: userFinesTotal
@@ -322,7 +318,7 @@ const clearAttendancePenalties = async (month: string) => {
     
     // Обновляем статус расчетных листов
     await Payroll.updateMany(
-      { month },
+      { period: month },
       {
         $set: {
           status: 'processed'
@@ -339,9 +335,9 @@ const clearAttendancePenalties = async (month: string) => {
     
     // Помечаем записи посещаемости как обработанные
     // В реальной системе здесь может быть архивирование или удаление записей
-    await StaffShift.updateMany(
+    await Shift.updateMany(
       {
-        "shifts.date": {
+        date: {
           $gte: new Date(`${month}-01`).toISOString().split('T')[0],
           $lte: new Date(new Date(`${month}-01`).getFullYear(), new Date(`${month}-01`).getMonth() + 1, 0).toISOString().split('T')[0]
         }
@@ -369,8 +365,8 @@ export const sendPayrollReports = async (month: string, recipients: string) => {
     console.log(`Отправка отчетов о зарплате за ${month} на ${recipients}`);
     
     // Получаем все расчетные листы за указанный месяц
-    const payrolls = await Payroll.find({ month })
-      .populate('staffId', 'fullName email salary');
+    const payrolls = await Payroll.find({ period: month })
+      .populate('staffId', 'fullName email');
     
     // Формируем данные отчета
     const reportData = {
@@ -379,7 +375,7 @@ export const sendPayrollReports = async (month: string, recipients: string) => {
       totalPayroll: payrolls.reduce((sum, p) => sum + p.total, 0),
       details: payrolls.map(p => ({
         staffName: (p.staffId as any).fullName,
-        baseSalary: (p.staffId as any).salary,
+        baseSalary: p.baseSalary, // используем значение из самой зарплаты
         penalties: p.penalties,
         total: p.total,
         status: p.status

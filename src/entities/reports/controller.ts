@@ -233,7 +233,7 @@ export const exportSalaryReport = async (req: AuthenticatedRequest, res: Respons
       endDate,
       period: `${new Date(startDate).toLocaleDateString('ru-RU')} - ${new Date(endDate).toLocaleDateString('ru-RU')}`,
       data: filteredData.map(item => ({
-        staffName: item.staffId?.fullName || item.staffId?.name || 'Неизвестный сотрудник',
+        staffName: item.staffId && (item.staffId.fullName || item.staffId.name) || 'Неизвестный сотрудник',
         baseSalary: item.baseSalary || 0,
         bonuses: item.bonuses || 0,
         penalties: item.penalties || 0,

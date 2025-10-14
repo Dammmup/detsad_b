@@ -18,7 +18,7 @@ export class PayrollService {
     return payrolls;
   }
 
-  async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
+ async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
     
     // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll
@@ -26,7 +26,7 @@ export class PayrollService {
     if (filters.status) filter.status = filters.status;
     
     // Получаем всех пользователей, подходящих под фильтр
-    const users = await User.find(filter).select('_id fullName role salaryType salary penaltyType penaltyAmount totalFines shiftRate penalties iin uniqNumber').sort({ fullName: 1 });
+    const users = await User.find(filter).select('_id fullName role iin uniqNumber payroll').sort({ fullName: 1 });
     
     // Получаем все записи зарплат для указанного периода, если он задан
     let payrollRecords: any[] = [];
@@ -39,20 +39,23 @@ export class PayrollService {
     // Создаем мапу для быстрого поиска зарплаты по staffId
     const payrollMap = new Map();
     payrollRecords.forEach(record => {
-      payrollMap.set(record.staffId._id.toString(), record);
+      if (record.staffId && record.staffId._id) {
+        payrollMap.set(record.staffId._id.toString(), record);
+      }
     });
     
     // Объединяем данные пользователей с данными зарплат
     const result = users.map(user => {
-      const payroll = payrollMap.get((user._id as any).toString());
+      const payroll = user._id ? payrollMap.get((user._id as any).toString()) : null;
       
       if (payroll) {
         // Если есть запись в коллекции зарплат, возвращаем её
         return payroll;
       } else {
         // Если нет записи в коллекции зарплат, создаем виртуальную запись на основе данных пользователя
-        // Рассчитываем итоговую сумму в зависимости от типа оплаты
-        let calculatedBaseSalary = user.salary || 0;
+        // Рассчитываем итоговую сумму в зависимости от данных в зарплате
+        // Если у пользователя есть связь с зарплатой, можно получить дополнительные данные
+        let calculatedBaseSalary = 0;
         let calculatedTotal = calculatedBaseSalary;
         
         // Определяем количество рабочих дней в месяце (по умолчанию 22)
@@ -65,20 +68,13 @@ export class PayrollService {
           // В реальном приложении здесь должен быть вызов сервиса посещаемости для получения отработанных дней/смен
           // Пока используем заглушку, в реальном приложении нужно будет получить данные из соответствующих коллекций
           
-          // Если тип оплаты "за смену", то учитываем количество смен в периоде
-          if (user.salaryType === 'per_shift' && user.shiftRate) {
-            // Для примера, если сотрудник работает по сменам, то его зарплата = ставка за смену * количество отработанных смен
-            workedShifts = 2; // Временно устанавливаем 22 смены, в реальном приложении это будет получено из системы посещаемости
-            calculatedBaseSalary = (user.shiftRate || 0) * workedShifts;
-          } else if (user.salaryType === 'per_month' && user.salary) {
-            // Если тип оплаты "за месяц", то оклад делится на количество рабочих дней в месяце и умножается на количество отработанных дней
-            workedDays = 22; // Временно устанавливаем 22 отработанных дня, в реальном приложении это будет получено из системы посещаемости
-            calculatedBaseSalary = (user.salary / workingDaysInPeriod) * workedDays;
-          }
+          // В новой архитектуре информация о типе оплаты и ставках должна быть в записи зарплаты
+          // или в отдельной коллекции настроек зарплаты для пользователя
+          workedDays = 2; // Временно устанавливаем 2 отработанных дня
         }
         
-        // Рассчитываем итоговую зарплату: начисления - вычеты + штрафы
-        calculatedTotal = calculatedBaseSalary + (0) /* bonuses */ - (0) /* deductions */ - (user.totalFines || 0) /* штрафы */;
+        // Рассчитываем итоговую зарплату: начисления - вычеты
+        calculatedTotal = calculatedBaseSalary + (0) /* bonuses */ - (0) /* deductions */;
         
         return {
           _id: null, // Отсутствие ID указывает на то, что записи в базе нет
@@ -94,18 +90,18 @@ export class PayrollService {
           total: calculatedTotal,
           status: 'draft',
           accruals: calculatedBaseSalary,
-          penalties: user.totalFines || 0, // общие штрафы
-          baseSalaryType: user.salaryType || '',
-          shiftRate: user.shiftRate || 0,
+          penalties: 0, // общие штрафы
+          baseSalaryType: '',
+          shiftRate: 0,
           latePenalties: 0,
           absencePenalties: 0,
-          userFines: user.totalFines || 0,
+          userFines: 0,
           penaltyDetails: {
-            type: user.penaltyType || 'per_5_minutes',
-            amount: user.penaltyAmount || 0,
+            type: 'per_5_minutes',
+            amount: 0,
             latePenalties: 0,
             absencePenalties: 0,
-            userFines: user.totalFines || 0
+            userFines: 0
           },
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -118,11 +114,10 @@ export class PayrollService {
         };
       }
     });
-    
-    return result;
+    return result.filter(item => item !== null); // Фильтруем null значения, если они появились
   }
 
-  async getById(id: string) {
+ async getById(id: string) {
     const payroll = await Payroll.findById(id)
       .populate('staffId', 'fullName role');
     
@@ -133,7 +128,7 @@ export class PayrollService {
     return payroll;
   }
 
-  async create(payrollData: Partial<IPayroll>) {
+ async create(payrollData: Partial<IPayroll>) {
     // Вычисляем общую сумму
     const total = (payrollData.baseSalary || 0) +
                   (payrollData.bonuses || 0) -
@@ -209,7 +204,7 @@ export class PayrollService {
     }
     
     return payroll;
-  }
+ }
 
   async markAsPaid(id: string) {
     const payroll = await Payroll.findByIdAndUpdate(

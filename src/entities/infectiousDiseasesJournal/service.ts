@@ -1,6 +1,6 @@
 import InfectiousDiseasesJournal from './model';
 import { IInfectiousDiseasesJournal } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../../entities/users/model'; // Using the user model
 
 export class InfectiousDiseasesJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, disease?: string, startDate?: string, endDate?: string }) {

@@ -19,3 +19,6 @@ declare global {
 export interface AuthenticatedRequest extends Request {
   user: AuthUser;
 }
+
+// Экспортируем Request для использования в контроллерах
+export type { Request } from 'express';

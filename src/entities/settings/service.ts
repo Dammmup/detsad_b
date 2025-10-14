@@ -6,7 +6,7 @@ export class SettingsService {
     const settings = await GeolocationSettings.findOne();
     return settings;
   }
-
+  
   async updateGeolocationSettings(settingsData: Partial<IGeolocationSettings>) {
     let settings = await GeolocationSettings.findOne();
     

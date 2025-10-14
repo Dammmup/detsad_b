@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import User from '../auth/model';
 
 export interface IFine extends Document {
   user: mongoose.Types.ObjectId;

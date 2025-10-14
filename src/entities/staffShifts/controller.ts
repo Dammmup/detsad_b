@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { SimpleShiftsService } from './simpleService';
+import { ShiftsService } from './service';
 
-const staffShiftsService = new SimpleShiftsService();
+const shiftsService = new ShiftsService();
 
 export const getAllShifts = async (req: Request, res: Response) => {
   try {
@@ -11,26 +11,26 @@ export const getAllShifts = async (req: Request, res: Response) => {
     
     const { staffId, date, status, startDate, endDate } = req.query;
     
-    const shifts = await staffShiftsService.getAll(
+    const shifts = await shiftsService.getAll(
       { staffId: staffId as string, date: date as string, status: status as string, startDate: startDate as string, endDate: endDate as string },
       req.user.id as string,
       req.user.role as string
     );
     
     res.json(shifts);
-  } catch (err) {
+ } catch (err) {
     console.error('Error fetching shifts:', err);
     res.status(500).json({ error: 'Ошибка получения смен' });
  }
 };
 
-export const createShift = async (req: Request, res: Response) => {
+export const createSimpleShift = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const result = await staffShiftsService.create(req.body, req.user.id as string);
+    const result = await shiftsService.create(req.body, req.user.id as string);
     res.status(201).json(result);
   } catch (err: any) {
     console.error('Error creating shift:', err);
@@ -46,13 +46,13 @@ export const createShift = async (req: Request, res: Response) => {
   }
 };
 
-export const updateShift = async (req: Request, res: Response) => {
+export const updateSimpleShift = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const result = await staffShiftsService.update(req.params.id, req.body);
+    const result = await shiftsService.update(req.params.id, req.body);
     res.json(result);
   } catch (err) {
     console.error('Error updating shift:', err);
@@ -60,7 +60,21 @@ export const updateShift = async (req: Request, res: Response) => {
   }
 };
 
-export const checkIn = async (req: Request, res: Response) => {
+export const deleteSimpleShift = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const result = await shiftsService.delete(req.params.id);
+    res.json(result);
+  } catch (err) {
+    console.error('Error deleting shift:', err);
+    res.status(400).json({ error: 'Ошибка удаления смены' });
+  }
+};
+
+export const checkInSimple = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -68,7 +82,7 @@ export const checkIn = async (req: Request, res: Response) => {
     
     const { shiftId } = req.params;
     
-    const result = await staffShiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string);
+    const result = await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string);
     res.json(result);
   } catch (err) {
     console.error('Error checking in:', err);
@@ -76,7 +90,7 @@ export const checkIn = async (req: Request, res: Response) => {
   }
 };
 
-export const checkOut = async (req: Request, res: Response) => {
+export const checkOutSimple = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -84,15 +98,15 @@ export const checkOut = async (req: Request, res: Response) => {
     
     const { shiftId } = req.params;
     
-    const result = await staffShiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string);
+    const result = await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string);
     res.json(result);
- } catch (err) {
+  } catch (err) {
     console.error('Error checking out:', err);
     res.status(500).json({ error: 'Ошибка отметки ухода' });
   }
 };
 
-export const getTimeTracking = async (req: Request, res: Response) => {
+export const getTimeTrackingSimple = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -100,7 +114,7 @@ export const getTimeTracking = async (req: Request, res: Response) => {
     
     const { staffId, startDate, endDate } = req.query;
     
-    const records = await staffShiftsService.getTimeTrackingRecords(
+    const records = await shiftsService.getTimeTrackingRecords(
       { staffId: staffId as string, startDate: startDate as string, endDate: endDate as string },
       req.user.id as string,
       req.user.role as string
@@ -113,7 +127,7 @@ export const getTimeTracking = async (req: Request, res: Response) => {
   }
 };
 
-export const updateAdjustments = async (req: Request, res: Response) => {
+export const updateAdjustmentsSimple = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -121,7 +135,7 @@ export const updateAdjustments = async (req: Request, res: Response) => {
     
     const { penalties, bonuses, notes } = req.body;
     
-    const record = await staffShiftsService.updateAdjustments(
+    const record = await shiftsService.updateAdjustments(
       req.params.id,
       penalties,
       bonuses,

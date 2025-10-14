@@ -1,148 +1,19 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+// Используем существующий интерфейс IUser из основной модели пользователей
+// чтобы избежать дублирования кода
+import { IUser } from '../../entities/users/model';
+
+// Определяем интерфейс для сущности Fine
 export interface IFine extends Document {
   amount: number;
   reason: string;
- date: Date;
- type: 'late' | 'other';
+  date: Date;
+  type: 'late' | 'other';
   approved: boolean;
   createdBy: mongoose.Types.ObjectId;
   notes?: string;
 }
 
-export interface IUser extends Document {
-  // Основная информация
-  fullName: string;
-  phone: string;
-  
-  // Хэш пароля (только для сотрудников и прочих взрослых пользователей)
-  passwordHash?: string; // Хэш пароля
-  
-  // Первичный пароль (plaintext) для админа, удаляется после смены
-  initialPassword?: string;
-  
-  // Роль пользователя
-  role: 'admin' | 'manager' | 'teacher' | 'assistant' | 'nurse' | 'cook' | 'cleaner' | 'security' | 'psychologist' | 'music_teacher' | 'physical_teacher' | 'staff' | 'parent' | 'child' | 'null' | 'doctor' | 'intern';
-  
-  // Общие поля
-  active: boolean;
-  photo?: string;
-  birthday?: Date;
-  notes?: string;
-  
-  salary?: number;
-  shiftRate?: number;
-  salaryType?: 'per_day' | 'per_month' | 'per_shift';
-  penaltyType?: 'per_minute' | 'per_5_minutes' | 'per_10_minutes' | 'fixed' | 'percent';
-  penaltyAmount?: number;
-  totalFines: number;
-  
-  // Поля для детей (type: 'child')
-  parentName?: string;
-  parentPhone?: string;  // Номер телефона родителя
-  groupId?: mongoose.Types.ObjectId;  // Группа ребенка
-  iin?: string;
-  
-  // Служебные поля
-  createdAt: Date;
-  updatedAt: Date;
-  lastLogin?: Date;  // Последний вход
-}
-
-const UserSchema: Schema = new Schema({
-  // Основная информация
-  fullName: { 
-    type: String, 
-    required: [true, 'Полное имя обязательно'],
-    trim: true,
-    maxlength: [100, 'Полное имя не может превышать 100 символов']
-  },
-  phone: { 
-    type: String, 
-    required: [true, 'Номер телефона обязателен'],
-    trim: true,
-    index: true
-  },
-  
-  // Хэш пароля (только для сотрудников и прочих взрослых пользователей)
-  passwordHash: {
-    type: String,
-    required: true,
-    select: false // исключаем по умолчанию из выборок
- },
-  // Первичный пароль (plaintext) – виден только при выборке с '+initialPassword'
-  initialPassword: { type: String, select: false },
-  
-  // Данные последнего логина
- lastLogin: { type: Date },
-  
-
-  role: {
-    type: String,
-    required: [true, 'Роль обязательна'],
-    enum: {
-      values: ['admin', 'manager', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse', 'child', 'null', 'doctor', 'psychologist','intern'],
-      message: 'Неверная роль: {VALUE}'
-    },
-    index: true
-  },
-  
- // Общие поля
-  active: { type: Boolean, default: true, index: true },
-  photo: { type: String },
-  birthday: { type: Date },
-  notes: { 
-    type: String,
-    maxlength: [1000, 'Заметки не могут превышать 1000 символов']
-  },
-  
-  // Поля для сотрудников (type: 'adult')
-  salary: { 
-    type: Number, 
-    default: 0,
-    min: [0, 'Зарплата не может быть отрицательной']
-  },
-  salaryType: {
-    type: String,
-    enum: ['per_day', 'per_month', 'per_shift'],
-    default: 'per_month',
-  },
-  shiftRate: {
-    type: Number,
-    default: 0,
-    min: [0, 'Ставка за смену не может быть отрицательной']
-  },
-  penaltyType: {
-    type: String,
-    enum: ['per_minute', 'per_5_minutes', 'per_10_minutes', 'fixed', 'percent'],
-    default: 'per_5_minutes',
-  },
-  penaltyAmount: {
-    type: Number,
-    default: 0,
-    min: [0, 'Штраф не может быть отрицательным']
-  },
-  // totalFines убран, штрафы считаются через коллекцию Fine
-  
-  // Поля для детей (type: 'child')
-  parentName: { 
-    type: String,
-    maxlength: [100, 'Имя родителя не может превышать 100 символов']
-  },
-  parentPhone: { 
-    type: String,
-  
-  },
-  groupId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Group',
-  },
-  iin: { 
-    type: String,
-    unique: true,
-    trim: true,
-    index: true
-  },
-}, { timestamps: true });
-
-export default mongoose.model<IUser>('users', UserSchema);
+// Экспортируем только интерфейс IFine, так как модель User уже определена в users/model.ts
+// Это избавит от ошибки OverwriteModelError

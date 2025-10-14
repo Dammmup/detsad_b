@@ -5,47 +5,49 @@ export interface IChild extends Document {
   iin?: string;
   birthday?: Date;
   address?: string;
-  parentName?: string;
+ parentName?: string;
   parentPhone?: string;
   groupId?: mongoose.Types.ObjectId;
+  active?: boolean;
   // Медицинские данные
   gender?: string;
   clinic?: string;
   bloodGroup?: string;
   rhesus?: string;
   disability?: string;
-  dispensary?: string;
+ dispensary?: string;
   diagnosis?: string;
-  allergy?: string;
-  infections?: string;
+ allergy?: string;
+ infections?: string;
  hospitalizations?: string;
   incapacity?: string;
   checkups?: string;
   // Прочее
  notes?: string;
   createdAt?: Date;
-  updatedAt?: Date;
+ updatedAt?: Date;
 }
 
 const ChildSchema = new Schema<IChild>({
   fullName: { type: String, required: true },
   iin: String,
-  birthday: Date,
+ birthday: Date,
   address: String,
  parentName: String,
   parentPhone: String,
   groupId: { type: Schema.Types.ObjectId, ref: 'Group' },
+  active: { type: Boolean, default: true },
   gender: String,
   clinic: String,
   bloodGroup: String,
   rhesus: String,
-  disability: String,
+ disability: String,
  dispensary: String,
-  diagnosis: String,
-  allergy: String,
-  infections: String,
+ diagnosis: String,
+ allergy: String,
+ infections: String,
  hospitalizations: String,
-  incapacity: String,
+ incapacity: String,
   checkups: String,
   notes: String,
 }, { timestamps: true });

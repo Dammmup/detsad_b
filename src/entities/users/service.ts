@@ -1,5 +1,5 @@
-import { IUser } from './model';
-import User from './model';
+import { IUser } from '../users/model';
+import User from '../users/model';
 import { comparePassword, hashPassword } from '../../utils/hash';
 
 export class UserService {
@@ -19,8 +19,8 @@ export class UserService {
 
   async create(data: Partial<IUser>): Promise<IUser> {
     // Хешируем пароль перед сохранением
-    if (data.password) {
-      data.password = await hashPassword(data.password);
+    if ((data as any).password) {
+      (data as any).password = await hashPassword((data as any).password);
     }
     const user = new User(data);
     return await user.save();
@@ -28,8 +28,8 @@ export class UserService {
 
   async update(id: string, data: Partial<IUser>): Promise<IUser | null> {
     // Если обновляется пароль, хешируем его
-    if (data.password) {
-      data.password = await hashPassword(data.password);
+    if ((data as any).password) {
+      (data as any).password = await hashPassword((data as any).password);
     }
     return await User.findByIdAndUpdate(id, data, { new: true }).select('-passwordHash -initialPassword');
   }
@@ -40,10 +40,10 @@ export class UserService {
   }
 
  async validatePassword(phone: string, password: string): Promise<IUser | null> {
-    const user = await User.findOne({ phone }).select('+passwordHash');
-    if (!user) return null;
+   const user = await User.findOne({ phone }).select('+passwordHash');
+   if (!user) return null;
 
-    const isValid = await comparePassword(password, user.passwordHash || user.password);
-    return isValid ? user : null;
-  }
+   const isValid = await comparePassword(password, user.passwordHash || (user as any).password as any);
+   return isValid ? user : null;
+ }
 }

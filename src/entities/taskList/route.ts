@@ -21,11 +21,11 @@ import { authorizeRole } from '../../middlewares/authRole';
 
 const router = express.Router();
 
-// Get all tasks (with filters)
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager']), getAllTasks);
+// Get all tasks (with filters) - теперь доступно всем авторизованным пользователям
+router.get('/', authMiddleware, getAllTasks);
 
-// Get task by ID
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager']), getTaskById);
+// Get task by ID - теперь доступно всем авторизованным пользователям
+router.get('/:id', authMiddleware, getTaskById);
 
 // Create new task
 router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createTask);

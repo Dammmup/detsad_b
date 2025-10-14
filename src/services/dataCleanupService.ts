@@ -70,7 +70,7 @@ class DataCleanupService {
           (member as any).email || '',
           member.createdAt ? (member.createdAt as any).toLocaleDateString?.() || member.createdAt.toString() : '',
           'Активный',
-          member.salary ? `${member.salary} тенге` : ''
+          '' // Поле salary больше не существует в модели пользователя
         ];
       });
 
@@ -204,8 +204,8 @@ class DataCleanupService {
           workDurationStr,
           record.penalties?.late?.amount || 0,
           record.overtimeDuration || 0,
+          record.status === 'active' ? 'В процессе' :
           record.status === 'completed' ? 'Завершено' :
-          record.status === 'active' ? 'Активный' :
           record.status === 'checked_in' ? 'Отметился' :
           record.status === 'checked_out' ? 'Ушел' :
           record.status === 'on_break' ? 'На перерыве' :

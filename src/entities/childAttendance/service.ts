@@ -1,6 +1,5 @@
 import { IChildAttendance } from './model';
 import ChildAttendance from './model';
-import User from '../auth/model'; // Using the user model
 import Group from '../groups/model'; // Using the group model
 
 export class ChildAttendanceService {

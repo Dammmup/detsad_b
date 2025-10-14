@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response, Request } from 'express';
 import { GroupService } from './service';
 
 const groupService = new GroupService();
@@ -69,7 +69,7 @@ export const updateGroup = async (req: Request, res: Response) => {
     }
     
     // Проверка прав доступа (только админ или создатель группы)
-    if (req.user?.role !== 'admin' && group.createdBy.toString() !== req.user?.id) {
+    if (req.user?.role !== 'admin' && group.createdBy && group.createdBy.toString() !== req.user?.id) {
       return res.status(403).json({ error: 'Недостаточно прав для редактирования группы' });
     }
 

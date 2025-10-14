@@ -19,7 +19,7 @@ export interface IStaffAttendanceTracking extends Document {
  workDuration?: number; // minutes
   breakDuration?: number; // minutes
   overtimeDuration?: number; // minutes
-  status: 'checked_in' | 'checked_out' | 'on_break' | 'overtime' | 'absent' | 'active' | 'completed' | 'missed' | 'pending_approval';
+  status: 'active' | 'completed' | 'on_break' | 'overtime' | 'absent' | 'checked_in' | 'checked_out' | 'missed' | 'pending_approval';
   penalties: {
     late: {
       minutes: number;
@@ -111,7 +111,7 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   },
   status: {
     type: String,
-    enum: ['checked_in', 'checked_out', 'on_break', 'overtime', 'absent', 'active', 'completed', 'missed', 'pending_approval'],
+    enum: ['active', 'completed', 'on_break', 'overtime', 'absent', 'checked_in', 'checked_out', 'missed', 'pending_approval'],
     default: 'absent',
     index: true
   },
@@ -210,9 +210,13 @@ StaffAttendanceTrackingSchema.pre('save', function(this: IStaffAttendanceTrackin
     this.regularHours = Math.min(this.totalHours, standardHours);
     this.overtimeHours = Math.max(0, this.totalHours - standardHours);
     
-    // Update status if completed
-    if (this.status === 'active' || this.status === 'checked_in') {
-      this.status = 'completed';
+    // Update status if completed, but only if it's not already set to a final status
+    const finalStatuses = ['completed', 'missed', 'pending_approval'];
+    if (this.checkOutTime && !finalStatuses.includes(this.status)) {
+      // Only update status if it's one of the in-progress statuses
+      if (this.status === 'active' || this.status === 'checked_in' || this.status === 'on_break') {
+        this.status = 'completed';
+      }
     }
   }
   next();

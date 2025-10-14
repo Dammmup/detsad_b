@@ -1,6 +1,8 @@
+import mongoose from 'mongoose';
 import StaffAttendanceTracking from './model';
 import { IStaffAttendanceTracking } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
+import { SettingsService } from '../settings/service';
 
 export class StaffAttendanceTrackingService {
   // Helper function to calculate distance between two coordinates
@@ -27,7 +29,7 @@ export class StaffAttendanceTrackingService {
     tomorrow.setDate(tomorrow.getDate() + 1);
     
     const existingEntry = await StaffAttendanceTracking.findOne({
-      staffId: userId,
+      staffId: new mongoose.Types.ObjectId(userId),
       date: { $gte: today, $lt: tomorrow },
       status: { $in: ['active', 'checked_in', 'on_break'] }
     });
@@ -47,7 +49,7 @@ export class StaffAttendanceTrackingService {
       staffId: userId,
       date: new Date(),
       checkInTime: new Date(),
-      status: 'checked_in',
+      status: 'active',
       clockInLocation: {
         name: 'Current Location',
         coordinates: {
@@ -62,6 +64,41 @@ export class StaffAttendanceTrackingService {
       inZone: true // Assuming user is in zone when clocking in
     });
     
+    // Calculate lateness if scheduled shift exists
+    const Shift = mongoose.model('Shift', require('../staffShifts/model').default.schema);
+    const scheduledShift = await Shift.findOne({
+      staffId: userId,
+      date: { $gte: today, $lt: tomorrow }
+    });
+    
+    if (scheduledShift && scheduledShift.startTime) {
+      const checkInTime = new Date();
+      const [hours, minutes] = scheduledShift.startTime.split(':').map(Number);
+      
+      // Create a date object with the scheduled start time
+      const scheduledStart = new Date(checkInTime);
+      scheduledStart.setHours(hours, minutes, 0, 0);
+      
+      // Calculate lateness in minutes
+      const latenessMs = checkInTime.getTime() - scheduledStart.getTime();
+      const latenessMinutes = Math.floor(latenessMs / (1000 * 60));
+      
+      if (latenessMinutes > 0) {
+        // Get payroll to determine penalty rate
+        const Payroll = mongoose.model('Payroll', require('../payroll/model').default.schema);
+        const payroll = await Payroll.findOne({ staffId: userId });
+        const penaltyRate = payroll?.penaltyDetails?.amount || 500; // Default 500 tenge per minute
+        
+        const penaltyAmount = latenessMinutes * penaltyRate;
+        
+        attendanceRecord.penalties.late = {
+          minutes: latenessMinutes,
+          amount: penaltyAmount,
+          reason: `Опоздание на ${latenessMinutes} минут`
+        };
+      }
+    }
+    
     await attendanceRecord.save();
     
     await attendanceRecord.populate('staffId', 'fullName role');
@@ -71,7 +108,7 @@ export class StaffAttendanceTrackingService {
       attendanceRecord,
       location: attendanceRecord.clockInLocation?.name
     };
- }
+  }
 
   async clockOut(userId: string, locationData: { latitude: number, longitude: number }, photo?: string, notes?: string) {
     // Find today's attendance record
@@ -81,7 +118,7 @@ export class StaffAttendanceTrackingService {
     tomorrow.setDate(tomorrow.getDate() + 1);
     
     const attendanceRecord = await StaffAttendanceTracking.findOne({
-      staffId: userId,
+      staffId: new mongoose.Types.ObjectId(userId),
       date: { $gte: today, $lt: tomorrow },
       status: { $in: ['checked_in', 'on_break', 'active'] }
     });
@@ -92,7 +129,43 @@ export class StaffAttendanceTrackingService {
     
     // Update attendance record
     attendanceRecord.checkOutTime = new Date();
-    attendanceRecord.status = 'checked_out';
+    
+    // Calculate early leave if scheduled shift exists
+    const Shift = mongoose.model('Shift', require('../staffShifts/model').default.schema);
+    const scheduledShift = await Shift.findOne({
+      staffId: userId,
+      date: { $gte: today, $lt: tomorrow }
+    });
+    
+    if (scheduledShift && scheduledShift.endTime) {
+      const checkOutTime = new Date();
+      const [hours, minutes] = scheduledShift.endTime.split(':').map(Number);
+      
+      // Create a date object with the scheduled end time
+      const scheduledEnd = new Date(checkOutTime);
+      scheduledEnd.setHours(hours, minutes, 0, 0);
+      
+      // Calculate early leave in minutes
+      const earlyLeaveMs = scheduledEnd.getTime() - checkOutTime.getTime();
+      const earlyLeaveMinutes = Math.floor(earlyLeaveMs / (1000 * 60));
+      
+      if (earlyLeaveMinutes > 0) {
+        // Get payroll to determine penalty rate
+        const Payroll = mongoose.model('Payroll', require('../payroll/model').default.schema);
+        const payroll = await Payroll.findOne({ staffId: userId });
+        const penaltyRate = payroll?.penaltyDetails?.amount || 50; // Default 50 tenge per minute
+        
+        const penaltyAmount = earlyLeaveMinutes * penaltyRate;
+        
+        attendanceRecord.penalties.earlyLeave = {
+          minutes: earlyLeaveMinutes,
+          amount: penaltyAmount,
+          reason: `Ранний уход за ${earlyLeaveMinutes} минут до окончания смены`
+        };
+      }
+    }
+    
+    attendanceRecord.status = 'completed';
     attendanceRecord.clockOutLocation = {
       name: 'Current Location',
       coordinates: {
@@ -180,7 +253,7 @@ export class StaffAttendanceTrackingService {
     const breakMs = attendanceRecord.breakEnd.getTime() - attendanceRecord.breakStart.getTime();
     attendanceRecord.breakDuration = Math.floor(breakMs / (1000 * 60)); // Convert to minutes
     
-    attendanceRecord.status = 'checked_in';
+    attendanceRecord.status = 'active';
     await attendanceRecord.save();
     
     return {
@@ -389,7 +462,7 @@ export class StaffAttendanceTrackingService {
     const records = await StaffAttendanceTracking.find({
       staffId: userId,
       date: { $gte: start, $lte: end },
-      status: 'checked_out'
+      status: 'completed'
     });
     
     const summary = {

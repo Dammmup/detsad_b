@@ -1,6 +1,6 @@
 import PerishableBrak from './model';
 import { IPerishableBrak } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 import Product from '../products/model'; // Assuming products model exists
 
 export class PerishableBrakService {

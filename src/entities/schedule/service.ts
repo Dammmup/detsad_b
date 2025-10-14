@@ -1,6 +1,6 @@
 import Schedule from './model';
 import { ISchedule } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 import StaffShift from '../staffShifts/model'; // Using the staff shifts model
 import Group from '../groups/model'; // Using the groups model
 

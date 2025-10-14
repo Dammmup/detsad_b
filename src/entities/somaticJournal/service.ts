@@ -1,6 +1,6 @@
 import SomaticJournal from './model';
 import { ISomaticJournal } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 
 export class SomaticJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {

@@ -1,6 +1,6 @@
 import FoodStaffHealth from './model';
 import { IFoodStaffHealth } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 
 export class FoodStaffHealthService {
   async getAll(filters: { staffId?: string, date?: string, doctorId?: string, status?: string, healthStatus?: string, vaccinationStatus?: string, startDate?: string, endDate?: string }) {

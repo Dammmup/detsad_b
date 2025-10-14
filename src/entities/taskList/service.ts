@@ -1,10 +1,20 @@
 import Task from './model';
 import { ITask } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 
 export class TaskListService {
-  async getAll(filters: { assignedTo?: string, assignedBy?: string, status?: string, priority?: string, category?: string, dueDate?: string, startDate?: string, endDate?: string }) {
+  async getAll(filters: { assignedTo?: string, assignedBy?: string, status?: string, priority?: string, category?: string, dueDate?: string, startDate?: string, endDate?: string }, userId?: string) {
     const filter: any = {};
+    
+    // Если указан userId, фильтруем задачи, которые предназначены конкретно для этого пользователя
+    if (userId) {
+      // Задачи, которые назначены конкретному пользователю ИЛИ задачи, которые не назначены никому (видны всем)
+      filter.$or = [
+        { assignedToSpecificUser: userId },
+        { assignedToSpecificUser: { $exists: false } },
+        { assignedToSpecificUser: null }
+      ];
+    }
     
     if (filters.assignedTo) filter.assignedTo = filters.assignedTo;
     if (filters.assignedBy) filter.assignedBy = filters.assignedBy;
@@ -23,6 +33,7 @@ export class TaskListService {
     const tasks = await Task.find(filter)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
+      .populate('assignedToSpecificUser', 'fullName role')
       .populate('completedBy', 'fullName role')
       .populate('cancelledBy', 'fullName role')
       .sort({ dueDate: -1, priority: -1 });
@@ -34,6 +45,7 @@ export class TaskListService {
     const task = await Task.findById(id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
+      .populate('assignedToSpecificUser', 'fullName role')
       .populate('completedBy', 'fullName role')
       .populate('cancelledBy', 'fullName role');
     
@@ -42,7 +54,7 @@ export class TaskListService {
     }
     
     return task;
-  }
+ }
 
   async create(taskData: Partial<ITask>, userId: string) {
     // Проверяем обязательные поля
@@ -51,9 +63,6 @@ export class TaskListService {
     }
     if (!taskData.assignedTo) {
       throw new Error('Не указан исполнитель задачи');
-    }
-    if (!taskData.assignedBy) {
-      throw new Error('Не указан автор задачи');
     }
     if (!taskData.category) {
       throw new Error('Не указана категория задачи');
@@ -65,7 +74,16 @@ export class TaskListService {
       throw new Error('Исполнитель задачи не найден');
     }
     
-    const assignedByUser = await User.findById(taskData.assignedBy);
+    // Проверяем, если указана конкретная цель назначения
+    if (taskData.assignedToSpecificUser) {
+      const specificUser = await User.findById(taskData.assignedToSpecificUser);
+      if (!specificUser) {
+        throw new Error('Указанный пользователь для назначения не найден');
+      }
+    }
+    
+    // Используем текущего пользователя как автора задачи
+    const assignedByUser = await User.findById(userId);
     if (!assignedByUser) {
       throw new Error('Автор задачи не найден');
     }
@@ -80,6 +98,7 @@ export class TaskListService {
     const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
+      .populate('assignedToSpecificUser', 'fullName role')
       .populate('completedBy', 'fullName role')
       .populate('cancelledBy', 'fullName role');
     
@@ -301,11 +320,13 @@ export class TaskListService {
     const tasks = await Task.find({
       $or: [
         { assignedTo: userId },
-        { assignedBy: userId }
+        { assignedBy: userId },
+        { assignedToSpecificUser: userId }  // Задачи, которые назначены конкретно этому пользователю
       ]
     })
     .populate('assignedTo', 'fullName role')
     .populate('assignedBy', 'fullName role')
+    .populate('assignedToSpecificUser', 'fullName role')
     .sort({ dueDate: 1, priority: -1 });
     
     return tasks;

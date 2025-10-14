@@ -1,6 +1,6 @@
 import RiskGroupChild from './model';
 import { IRiskGroupChild } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../../entities/users/model'; // Using the user model
 
 export class RiskGroupChildrenService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {

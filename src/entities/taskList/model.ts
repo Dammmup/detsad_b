@@ -3,9 +3,10 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ITask extends Document {
   title: string;
   description?: string;
-  assignedTo: mongoose.Types.ObjectId;
+ assignedTo: mongoose.Types.ObjectId;
   assignedBy: mongoose.Types.ObjectId;
-  dueDate?: Date;
+  assignedToSpecificUser?: mongoose.Types.ObjectId; // Назначение задачи конкретному сотруднику
+ dueDate?: Date;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   category: string;
@@ -16,7 +17,7 @@ export interface ITask extends Document {
   completedBy?: mongoose.Types.ObjectId;
   cancelledBy?: mongoose.Types.ObjectId;
   createdAt: Date;
-  updatedAt: Date;
+ updatedAt: Date;
 }
 
 const TaskSchema = new Schema<ITask>({
@@ -30,19 +31,24 @@ const TaskSchema = new Schema<ITask>({
     type: String,
     maxlength: [1000, 'Описание не может превышать 1000 символов']
   },
-  assignedTo: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
+  assignedTo: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
     required: [true, 'Укажите исполнителя задачи'],
     index: true
   },
-  assignedBy: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
+  assignedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
     required: [true, 'Укажите автора задачи'],
     index: true
   },
-  dueDate: { 
+  assignedToSpecificUser: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true  // Добавляем индекс для оптимизации поиска
+  },
+  dueDate: {
     type: Date,
     index: true
   },

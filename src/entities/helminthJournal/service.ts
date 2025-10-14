@@ -1,6 +1,6 @@
 import HelminthJournal from './model';
 import { IHelminthJournal } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 
 export class HelminthJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {

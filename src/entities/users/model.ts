@@ -9,22 +9,18 @@ export interface IUser extends Document {
   role: string;
   avatar?: string;
   isActive: boolean;
- lastLogin?: Date;
+  lastLogin?: Date;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
   // Дополнительные поля из старой модели
   uniqNumber?: string;
   notes?: string;
   active: boolean;
   iin?: string;
   groupId?: mongoose.Types.ObjectId;
-  salaryType?: string;
-  salary?: number;
-  penaltyType?: string;
-  penaltyAmount?: number;
-  totalFines?: number;
-  shiftRate: number;
-  penalties: number;
+  // Поля из auth модели
+  birthday?: Date;
+  photo?: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -87,16 +83,10 @@ const UserSchema: Schema = new Schema({
     ref: 'Group',
     index: true
   },
-  shiftRate: Number,
-  penalties: Number,
-  salaryType: String,
- salary: Number,
- penaltyType: String,
-  penaltyAmount: Number,
-  totalFines: {
-    type: Number,
-    default: 0
-  }
+  // Поля из auth модели
+  birthday: { type: Date },
+  photo: { type: String }
+
 }, {
   timestamps: true
 });

@@ -1,6 +1,6 @@
 import ProductCertificate from './model';
 import { IProductCertificate } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../users/model'; // Using the user model
 import Product from '../products/model'; // Assuming products model exists
 
 export class ProductCertificatesService {

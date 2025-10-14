@@ -147,14 +147,16 @@ export class ReportsService {
       status: undefined
     });
     
-    // Формируем сводку
+    // Формируем сводку, исключая записи с null staffId
+    const validPayrolls = payrolls.filter(p => p.staffId !== null);
+    
     const summary = {
-      totalEmployees: payrolls.length,
-      totalAccruals: payrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
-      totalPenalties: payrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
-      totalPayout: payrolls.reduce((sum, p) => sum + (p.total || 0), 0),
-      averageSalary: payrolls.length > 0
-        ? payrolls.reduce((sum, p) => sum + (p.total || 0), 0) / payrolls.length
+      totalEmployees: validPayrolls.length,
+      totalAccruals: validPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
+      totalPenalties: validPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalPayout: validPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
+      averageSalary: validPayrolls.length > 0
+        ? validPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / validPayrolls.length
         : 0
     };
     
@@ -171,10 +173,11 @@ export class ReportsService {
       status: undefined
     });
     
-    // Фильтруем данные по диапазону дат
+    // Фильтруем данные по диапазону дат, исключая записи с null staffId
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const filteredPayrolls = payrolls.filter(item => {
+    const validPayrolls = payrolls.filter(p => p.staffId !== null);
+    const filteredPayrolls = validPayrolls.filter(item => {
       const itemDate = new Date(item.period ? item.period : item.createdAt);
       return itemDate >= start && itemDate <= end;
     });

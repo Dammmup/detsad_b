@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IGeolocationSettings extends Document {
+  enabled: boolean;
   coordinates: {
     latitude: number;
     longitude: number;
@@ -11,6 +12,7 @@ export interface IGeolocationSettings extends Document {
 }
 
 const GeolocationSettingsSchema = new Schema<IGeolocationSettings>({
+  enabled: { type: Boolean, default: false },
   coordinates: {
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true }

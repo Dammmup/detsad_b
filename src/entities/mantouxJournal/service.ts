@@ -1,6 +1,6 @@
 import MantouxJournal from './model';
 import { IMantouxJournal } from './model';
-import User from '../auth/model'; // Using the user model
+import User from '../../entities/users/model'; // Using the user model
 
 export class MantouxJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, reactionType?: string, startDate?: string, endDate?: string }) {

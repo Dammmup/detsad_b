@@ -2,60 +2,86 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IGroup extends Document {
   name: string;
-  description: string;
-  teacher: mongoose.Types.ObjectId;
+  description?: string;
+ ageRange?: string;
+  ageGroup?: string;
+  capacity?: number;
+ maxStudents?: number;
   isActive: boolean;
-  maxStudents: number;
-  createdBy: mongoose.Types.ObjectId;
+ teacherId?: mongoose.Types.ObjectId;
+  assistantId?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-  ageGroup: string[];
+}
+
+// Интерфейс для групп с детьми
+export interface IGroupWithChildren {
+  _id: string;
+  name: string;
+  description?: string;
+  ageRange?: string;
+  ageGroup?: string;
+  capacity?: number;
+  maxStudents?: number;
+  isActive: boolean;
+  teacherId?: string;
+  assistantId?: string;
+  createdBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  children?: any[]; // Массив детей в группе
+}
+
+// Расширяем интерфейс для операций создания/обновления, чтобы включить вспомогательные поля
+export interface IGroupInput extends Partial<IGroup> {
+  teacher?: string; // Поле для передачи в запросе, которое будет преобразовано в teacherId
 }
 
 const GroupSchema: Schema = new Schema({
-  name: { 
-    type: String, 
+  name: {
+    type: String,
     required: [true, 'Название группы обязательно'],
+    unique: true,
     trim: true,
     maxlength: [100, 'Название группы не может превышать 100 символов']
   },
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [1000, 'Описание не может превышать 1000 символов']
-  },
-  teacher: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'users', // Исправляем ссылку на модель users
-    required: [true, 'Укажите преподавателя группы']
-  },
-  isActive: {
-    type: Boolean,
-    default: true
+  description: String,
+  ageRange: String,
+  ageGroup: String,
+  capacity: {
+    type: Number,
+    min: [0, 'Вместимость не может быть отрицательной']
   },
   maxStudents: {
     type: Number,
-    min: [1, 'Минимальное количество студентов - 1'],
-    default: 15
+    min: [0, 'Максимальное количество студентов не может быть отрицательным']
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+    index: true
+  },
+  teacherId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
+  assistantId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
   },
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'users', // Исправляем ссылку на модель users
-    required: [true, 'Обязательно указать создателя']
-  },
-  ageGroup: {
-    type: [String],
-    required: [true, 'Возрастная группа обязательна'],
-    enum: ['1', '2', '3', '4', '5', '6', '7'],
-    default: ['1'],
-  },
-
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  }
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
 
-
+// Добавим индекс для поиска по названию группы
+GroupSchema.index({ name: 1 });
 
 export default mongoose.model<IGroup>('Group', GroupSchema, 'groups');
