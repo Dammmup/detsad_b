@@ -22,7 +22,7 @@ export interface ISimpleShift extends Document {
 const Shiftschema: Schema = new Schema({
   staffId: {
     type: Schema.Types.ObjectId,
-    ref: 'users',
+    ref: 'User',
     required: true,
     index: true
   },
@@ -78,7 +78,7 @@ const Shiftschema: Schema = new Schema({
   notes: String,
   createdBy: {
     type: Schema.Types.ObjectId,
-    ref: 'users',
+    ref: 'User',
     required: true
   }
 }, {
@@ -152,3 +152,6 @@ Shiftschema.methods.calculateLateness = function() {
 };
 
 export default mongoose.model<ISimpleShift>('Shift', Shiftschema);
+
+// Ensure the User model is registered
+import '../users/model';

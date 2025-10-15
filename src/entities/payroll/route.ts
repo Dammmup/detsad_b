@@ -7,7 +7,8 @@ import {
   deletePayroll,
   approvePayroll,
   markPayrollAsPaid,
-  getAllPayrollsByUsers
+  getAllPayrollsByUsers,
+  generatePayrollSheets
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -37,5 +38,8 @@ router.patch('/:id/approve', authMiddleware, authorizeRole(['admin', 'manager'])
 
 // Отметить зарплату как оплаченную
 router.patch('/:id/mark-paid', authMiddleware, authorizeRole(['admin', 'manager']), markPayrollAsPaid);
+
+// Сгенерировать расчетные листы
+router.post('/generate-sheets', authMiddleware, authorizeRole(['admin']), generatePayrollSheets);
 
 export default router;

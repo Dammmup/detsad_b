@@ -72,6 +72,27 @@ export class ShiftsService {
     // Удаляем поле type, если оно существует, чтобы избежать конфликта
     delete newShiftData.type;
     
+    // Преобразуем staffId в ObjectId, если он передан как строка
+    if (typeof newShiftData.staffId === 'string') {
+      newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
+    }
+    
+    // Преобразуем createdBy в ObjectId, если он передан как строка
+    if (typeof newShiftData.createdBy === 'string') {
+      newShiftData.createdBy = new mongoose.Types.ObjectId(newShiftData.createdBy);
+    }
+    
+    // Проверяем, нет ли уже смены для этого сотрудника в этот день
+    const existingShift = await Shift.findOne({
+      staffId: newShiftData.staffId,
+      date: newShiftData.date,
+      _id: { $ne: newShiftData._id } // Исключаем текущую смену при обновлении
+    });
+    
+    if (existingShift) {
+      throw new Error('У сотрудника уже есть смена в этот день');
+    }
+    
     const shift = new Shift(newShiftData);
     await shift.save();
     
@@ -96,6 +117,27 @@ export class ShiftsService {
         
         // Удаляем поле type, если оно существует, чтобы избежать конфликта
         delete newShiftData.type;
+        
+        // Преобразуем staffId в ObjectId, если он передан как строка
+        if (typeof newShiftData.staffId === 'string') {
+          newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
+        }
+        
+        // Преобразуем createdBy в ObjectId, если он передан как строка
+        if (typeof newShiftData.createdBy === 'string') {
+          newShiftData.createdBy = new mongoose.Types.ObjectId(newShiftData.createdBy);
+        }
+        
+        // Проверяем, нет ли уже смены для этого сотрудника в этот день
+        const existingShift = await Shift.findOne({
+          staffId: newShiftData.staffId,
+          date: newShiftData.date,
+          _id: { $ne: newShiftData._id } // Исключаем текущую смену при обновлении
+        });
+        
+        if (existingShift) {
+          throw new Error('У сотрудника уже есть смена в этот день');
+        }
         
         // Validate shift data before creating
         if (!newShiftData.staffId) {
@@ -149,6 +191,19 @@ export class ShiftsService {
       throw new Error('Смена не найдена');
     }
     
+    // Проверяем, нет ли уже смены для этого сотрудника в этот день (кроме текущей смены)
+    if (data.date && data.staffId) {
+      const existingShift = await Shift.findOne({
+        staffId: data.staffId,
+        date: data.date,
+        _id: { $ne: id } // Исключаем текущую смену
+      });
+      
+      if (existingShift) {
+        throw new Error('У сотрудника уже есть смена в этот день');
+      }
+    }
+    
     // Обновим поля
     Object.assign(shift, data);
     
@@ -160,7 +215,7 @@ export class ShiftsService {
     await shift.populate('createdBy', 'fullName');
     
     return shift;
-  }
+ }
 
   async delete(id: string) {
     const shift = await Shift.findByIdAndDelete(id);

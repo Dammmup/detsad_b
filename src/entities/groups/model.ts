@@ -39,12 +39,13 @@ export interface IGroupInput extends Partial<IGroup> {
 }
 
 const GroupSchema: Schema = new Schema({
-  name: {
+ name: {
     type: String,
     required: [true, 'Название группы обязательно'],
     unique: true,
     trim: true,
-    maxlength: [100, 'Название группы не может превышать 100 символов']
+    maxlength: [100, 'Название группы не может превышать 100 символов'],
+    index: true
   },
   description: String,
   ageRange: String,
@@ -82,6 +83,5 @@ const GroupSchema: Schema = new Schema({
 });
 
 // Добавим индекс для поиска по названию группы
-GroupSchema.index({ name: 1 });
 
 export default mongoose.model<IGroup>('Group', GroupSchema, 'groups');

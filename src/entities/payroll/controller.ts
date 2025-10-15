@@ -134,3 +134,195 @@ export const markPayrollAsPaid = async (req: AuthenticatedRequest, res: Response
     res.status(404).json({ error: err.message || 'Ошибка отметки зарплаты как оплаченной' });
   }
 };
+
+export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Проверяем, что пользователь является администратором
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
+    }
+    
+    const { period } = req.body;
+    
+    if (!period) {
+      return res.status(400).json({ error: 'Период обязателен. Используйте формат YYYY-MM (например, 2025-01)' });
+    }
+    
+    // Проверяем формат периода
+    const periodRegex = /^\d{4}-\d{2}$/;
+    if (!periodRegex.test(period)) {
+      return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)' });
+    }
+    
+    // Импортируем необходимые модели
+    const Payroll = (await import('../payroll/model')).default;
+    const User = (await import('../users/model')).default;
+    const StaffShift = (await import('../staffShifts/model')).default;
+    
+    // Получаем всех сотрудников
+    const staff = await User.find({ role: { $ne: 'admin' } });
+    
+    // Получаем все смены за указанный период
+    const [year, month] = period.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1); // Первый день месяца
+    const endDate = new Date(year, month, 0); // Последний день месяца
+    
+    const shifts = await StaffShift.find({
+      date: { $gte: startDate, $lte: endDate }
+    }).populate('staffId', '_id');
+    
+    // Группируем смены по сотрудникам
+    const shiftsByStaff: { [key: string]: any[] } = {};
+    shifts.forEach(shift => {
+      const staffId = (shift.staffId as any)._id.toString();
+      if (!shiftsByStaff[staffId]) {
+        shiftsByStaff[staffId] = [];
+      }
+      shiftsByStaff[staffId].push(shift);
+    });
+    
+    // Определяем интерфейс для информации о зарплате сотрудника
+    interface EmployeePayrollInfo {
+      baseSalary?: number;
+      type?: string;
+      shiftRate?: number;
+      latePenaltyRate?: number;
+      bonuses?: number;
+    }
+
+    // Расширяем интерфейс пользователя, чтобы включить информацию о зарплате
+    interface IUserWithPayroll {
+      _id: string;
+      payroll?: EmployeePayrollInfo;
+      fullName?: string;
+      role: string;
+    }
+    
+    // Функция для вычисления штрафов за опоздания
+    const calculateLatePenalties = (shifts: any[], latePenaltyRate: number = 500): number => {
+      let totalPenalty = 0;
+      
+      for (const shift of shifts) {
+        if (shift.startTime && shift.scheduledStartTime) {
+          const scheduledStart = new Date(shift.scheduledStartTime);
+          const actualStart = new Date(shift.startTime);
+          
+          // Вычисляем разницу в минутах между запланированным и фактическим временем начала
+          const delayInMinutes = Math.max(0, (actualStart.getTime() - scheduledStart.getTime()) / (1000 * 60));
+          
+          // Если опоздание больше 5 минут, применяем штраф
+          if (delayInMinutes >= 5) {
+            // Штрафы применяются за каждые 5 минут опоздания
+            const fiveMinuteIntervals = Math.ceil(delayInMinutes / 5);
+            totalPenalty += fiveMinuteIntervals * latePenaltyRate;
+          }
+        }
+      }
+      
+      return totalPenalty;
+    };
+    
+    // Функция для вычисления штрафов за неявки
+    const calculateAbsencePenalties = (shifts: any[]): number => {
+      let totalPenalty = 0;
+      
+      for (const shift of shifts) {
+        // Если смена была запланирована, но не отмечена как отработанная
+        if (shift.scheduledStartTime && !shift.startTime) {
+          totalPenalty += 5000; // Фиксированная ставка за неявку
+        }
+      }
+      
+      return totalPenalty;
+    };
+    
+    // Генерируем расчетные листы для каждого сотрудника
+    for (const rawEmployee of staff) {
+      // Приводим тип сотрудника к IUserWithPayroll
+      const employeeWithPayroll = rawEmployee as unknown as IUserWithPayroll;
+      
+      const employeeShifts = shiftsByStaff[employeeWithPayroll._id.toString()] || [];
+      
+      // Вычисляем базовые значения
+      const workedDays = employeeShifts.filter(shift => shift.startTime).length;
+      const workedShifts = employeeShifts.length;
+      
+      // Вычисляем штрафы
+      const latePenaltyRate = employeeWithPayroll.payroll?.latePenaltyRate || 500;
+      const latePenalties = calculateLatePenalties(employeeShifts, latePenaltyRate);
+      const absencePenalties = calculateAbsencePenalties(employeeShifts);
+      
+      // Вычисляем итоговую зарплату
+      // В реальном приложении логика начисления зарплаты может быть более сложной
+      let baseSalary = employeeWithPayroll.payroll?.baseSalary || 0;
+      
+      // Если зарплата посменно, вычисляем на основе отработанных смен
+      if (employeeWithPayroll.payroll?.type === 'per_shift' && employeeWithPayroll.payroll?.shiftRate) {
+        baseSalary = workedShifts * employeeWithPayroll.payroll.shiftRate;
+      }
+      // Если зарплата посменно с фиксированной частью
+      else if (employeeWithPayroll.payroll?.type === 'per_shift_with_fixed' && employeeWithPayroll.payroll?.shiftRate) {
+        const fixedPart = employeeWithPayroll.payroll.baseSalary || 0;
+        const shiftPart = workedShifts * employeeWithPayroll.payroll.shiftRate;
+        baseSalary = fixedPart + shiftPart;
+      }
+      
+      // Бонусы (в реальном приложении могут зависеть от KPI, премий и т.д.)
+      const bonuses = employeeWithPayroll.payroll?.bonuses || 0;
+      
+      // Общие штрафы
+      const penalties = latePenalties + absencePenalties;
+      
+      // Итоговая сумма
+      const total = baseSalary + bonuses - penalties;
+      
+      // Проверяем, существует ли уже запись для этого сотрудника и периода
+      let payroll = await Payroll.findOne({
+        staffId: employeeWithPayroll._id,
+        period: period
+      });
+      
+      if (payroll) {
+        // Обновляем существующую запись
+        payroll.accruals = baseSalary;
+        payroll.bonuses = bonuses;
+        payroll.penalties = penalties;
+        payroll.latePenalties = latePenalties;
+        payroll.absencePenalties = absencePenalties;
+        payroll.total = total;
+        payroll.updatedAt = new Date();
+        
+        await payroll.save();
+        console.log(`Обновлена зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
+      } else {
+        // Создаем новую запись
+        payroll = new Payroll({
+          staffId: employeeWithPayroll._id,
+          period: period,
+          baseSalary: baseSalary,
+          accruals: baseSalary,
+          bonuses: bonuses,
+          penalties: penalties,
+          latePenalties: latePenalties,
+          absencePenalties: absencePenalties,
+          total: total,
+          status: 'draft',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        await payroll.save();
+        console.log(`Создана зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
+      }
+    }
+    
+    res.status(200).json({ message: `Расчетные листы успешно сгенерированы для периода: ${period}` });
+  } catch (err: any) {
+    console.error('Error generating payroll sheets:', err);
+    res.status(500).json({ error: err.message || 'Ошибка генерации расчетных листов' });
+  }
+};
