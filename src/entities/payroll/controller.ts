@@ -190,7 +190,6 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       baseSalary?: number;
       type?: string;
       shiftRate?: number;
-      latePenaltyRate?: number;
       bonuses?: number;
     }
 
@@ -202,44 +201,6 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       role: string;
     }
     
-    // Функция для вычисления штрафов за опоздания
-    const calculateLatePenalties = (shifts: any[], latePenaltyRate: number = 500): number => {
-      let totalPenalty = 0;
-      
-      for (const shift of shifts) {
-        if (shift.startTime && shift.scheduledStartTime) {
-          const scheduledStart = new Date(shift.scheduledStartTime);
-          const actualStart = new Date(shift.startTime);
-          
-          // Вычисляем разницу в минутах между запланированным и фактическим временем начала
-          const delayInMinutes = Math.max(0, (actualStart.getTime() - scheduledStart.getTime()) / (1000 * 60));
-          
-          // Если опоздание больше 5 минут, применяем штраф
-          if (delayInMinutes >= 5) {
-            // Штрафы применяются за каждые 5 минут опоздания
-            const fiveMinuteIntervals = Math.ceil(delayInMinutes / 5);
-            totalPenalty += fiveMinuteIntervals * latePenaltyRate;
-          }
-        }
-      }
-      
-      return totalPenalty;
-    };
-    
-    // Функция для вычисления штрафов за неявки
-    const calculateAbsencePenalties = (shifts: any[]): number => {
-      let totalPenalty = 0;
-      
-      for (const shift of shifts) {
-        // Если смена была запланирована, но не отмечена как отработанная
-        if (shift.scheduledStartTime && !shift.startTime) {
-          totalPenalty += 5000; // Фиксированная ставка за неявку
-        }
-      }
-      
-      return totalPenalty;
-    };
-    
     // Генерируем расчетные листы для каждого сотрудника
     for (const rawEmployee of staff) {
       // Приводим тип сотрудника к IUserWithPayroll
@@ -250,11 +211,6 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       // Вычисляем базовые значения
       const workedDays = employeeShifts.filter(shift => shift.startTime).length;
       const workedShifts = employeeShifts.length;
-      
-      // Вычисляем штрафы
-      const latePenaltyRate = employeeWithPayroll.payroll?.latePenaltyRate || 500;
-      const latePenalties = calculateLatePenalties(employeeShifts, latePenaltyRate);
-      const absencePenalties = calculateAbsencePenalties(employeeShifts);
       
       // Вычисляем итоговую зарплату
       // В реальном приложении логика начисления зарплаты может быть более сложной
@@ -273,12 +229,10 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       
       // Бонусы (в реальном приложении могут зависеть от KPI, премий и т.д.)
       const bonuses = employeeWithPayroll.payroll?.bonuses || 0;
-      
-      // Общие штрафы
-      const penalties = latePenalties + absencePenalties;
+      const deductions = 0; // В упрощенной версии без штрафов
       
       // Итоговая сумма
-      const total = baseSalary + bonuses - penalties;
+      const total = baseSalary + bonuses - deductions;
       
       // Проверяем, существует ли уже запись для этого сотрудника и периода
       let payroll = await Payroll.findOne({
@@ -290,9 +244,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
         // Обновляем существующую запись
         payroll.accruals = baseSalary;
         payroll.bonuses = bonuses;
-        payroll.penalties = penalties;
-        payroll.latePenalties = latePenalties;
-        payroll.absencePenalties = absencePenalties;
+        payroll.deductions = deductions;
         payroll.total = total;
         payroll.updatedAt = new Date();
         
@@ -306,9 +258,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
           baseSalary: baseSalary,
           accruals: baseSalary,
           bonuses: bonuses,
-          penalties: penalties,
-          latePenalties: latePenalties,
-          absencePenalties: absencePenalties,
+          deductions: deductions,
           total: total,
           status: 'draft',
           createdAt: new Date(),
@@ -321,8 +271,96 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
     }
     
     res.status(200).json({ message: `Расчетные листы успешно сгенерированы для периода: ${period}` });
-  } catch (err: any) {
+ } catch (err: any) {
     console.error('Error generating payroll sheets:', err);
     res.status(500).json({ error: err.message || 'Ошибка генерации расчетных листов' });
+  }
+};
+
+export const generateRentSheets = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Проверяем, что пользователь является администратором
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
+    }
+    
+    const { period } = req.body;
+    
+    if (!period) {
+      return res.status(400).json({ error: 'Период обязателен. Используйте формат YYYY-MM (например, 2025-01)' });
+    }
+    
+    // Проверяем формат периода
+    const periodRegex = /^\d{4}-\d{2}$/;
+    if (!periodRegex.test(period)) {
+      return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)' });
+    }
+    
+    // Импортируем необходимые модели
+    const Payroll = (await import('../payroll/model')).default;
+    const User = (await import('../users/model')).default;
+    
+    // Для упрощения предположим, что арендаторы - это пользователи с определенными признаками
+    // В реальной системе может быть отдельная коллекция арендаторов или специальная роль
+    const allUsers = await User.find({ role: { $ne: 'admin' } });
+    
+    // Отфильтруем пользователей, которые потенциально могут быть арендаторами
+    // В данном случае будем считать арендаторами всех пользователей, кроме специфических ролей
+    const potentialTenants = allUsers.filter(user => {
+      // Пользователь считается арендатором, если у него есть какие-то признаки аренды
+      // В реальной системе здесь будет логика проверки специфических полей аренды
+      return true; // Временно считаем всех пользователями арендаторами для демонстрации
+    });
+    
+    // Генерируем арендные листы для каждого потенциального арендатора
+    for (const tenant of potentialTenants) {
+      // Вычисляем арендные данные
+      // В реальной системе здесь будет более сложная логика расчета аренды
+      // Временно используем фиксированное значение аренды или данные из профиля пользователя
+      const rentAmount = 500; // Временное значение аренды, уменьшенное для упрощения
+      
+      // Итоговая сумма (нам должны заплатить)
+      const total = rentAmount; // В упрощенной версии без штрафов
+      
+      // Проверяем, существует ли уже запись для этого арендатора и периода
+      let rentRecord = await Payroll.findOne({
+        tenantId: tenant._id, // Используем tenantId вместо staffId для аренды
+        period: period
+      });
+      
+      if (rentRecord) {
+        // Обновляем существующую запись
+        rentRecord.accruals = rentAmount;
+        rentRecord.total = total;
+        rentRecord.updatedAt = new Date();
+        
+        await rentRecord.save();
+        console.log(`Обновлена аренда для арендатора ${tenant.fullName}: ${total} тг`);
+      } else {
+        // Создаем новую запись аренды
+        rentRecord = new Payroll({
+          tenantId: tenant._id, // Используем tenantId для арендатора
+          period: period,
+          baseSalary: rentAmount, // Базовая сумма аренды
+          accruals: rentAmount, // Начисления (аренда)
+          total: total, // Итоговая сумма, которую должны заплатить
+          status: 'active', // Статус аренды
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        await rentRecord.save();
+        console.log(`Создана аренда для арендатора ${tenant.fullName}: ${total} тг`);
+      }
+    }
+    
+    res.status(200).json({ message: `Арендные листы успешно сгенерированы для периода: ${period}` });
+  } catch (err: any) {
+    console.error('Error generating rent sheets:', err);
+    res.status(500).json({ error: err.message || 'Ошибка генерации арендных листов' });
   }
 };

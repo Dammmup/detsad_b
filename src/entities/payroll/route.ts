@@ -8,7 +8,8 @@ import {
   approvePayroll,
   markPayrollAsPaid,
   getAllPayrollsByUsers,
-  generatePayrollSheets
+  generatePayrollSheets,
+  generateRentSheets
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -41,5 +42,8 @@ router.patch('/:id/mark-paid', authMiddleware, authorizeRole(['admin', 'manager'
 
 // Сгенерировать расчетные листы
 router.post('/generate-sheets', authMiddleware, authorizeRole(['admin']), generatePayrollSheets);
+
+// Сгенерировать арендные листы
+router.post('/generate-rent-sheets', authMiddleware, authorizeRole(['admin']), generateRentSheets);
 
 export default router;

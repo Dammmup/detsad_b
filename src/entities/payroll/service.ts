@@ -90,19 +90,8 @@ export class PayrollService {
           total: calculatedTotal,
           status: 'draft',
           accruals: calculatedBaseSalary,
-          penalties: 0, // общие штрафы
           baseSalaryType: '',
           shiftRate: 0,
-          latePenalties: 0,
-          absencePenalties: 0,
-          userFines: 0,
-          penaltyDetails: {
-            type: 'per_5_minutes',
-            amount: 0,
-            latePenalties: 0,
-            absencePenalties: 0,
-            userFines: 0
-          },
           createdAt: new Date(),
           updatedAt: new Date(),
           // Поля, которые не существуют в виртуальной записи

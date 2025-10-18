@@ -1,31 +1,21 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPayroll extends Document {
-  staffId: mongoose.Types.ObjectId;
-  period: string; // например, '2025-01'
+  staffId?: mongoose.Types.ObjectId; // Может быть undefined для аренды
+ tenantId?: mongoose.Types.ObjectId; // Для арендаторов
+ period: string; // например, '2025-01'
   baseSalary: number;
   bonuses: number;
-  deductions: number;
-  total: number;
-  status: 'draft' | 'approved' | 'paid';
+ deductions: number;
+ total: number;
+ status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent'; // Добавляем статусы для аренды
   paymentDate?: Date;
   createdAt: Date;
-  updatedAt: Date;
-  accruals: number;
-  penalties: number;
+ updatedAt: Date;
+ accruals: number;
   baseSalaryType: string;
-  // Дополнительные поля
+ // Дополнительные поля
   shiftRate?: number;
-  latePenalties?: number;
-  absencePenalties?: number;
-  userFines?: number;
-  penaltyDetails?: {
-    type: string;
-    amount: number;
-    latePenalties: number;
-    absencePenalties: number;
-    userFines: number;
-  };
   history?: Array<{
     date: Date;
     action: string;
@@ -37,9 +27,13 @@ const PayrollSchema = new Schema<IPayroll>({
   staffId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    index: true  // Убираем required: true, так как может быть undefined для аренды
   },
+  tenantId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true // Добавляем поле tenantId для арендаторов
+ },
   period: {
     type: String,
     required: true
@@ -62,14 +56,10 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   status: {
     type: String,
-    enum: ['draft', 'approved', 'paid'],
+    enum: ['draft', 'approved', 'paid', 'active', 'overdue', 'paid_rent'], // Добавляем статусы для аренды
     default: 'draft'
   },
   accruals: {
-    type: Number,
-    default: 0
-  },
-  penalties: {
     type: Number,
     default: 0
   },
@@ -78,27 +68,11 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   // Дополнительные поля
   shiftRate: Number,
-  latePenalties: Number,
-  absencePenalties: Number,
-  userFines: Number,
-  penaltyDetails: {
-    type: {
-      type: String,
-      default: 'per_5_minutes'
-    },
-    amount: {
-      type: Number,
-      default: 0
-    },
-    latePenalties: Number,
-    absencePenalties: Number,
-    userFines: Number
-  },
   history: [{
     date: Date,
     action: String,
     comment: String
-  }],
+ }],
   paymentDate: Date,
 }, {
   timestamps: true

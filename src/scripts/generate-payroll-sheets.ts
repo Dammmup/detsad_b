@@ -159,9 +159,6 @@ async function generatePayrollSheets(period: string) {
         // Обновляем существующую запись
         payroll.accruals = baseSalary;
         payroll.bonuses = bonuses;
-        payroll.penalties = penalties;
-        payroll.latePenalties = latePenalties;
-        payroll.absencePenalties = absencePenalties;
         payroll.total = total;
         payroll.updatedAt = new Date();
         

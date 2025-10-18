@@ -4,6 +4,7 @@ import tubPositiveJournalRoutes from './entities/tubPositiveJournal/route';
 import infectiousDiseasesJournalRoutes from './entities/infectiousDiseasesJournal/route';
 import contactInfectionJournalRoutes from './entities/contactInfectionJournal/route';
 import riskGroupChildrenRoutes from './entities/riskGroupChildren/route';
+import rentRoutes from './entities/rent/route'; // Добавляем маршрут для аренды
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -71,6 +72,7 @@ app.use('/child-attendance', childAttendanceRoutes);
 app.use('/attendance', staffAttendanceTrackingRoutes);
 app.use('/staff-time-tracking', staffAttendanceTrackingRoutes);
 app.use('/payroll', payrollRoutes);
+app.use('/rent', rentRoutes); // Добавляем маршрут для аренды
 app.use('/settings', settingsRoutes);
 app.use('/documents', documentsRoutes);
 app.use('/reports', reportsRoutes);
