@@ -2,20 +2,32 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPayroll extends Document {
   staffId?: mongoose.Types.ObjectId; // Может быть undefined для аренды
- tenantId?: mongoose.Types.ObjectId; // Для арендаторов
- period: string; // например, '2025-01'
+  tenantId?: mongoose.Types.ObjectId; // Для арендаторов
+  period: string; // например, '2025-01'
   baseSalary: number;
   bonuses: number;
  deductions: number;
  total: number;
- status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent'; // Добавляем статусы для аренды
+  status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent'; // Добавляем статусы для аренды
   paymentDate?: Date;
   createdAt: Date;
  updatedAt: Date;
  accruals: number;
-  baseSalaryType: string;
- // Дополнительные поля
+ baseSalaryType: string;
+  // Дополнительные поля
   shiftRate?: number;
+  penaltyDetails?: {
+    type: string;
+    amount: number;
+    latePenalties?: number;
+    absencePenalties?: number;
+    userFines?: number;
+ };
+  // Поля для штрафов, добавленные для совместимости с payrollAutomationService
+ penalties?: number;
+ latePenalties?: number;
+  absencePenalties?: number;
+  userFines?: number;
   history?: Array<{
     date: Date;
     action: string;
@@ -68,6 +80,14 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   // Дополнительные поля
   shiftRate: Number,
+  penaltyDetails: {
+    type: String,
+    amount: Number
+ },
+  penalties: Number,
+  latePenalties: Number,
+  absencePenalties: Number,
+  userFines: Number,
   history: [{
     date: Date,
     action: String,
