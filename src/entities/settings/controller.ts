@@ -3,6 +3,94 @@ import { SettingsService } from './service';
 
 const settingsService = new SettingsService();
 
+// Контроллеры для настроек детского сада
+export const getKindergartenSettings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const settings = await settingsService.getKindergartenSettings();
+    res.json(settings || {});
+  } catch (err) {
+    console.error('Error fetching kindergarten settings:', err);
+    res.status(500).json({ error: 'Ошибка получения настроек детского сада' });
+  }
+};
+
+export const updateKindergartenSettings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const settings = await settingsService.updateKindergartenSettings(req.body);
+    res.json(settings);
+  } catch (err: any) {
+    console.error('Error updating kindergarten settings:', err);
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек детского сада' });
+  }
+};
+
+// Контроллеры для настроек уведомлений
+export const getNotificationSettings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const settings = await settingsService.getNotificationSettings();
+    res.json(settings || {});
+  } catch (err) {
+    console.error('Error fetching notification settings:', err);
+    res.status(500).json({ error: 'Ошибка получения настроек уведомлений' });
+  }
+};
+
+export const updateNotificationSettings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const settings = await settingsService.updateNotificationSettings(req.body);
+    res.json(settings);
+ } catch (err: any) {
+    console.error('Error updating notification settings:', err);
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек уведомлений' });
+  }
+};
+
+// Контроллеры для настроек безопасности
+export const getSecuritySettings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const settings = await settingsService.getSecuritySettings();
+    res.json(settings || {});
+  } catch (err) {
+    console.error('Error fetching security settings:', err);
+    res.status(500).json({ error: 'Ошибка получения настроек безопасности' });
+  }
+};
+
+export const updateSecuritySettings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const settings = await settingsService.updateSecuritySettings(req.body);
+    res.json(settings);
+  } catch (err: any) {
+    console.error('Error updating security settings:', err);
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек безопасности' });
+  }
+};
+
+// Контроллеры для настроек геолокации
 export const getGeolocationSettings = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -25,7 +113,7 @@ export const updateGeolocationSettings = async (req: Request, res: Response) => 
     
     const settings = await settingsService.updateGeolocationSettings(req.body);
     res.json(settings);
-  } catch (err: any) {
+ } catch (err: any) {
     console.error('Error updating geolocation settings:', err);
     res.status(400).json({ error: err.message || 'Ошибка обновления настроек геолокации' });
   }
@@ -45,10 +133,10 @@ export const updateCoordinates = async (req: Request, res: Response) => {
     
     const settings = await settingsService.updateCoordinates(latitude, longitude);
     res.json(settings);
-  } catch (err: any) {
+ } catch (err: any) {
     console.error('Error updating coordinates:', err);
     res.status(400).json({ error: err.message || 'Ошибка обновления координат' });
-  }
+ }
 };
 
 export const updateRadius = async (req: Request, res: Response) => {

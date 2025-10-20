@@ -1,11 +1,83 @@
-import { GeolocationSettings } from './model';
-import { IGeolocationSettings } from './model';
+import { 
+  KindergartenSettings, 
+  NotificationSettings, 
+  SecuritySettings, 
+  GeolocationSettings,
+  IKindergartenSettings,
+  INotificationSettings,
+  ISecuritySettings,
+  IGeolocationSettings
+} from './model';
 
 export class SettingsService {
+  // Методы для настроек детского сада
+  async getKindergartenSettings() {
+    const settings = await KindergartenSettings.findOne();
+    return settings;
+  }
+  
+  async updateKindergartenSettings(settingsData: Partial<IKindergartenSettings>) {
+    let settings = await KindergartenSettings.findOne();
+    
+    if (!settings) {
+      // Создаем новые настройки, если они еще не существуют
+      settings = new KindergartenSettings(settingsData);
+    } else {
+      // Обновляем существующие настройки
+      Object.assign(settings, settingsData);
+    }
+    
+    await settings.save();
+    return settings;
+  }
+
+  // Методы для настроек уведомлений
+ async getNotificationSettings() {
+    const settings = await NotificationSettings.findOne();
+    return settings;
+  }
+  
+  async updateNotificationSettings(settingsData: Partial<INotificationSettings>) {
+    let settings = await NotificationSettings.findOne();
+    
+    if (!settings) {
+      // Создаем новые настройки, если они еще не существуют
+      settings = new NotificationSettings(settingsData);
+    } else {
+      // Обновляем существующие настройки
+      Object.assign(settings, settingsData);
+    }
+    
+    await settings.save();
+    return settings;
+  }
+
+  // Методы для настроек безопасности
+  async getSecuritySettings() {
+    const settings = await SecuritySettings.findOne();
+    return settings;
+  }
+  
+  async updateSecuritySettings(settingsData: Partial<ISecuritySettings>) {
+    let settings = await SecuritySettings.findOne();
+    
+    if (!settings) {
+      // Создаем новые настройки, если они еще не существуют
+      settings = new SecuritySettings(settingsData);
+    } else {
+      // Обновляем существующие настройки
+      Object.assign(settings, settingsData);
+    }
+    
+    await settings.save();
+    return settings;
+  }
+
+  // Методы для настроек геолокации
   async getGeolocationSettings() {
     const settings = await GeolocationSettings.findOne();
     return settings;
-  }
+ }
   
   async updateGeolocationSettings(settingsData: Partial<IGeolocationSettings>) {
     let settings = await GeolocationSettings.findOne();
