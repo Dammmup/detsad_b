@@ -44,9 +44,9 @@ export class DocumentsService {
     if (!documentData.fileType) {
       throw new Error('Не указан тип файла');
     }
-    if (!documentData.fileSize) {
-      throw new Error('Не указан размер файла');
-    }
+    if (documentData.fileSize === undefined || documentData.fileSize === null) {
+          throw new Error('Не указан размер файла');
+        }
     if (!documentData.owner) {
       throw new Error('Не указан владелец документа');
     }

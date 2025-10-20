@@ -7,8 +7,8 @@ export interface ISimpleShift extends Document {
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
   actualStart?: string; // HH:MM format
- actualEnd?: string; // HH:MM format
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'late' | 'active';
+  actualEnd?: string; // HH:MM format
+ status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'late' | 'active';
   breakTime?: number; // minutes
   overtimeMinutes?: number;
   lateMinutes?: number;
@@ -17,6 +17,7 @@ export interface ISimpleShift extends Document {
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  alternativeStaffId?: mongoose.Types.ObjectId; // Альтернативный сотрудник для отметки посещаемости
 }
 
 const Shiftschema: Schema = new Schema({
@@ -40,7 +41,7 @@ const Shiftschema: Schema = new Schema({
     type: String,
     required: true,
     match: /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
- },
+  },
   endTime: {
     type: String,
     required: true,
@@ -80,6 +81,11 @@ const Shiftschema: Schema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  alternativeStaffId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
   }
 }, {
   timestamps: true
@@ -108,10 +114,10 @@ Shiftschema.pre('save', function(this: ISimpleShift, next) {
 
 // Методы для расчетов
 Shiftschema.methods.getWorkMinutes = function() {
- if (!this.actualStart || !this.actualEnd) return 0;
+  if (!this.actualStart || !this.actualEnd) return 0;
   
- const start = this.actualStart.split(':').map(Number);
- const end = this.actualEnd.split(':').map(Number);
+  const start = this.actualStart.split(':').map(Number);
+  const end = this.actualEnd.split(':').map(Number);
   
   const startMinutes = start[0] * 60 + start[1];
   const endMinutes = end[0] * 60 + end[1];
@@ -120,7 +126,7 @@ Shiftschema.methods.getWorkMinutes = function() {
 };
 
 Shiftschema.methods.getScheduledMinutes = function() {
- const start = this.startTime.split(':').map(Number);
+  const start = this.startTime.split(':').map(Number);
   const end = this.endTime.split(':').map(Number);
   
   const startMinutes = start[0] * 60 + start[1];

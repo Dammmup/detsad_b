@@ -195,4 +195,79 @@ export class ReportsService {
     
     return summary;
   }
+  
+  // Метод для получения сводки по детям
+  async getChildrenSummary(groupId?: string) {
+    const filter: any = { active: true };
+    if (groupId) {
+      filter.groupId = groupId;
+    }
+    
+    const children = await (await import('../children/model')).default.find(filter)
+      .populate('groupId', 'name');
+    
+    const summary = {
+      totalChildren: children.length,
+      byGroup: children.reduce((acc, child) => {
+        const groupName = (child.groupId as any)?.name || 'Не указана';
+        acc[groupName] = (acc[groupName] || 0) + 1;
+        return acc;
+      }, {} as { [key: string]: number }),
+      ageDistribution: children.reduce((acc, child) => {
+        if (child.birthday) {
+          const age = Math.floor((Date.now() - new Date(child.birthday).getTime()) / (365.25 * 24 * 60 * 1000));
+          const ageGroup = age < 3 ? '0-3' : age < 6 ? '3-6' : '6+';
+          acc[ageGroup] = (acc[ageGroup] || 0) + 1;
+        }
+        return acc;
+      }, {} as { [key: string]: number })
+    };
+    
+    return summary;
+  }
+  
+  // Метод для получения сводки по посещаемости
+  async getAttendanceSummary(startDate: string, endDate: string, groupId?: string) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const filter: any = {
+      date: { $gte: start, $lte: end }
+    };
+    
+    if (groupId) {
+      filter.groupId = groupId;
+    }
+    
+    const attendanceRecords = await (await import('../childAttendance/model')).default.find(filter)
+      .populate('childId', 'fullName')
+      .populate('groupId', 'name');
+    
+    // Группируем посещаемость по статусам
+    const statusCounts = attendanceRecords.reduce((acc, record) => {
+      acc[record.status] = (acc[record.status] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+    
+    // Рассчитываем среднюю посещаемость
+    const childrenIds = [...new Set(attendanceRecords.map(r => (r.childId as any)._id.toString()))];
+    const totalPossibleAttendances = childrenIds.length * (Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 24)));
+    const totalPresentAttendances = statusCounts.present || 0;
+    const attendanceRate = totalPossibleAttendances > 0
+      ? Math.round((totalPresentAttendances / totalPossibleAttendances) * 100)
+      : 0;
+    
+    const summary = {
+      totalRecords: attendanceRecords.length,
+      attendanceRate,
+      byStatus: statusCounts,
+      byGroup: attendanceRecords.reduce((acc, record) => {
+        const groupName = (record.groupId as any)?.name || 'Не указана';
+        acc[groupName] = (acc[groupName] || 0) + 1;
+        return acc;
+      }, {} as { [key: string]: number })
+    };
+    
+    return summary;
+  }
 }

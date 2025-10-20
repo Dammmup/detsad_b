@@ -64,6 +64,14 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Создаем директорию для загрузки файлов, если она не существует
+import fs from 'fs';
+import path from 'path';
+const uploadDir = path.join(__dirname, '..', 'uploads', 'documents');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);

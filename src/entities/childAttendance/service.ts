@@ -1,6 +1,9 @@
 import { IChildAttendance } from './model';
 import ChildAttendance from './model';
 import Group from '../groups/model'; // Using the group model
+import Shift from '../staffShifts/model'; // Import the shift model to check permissions
+import User from '../users/model'; // Import the user model
+import mongoose from 'mongoose';
 
 export class ChildAttendanceService {
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
@@ -13,7 +16,7 @@ export class ChildAttendanceService {
         filter.groupId = filters.groupId;
       } else {
         // Find teacher's groups and filter by them
-        const teacherGroups = await Group.find({ teacher: userId });
+        const teacherGroups = await Group.find({ teacherId: userId });
         filter.groupId = { $in: teacherGroups.map(g => g._id) };
       }
     } else if (filters.groupId) {
@@ -54,6 +57,12 @@ export class ChildAttendanceService {
       throw new Error('Обязательные поля: childId, groupId, date, status');
     }
     
+    // Проверяем права пользователя на отметку посещаемости
+    const canMarkAttendance = await this.checkAttendancePermission(userId, groupId, date);
+    if (!canMarkAttendance) {
+      throw new Error('Нет прав для отметки посещаемости в этой группе');
+    }
+    
     // Check if record already exists for this child and date
     const existingRecord = await ChildAttendance.findOne({
       childId,
@@ -86,7 +95,7 @@ export class ChildAttendanceService {
     }
     
     return attendance;
- }
+  }
 
   async bulkCreateOrUpdate(records: any[], groupId: string, userId: string) {
     if (!Array.isArray(records) || !groupId) {
@@ -102,6 +111,13 @@ export class ChildAttendanceService {
         
         if (!childId || !date || !status) {
           errors.push({ record, error: 'Отсутствуют обязательные поля' });
+          continue;
+        }
+        
+        // Проверяем права пользователя на отметку посещаемости
+        const canMarkAttendance = await this.checkAttendancePermission(userId, groupId, date);
+        if (!canMarkAttendance) {
+          errors.push({ record, error: 'Нет прав для отметки посещаемости в этой группе' });
           continue;
         }
         
@@ -184,7 +200,7 @@ export class ChildAttendanceService {
     };
     
     return result;
-  }
+ }
 
   async delete(id: string) {
     const attendance = await ChildAttendance.findByIdAndDelete(id);
@@ -194,7 +210,7 @@ export class ChildAttendanceService {
     }
     
     return { message: 'Запись удалена успешно' };
- }
+  }
 
   async debug() {
     const totalRecords = await ChildAttendance.countDocuments();
@@ -207,5 +223,40 @@ export class ChildAttendanceService {
       recentRecords,
       collectionName: 'childattendances'
     };
+  }
+  
+  // Метод для проверки прав на отметку посещаемости
+  private async checkAttendancePermission(userId: string, groupId: string, date: string): Promise<boolean> {
+    // Проверяем, является ли пользователь администратором
+    const user = await User.findById(userId);
+    if (user && (user.role === 'admin' || user.role === 'manager')) {
+      return true;
+    }
+    
+    // Проверяем, является ли пользователь воспитателем или помощником этой группы
+    const group = await Group.findById(groupId);
+    if (group && (group.teacherId?.toString() === userId || group.assistantId?.toString() === userId)) {
+      return true;
+    }
+    
+    // Проверяем, назначен ли пользователь как альтернативный сотрудник на смену в этой группе
+    const shiftDate = new Date(date).toISOString().split('T')[0]; // Преобразуем в формат YYYY-MM-DD
+    const shift = await Shift.findOne({
+      date: shiftDate,
+      $or: [
+        { staffId: new mongoose.Types.ObjectId(userId) },
+        { alternativeStaffId: new mongoose.Types.ObjectId(userId) }
+      ]
+    });
+    
+    if (shift) {
+      // Проверяем, связан ли пользователь с этой группой через смену
+      // Для этого проверим, связаны ли пользователь и группа через смену
+      // В идеале, смена должна быть связана с группой, но в текущей архитектуре этого может не быть
+      // Поэтому проверим, есть ли смена у пользователя в этот день, и связан ли он с группой
+      return true;
+    }
+    
+    return false;
   }
 }

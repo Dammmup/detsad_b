@@ -9,8 +9,12 @@ import {
   sendReport,
   getReportsByType,
   getRecentReports,
-  exportSalaryReport,
-  getSalarySummary
+ exportSalaryReport,
+ getSalarySummary,
+  exportChildrenReport,
+  exportAttendanceReport,
+  getChildrenSummary,
+  getAttendanceSummary
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -49,5 +53,17 @@ router.post('/salary/export', authMiddleware, authorizeRole(['admin', 'manager']
 
 // Получение сводки по зарплатам
 router.get('/salary/summary', authMiddleware, authorizeRole(['admin', 'manager']), getSalarySummary);
+
+// Экспорт отчета по детям
+router.post('/children/export', authMiddleware, authorizeRole(['admin', 'manager']), exportChildrenReport);
+
+// Экспорт отчета по посещаемости
+router.post('/attendance/export', authMiddleware, authorizeRole(['admin', 'manager']), exportAttendanceReport);
+
+// Получение сводки по детям
+router.get('/children/summary', authMiddleware, authorizeRole(['admin', 'manager']), getChildrenSummary);
+
+// Получение сводки по посещаемости
+router.get('/attendance/summary', authMiddleware, authorizeRole(['admin', 'manager']), getAttendanceSummary);
 
 export default router;

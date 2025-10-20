@@ -77,6 +77,11 @@ export class ShiftsService {
       newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
     }
     
+    // Преобразуем alternativeStaffId в ObjectId, если он передан как строка
+    if (typeof newShiftData.alternativeStaffId === 'string') {
+      newShiftData.alternativeStaffId = new mongoose.Types.ObjectId(newShiftData.alternativeStaffId);
+    }
+    
     // Преобразуем createdBy в ObjectId, если он передан как строка
     if (typeof newShiftData.createdBy === 'string') {
       newShiftData.createdBy = new mongoose.Types.ObjectId(newShiftData.createdBy);
@@ -121,6 +126,11 @@ export class ShiftsService {
         // Преобразуем staffId в ObjectId, если он передан как строка
         if (typeof newShiftData.staffId === 'string') {
           newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
+        }
+        
+        // Преобразуем alternativeStaffId в ObjectId, если он передан как строка
+        if (typeof newShiftData.alternativeStaffId === 'string') {
+          newShiftData.alternativeStaffId = new mongoose.Types.ObjectId(newShiftData.alternativeStaffId);
         }
         
         // Преобразуем createdBy в ObjectId, если он передан как строка
@@ -205,6 +215,12 @@ export class ShiftsService {
     }
     
     // Обновим поля
+    if (data.alternativeStaffId) {
+      // Преобразуем alternativeStaffId в ObjectId, если он передан как строка
+      if (typeof data.alternativeStaffId === 'string') {
+        data.alternativeStaffId = new mongoose.Types.ObjectId(data.alternativeStaffId);
+      }
+    }
     Object.assign(shift, data);
     
     // Сохраним, чтобы запустить middleware
@@ -232,7 +248,9 @@ export class ShiftsService {
       throw new Error('Смена не найдена');
     }
     // Check if user can check in to this shift
-    if (!shift.staffId.equals(new Types.ObjectId(userId)) && role !== 'admin') {
+    if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
+        (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new Types.ObjectId(userId))) &&
+        role !== 'admin') {
       throw new Error('Нет прав для отметки в этой смене');
     }
     
@@ -333,7 +351,9 @@ export class ShiftsService {
       throw new Error('Смена не найдена');
     }
     
-    if (!shift.staffId.equals(new Types.ObjectId(userId)) && role !== 'admin') {
+    if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
+        (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new Types.ObjectId(userId))) &&
+        role !== 'admin') {
       throw new Error('Нет прав для отметки в этой смене');
     }
     

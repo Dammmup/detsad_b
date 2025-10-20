@@ -39,17 +39,37 @@ export const getDocumentById = async (req: Request, res: Response) => {
   }
 };
 
-export const createDocument = async (req: Request, res: Response) => {
+// Тип для файла, загруженного через multer
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  destination: string;
+  filename: string;
+  path: string;
+  size: number;
+}
+
+export const createDocument = async (req: Request & { file?: MulterFile }, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    // При использовании multer данные формы доступны напрямую в req.body
+    const documentData: any = { ...req.body };
+    
+    // Если файл был загружен, добавляем информацию о файле
+    if (req.file) {
+      documentData.fileName = req.file.originalname;
+      documentData.filePath = req.file.path;
+      documentData.fileType = req.file.mimetype;
+      documentData.fileSize = req.file.size;
+    }
+    
     // Добавляем владельца из аутентифицированного пользователя
-    const documentData = {
-      ...req.body,
-      owner: req.user.id
-    };
+    documentData.owner = req.user.id;
     
     const document = await documentsService.create(documentData);
     res.status(201).json(document);
@@ -108,6 +128,33 @@ export const searchDocuments = async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error searching documents:', err);
     res.status(500).json({ error: err.message || 'Ошибка поиска документов' });
+  }
+};
+  
+// Скачивание документа
+export const downloadDocument = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const document = await documentsService.getById(req.params.id);
+    
+    // Проверяем, существует ли файл
+    if (!document.filePath) {
+      return res.status(404).json({ error: 'Файл документа не найден' });
+    }
+    
+    // Отправляем файл
+    res.download(document.filePath, document.fileName, (err) => {
+      if (err) {
+        console.error('Error downloading document:', err);
+        res.status(500).json({ error: 'Ошибка загрузки файла документа' });
+      }
+    });
+  } catch (err: any) {
+    console.error('Error downloading document:', err);
+    res.status(404).json({ error: err.message || 'Документ не найден' });
   }
 };
 
