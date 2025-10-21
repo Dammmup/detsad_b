@@ -55,7 +55,7 @@ const corsOptions = {
       callback(new Error(`CORS blocked: ${origin} not allowed`));
     }
   },
-  credentials: true, // ✅ для cookies / авторизации
+  credentials: false, // ❌ отключаем cookies, используем токены в заголовке Authorization
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
   optionsSuccessStatus: 200 // Ответ 200 для preflight-запросов
@@ -63,7 +63,7 @@ const corsOptions = {
 
 // ✅ Добавляем CORS до всех роутов
 app.use(cors(corsOptions));
-app.use(cookieParser());
+// app.use(cookieParser()); // ❌ отключаем middleware для парсинга cookies, т.к. используем токены в заголовке Authorization
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 

@@ -8,13 +8,6 @@ export const login = async (req: Request, res: Response) => {
   console.log('login:', phone, password);
   try {
     const result = await authService.login(phone, password);
-    // Установка токена в httpOnly cookie
-    res.cookie('auth_token', result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Устанавливаем secure в true для production
-      sameSite: 'none', // Используем 'lax' для лучшей совместимости с мобильными браузерами
-      maxAge: 24 * 60 * 60 * 1000 // 24 часа в миллисекундах
-    });
     
     res.json(result);
   } catch (err) {
@@ -24,7 +17,13 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const validateToken = async (req: Request, res: Response) => {
-  const token = req.cookies.auth_token; // Получаем токен из cookie
+  // Получаем токен из заголовка Authorization
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Токен не предоставлен' });
+  }
   
   try {
     const result = await authService.validateToken(token);
@@ -32,19 +31,12 @@ export const validateToken = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Ошибка валидации токена:', error);
     res.status(401).json({ error: error instanceof Error ? error.message : 'Недействительный токен' });
- }
+  }
 };
 
 export const logout = async (req: Request, res: Response) => {
   try {
     console.log('👋 Пользователь вышел из системы');
-    
-    // Удаляем токен из cookie
-    res.clearCookie('auth_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
-    });
     
     const result = await authService.logout();
     res.json(result);
