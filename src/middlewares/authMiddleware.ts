@@ -16,10 +16,23 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   // Извлекаем токен из cookie
   const token = req.cookies.auth_token;
   
-  if (!token) {
-    return res.status(401).json({ error: 'Токен не предоставлен в cookie' });
- }
+  // В мобильных браузерах могут быть проблемы с доступом к httpOnly cookie
+ // Проверяем также заголовок Authorization как резервный вариант
+ if (!token) {
+    // Попробуем получить токен из заголовка Authorization
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const tokenFromHeader = authHeader.substring(7);
+      return verifyToken(tokenFromHeader, req, res, next);
+    }
+    
+    return res.status(401).json({ error: 'Токен не предоставлен в cookie или заголовке' });
+  }
   
+  verifyToken(token, req, res, next);
+}
+
+function verifyToken(token: string, req: Request, res: Response, next: NextFunction) {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     console.error('❌ JWT_SECRET не установлен в переменных окружения!');
@@ -35,7 +48,8 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
         return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
       }
       
-      req.user = decoded;
+      res.locals.user = decoded; // Сохраняем пользователя в res.locals для дальнейшего использования
+      (req as any).user = decoded; // Также сохраняем в req.user для совместимости
       next();
     }).catch(err => {
       console.error('❌ Ошибка проверки пользователя:', err);

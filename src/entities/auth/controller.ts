@@ -12,7 +12,7 @@ export const login = async (req: Request, res: Response) => {
     res.cookie('auth_token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Устанавливаем secure в true для production
-      sameSite: 'lax', // Используем 'lax' для лучшей совместимости с мобильными браузерами
+      sameSite: 'none', // Используем 'lax' для лучшей совместимости с мобильными браузерами
       maxAge: 24 * 60 * 60 * 1000 // 24 часа в миллисекундах
     });
     
