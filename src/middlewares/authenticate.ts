@@ -4,14 +4,18 @@ import User from '../entities/users/model'; // Импортируем модел
 import { AuthUser } from './authMiddleware';
 
 /**
- * Simple JWT authentication middleware. Gets the token from cookie
+ * Simple JWT authentication middleware. Gets the token from Authorization header
  * and verifies it. Adds the decoded payload to `req.user`.
  */
 export function authenticate(req: Request, res: Response, next: NextFunction) {
-  // Извлекаем токен из cookie
-  const token = req.cookies.auth_token;
+  // Извлекаем токен из заголовка Authorization
+  const authHeader = req.headers.authorization;
   
-  if (!token) return res.status(401).json({ error: 'No token in cookie' });
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token in Authorization header' });
+  }
+  
+  const token = authHeader.substring(7);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as AuthUser;

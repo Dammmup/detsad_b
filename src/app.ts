@@ -7,7 +7,7 @@ import riskGroupChildrenRoutes from './entities/riskGroupChildren/route';
 import rentRoutes from './entities/rent/route'; // Добавляем маршрут для аренды
 import express from 'express';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
+// import cookieParser from 'cookie-parser'; // ❌ полностью убираем поддержку cookies
 import organolepticJournalRoutes from './entities/organolepticJournal/route';
 import perishableBrakRoutes from './entities/perishableBrak/route';
 import productCertificateRoutes from './entities/productCertificates/route';
@@ -63,7 +63,7 @@ const corsOptions = {
 
 // ✅ Добавляем CORS до всех роутов
 app.use(cors(corsOptions));
-// app.use(cookieParser()); // ❌ отключаем middleware для парсинга cookies, т.к. используем токены в заголовке Authorization
+// app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 

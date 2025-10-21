@@ -13,22 +13,13 @@ export interface AuthUser {
 
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // Извлекаем токен из cookie
-  const token = req.cookies.auth_token;
-  
-  // В мобильных браузерах могут быть проблемы с доступом к httpOnly cookie
- // Проверяем также заголовок Authorization как резервный вариант
- if (!token) {
-    // Попробуем получить токен из заголовка Authorization
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const tokenFromHeader = authHeader.substring(7);
-      return verifyToken(tokenFromHeader, req, res, next);
-    }
-    
-    return res.status(401).json({ error: 'Токен не предоставлен в cookie или заголовке' });
+  // Извлекаем токен из заголовка Authorization
+  const authHeader = req.headers.authorization;
+ if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Токен не предоставлен в заголовке Authorization' });
   }
   
+  const token = authHeader.substring(7);
   verifyToken(token, req, res, next);
 }
 
