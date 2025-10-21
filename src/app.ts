@@ -57,7 +57,8 @@ const corsOptions = {
   },
   credentials: true, // ✅ для cookies / авторизации
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  optionsSuccessStatus: 200 // Ответ 200 для preflight-запросов
 };
 
 // ✅ Добавляем CORS до всех роутов
