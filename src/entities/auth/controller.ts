@@ -12,7 +12,7 @@ export const login = async (req: Request, res: Response) => {
     res.cookie('auth_token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Устанавливаем secure в true для production
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Используем 'none' для production (междоменный доступ), 'lax' для разработки
+      sameSite: 'lax', // Используем 'lax' для лучшей совместимости с мобильными браузерами
       maxAge: 24 * 60 * 60 * 1000 // 24 часа в миллисекундах
     });
     
@@ -43,7 +43,7 @@ export const logout = async (req: Request, res: Response) => {
     res.clearCookie('auth_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+      sameSite: 'lax'
     });
     
     const result = await authService.logout();
