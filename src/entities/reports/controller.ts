@@ -191,27 +191,47 @@ export const getSalarySummary = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { month, startDate, endDate } = req.query;
+    const { month, startDate, endDate, userId } = req.query;
     
     // Проверяем наличие параметра month или диапазона дат
     if (!month && (!startDate || !endDate)) {
       return res.status(400).json({ error: 'Не указан параметр month или диапазон дат (startDate и endDate)' });
     }
     
-    let summary;
-    if (month) {
-      // Если указан month, используем его
-      summary = await reportsService.getSalarySummary(month as string);
+    // Проверяем права доступа
+    // Пользователь может просматривать только свою информацию, если у него нет роли admin или manager
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Если запрашивается информация о другом пользователе, возвращаем ошибку
+      if (userId && userId !== req.user.id) {
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access other user\'s salary data' });
+      }
+      // Ограничиваем доступ к данным только для текущего пользователя
+      if (month) {
+        // Для месяца - получаем сводку для текущего пользователя
+        const summary = await reportsService.getSalarySummary(month as string, req.user.id as string);
+        res.json(summary);
+      } else {
+        // Для диапазона дат - получаем сводку для текущего пользователя
+        const summary = await reportsService.getSalarySummaryByDateRange(startDate as string, endDate as string, req.user.id as string);
+        res.json(summary);
+      }
     } else {
-      // Если указан диапазон дат, используем его
-      summary = await reportsService.getSalarySummaryByDateRange(startDate as string, endDate as string);
+      // Для администраторов и менеджеров - доступ ко всем данным
+      let summary;
+      if (month) {
+        // Если указан month, используем его
+        summary = await reportsService.getSalarySummary(month as string, userId as string);
+      } else {
+        // Если указан диапазон дат, используем его
+        summary = await reportsService.getSalarySummaryByDateRange(startDate as string, endDate as string, userId as string);
+      }
+      
+      res.json(summary);
     }
-    
-    res.json(summary);
   } catch (err: any) {
     console.error('Error fetching salary summary:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения сводки по зарплатам' });
-  }
+ }
 };
 
 // Контроллер для экспорта отчета по зарплатам
@@ -422,7 +442,26 @@ export const getChildrenSummary = async (req: AuthenticatedRequest, res: Respons
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { groupId } = req.query;
+    // Проверяем права доступа
+    // Пользователь может получать сводку только по своей группе, если он не администратор
+    let { groupId } = req.query;
+    
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Для воспитателей и помощников разрешаем доступ только к своей группе
+      if (req.user.role === 'teacher' || req.user.role === 'assistant') {
+        // Если не указана группа, используем группу пользователя
+        if (!groupId && req.user.groupId) {
+          groupId = req.user.groupId as string;
+        }
+        // Если указана другая группа, возвращаем ошибку
+        else if (groupId && groupId !== req.user.groupId) {
+          return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access other group\'s data' });
+        }
+      } else {
+        // Для других ролей ограничиваем доступ
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access children summary' });
+      }
+    }
     
     const summary = await reportsService.getChildrenSummary(groupId as string);
     res.json(summary);
@@ -439,10 +478,29 @@ export const getAttendanceSummary = async (req: AuthenticatedRequest, res: Respo
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { startDate, endDate, groupId } = req.query;
+    let { startDate, endDate, groupId } = req.query;
     
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать startDate и endDate' });
+    }
+    
+    // Проверяем права доступа
+    // Пользователь может получать сводку только по своей группе, если он не администратор
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Для воспитателей и помощников разрешаем доступ только к своей группе
+      if (req.user.role === 'teacher' || req.user.role === 'assistant') {
+        // Если не указана группа, используем группу пользователя
+        if (!groupId && req.user.groupId) {
+          groupId = req.user.groupId as string;
+        }
+        // Если указана другая группа, возвращаем ошибку
+        else if (groupId && groupId !== req.user.groupId) {
+          return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access other group\'s attendance data' });
+        }
+      } else {
+        // Для других ролей ограничиваем доступ
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access attendance summary' });
+      }
     }
     
     const summary = await reportsService.getAttendanceSummary(startDate as string, endDate as string, groupId as string);

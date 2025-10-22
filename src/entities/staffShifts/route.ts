@@ -17,7 +17,7 @@ const router = express.Router();
 const shiftsService = new ShiftsService();
 
 // Get all shifts (with filters)
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse']), getAllShifts);
+router.get('/', authMiddleware, getAllShifts);
 
 // Create new shift
 router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createSimpleShift);

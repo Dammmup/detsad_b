@@ -9,7 +9,14 @@ export const getAllShifts = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { staffId, date, status, startDate, endDate } = req.query;
+    let { staffId, date, status, startDate, endDate } = req.query;
+    
+    // Проверяем права доступа
+    // Пользователь может получать только свои смены, если он не администратор
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Для обычных пользователей принудительно устанавливаем staffId на их собственный ID
+      staffId = req.user.id;
+    }
     
     const shifts = await shiftsService.getAll(
       { staffId: staffId as string, date: date as string, status: status as string, startDate: startDate as string, endDate: endDate as string },
@@ -18,10 +25,10 @@ export const getAllShifts = async (req: Request, res: Response) => {
     );
     
     res.json(shifts);
- } catch (err) {
+  } catch (err) {
     console.error('Error fetching shifts:', err);
     res.status(500).json({ error: 'Ошибка получения смен' });
- }
+  }
 };
 
 export const createSimpleShift = async (req: Request, res: Response) => {
@@ -30,9 +37,14 @@ export const createSimpleShift = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    // Только администраторы и менеджеры могут создавать смены
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to create shifts' });
+    }
+    
     const result = await shiftsService.create(req.body, req.user.id as string);
     res.status(201).json(result);
-  } catch (err: any) {
+ } catch (err: any) {
     console.error('Error creating shift:', err);
     if (err.name === 'ValidationError') {
       // Return specific validation error details
@@ -52,6 +64,11 @@ export const updateSimpleShift = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    // Только администраторы и менеджеры могут обновлять смены
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update shifts' });
+    }
+    
     const result = await shiftsService.update(req.params.id, req.body);
     res.json(result);
   } catch (err) {
@@ -64,6 +81,11 @@ export const deleteSimpleShift = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администраторы и менеджеры могут удалять смены
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete shifts' });
     }
     
     const result = await shiftsService.delete(req.params.id);
@@ -112,7 +134,14 @@ export const getTimeTrackingSimple = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { staffId, startDate, endDate } = req.query;
+    let { staffId, startDate, endDate } = req.query;
+    
+    // Проверяем права доступа
+    // Пользователь может получать только свои данные, если он не администратор
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Для обычных пользователей принудительно устанавливаем staffId на их собственный ID
+      staffId = req.user.id;
+    }
     
     const records = await shiftsService.getTimeTrackingRecords(
       { staffId: staffId as string, startDate: startDate as string, endDate: endDate as string },
@@ -131,6 +160,11 @@ export const updateAdjustmentsSimple = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администраторы и менеджеры могут обновлять корректировки
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update adjustments' });
     }
     
     const { penalties, bonuses, notes } = req.body;

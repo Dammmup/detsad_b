@@ -7,25 +7,26 @@ import {
   updateChild,
   deleteChild
 } from './controller';
+import { authMiddleware } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
 // Получить список всех детей
-router.get('/', getAllChildren);
+router.get('/', authMiddleware, getAllChildren);
 
 // Получить одного ребенка по id
-router.get('/:id', getChildById);
+router.get('/:id', authMiddleware, getChildById);
 
 // Получить детей по ID группы
-router.get('/group/:groupId', getChildrenByGroupId);
+router.get('/group/:groupId', authMiddleware, getChildrenByGroupId);
 
 // Создать нового ребенка
-router.post('/', createChild);
+router.post('/', authMiddleware, createChild);
 
 // Обновить данные ребенка
-router.put('/:id', updateChild);
+router.put('/:id', authMiddleware, updateChild);
 
 // Удалить ребенка
-router.delete('/:id', deleteChild);
+router.delete('/:id', authMiddleware, deleteChild);
 
 export default router;

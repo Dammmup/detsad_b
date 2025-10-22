@@ -138,7 +138,7 @@ export class ReportsService {
  }
   
   // Метод для получения сводки по зарплатам
-  async getSalarySummary(month: string) {
+  async getSalarySummary(month: string, userId?: string) {
     const payrollService = new PayrollService();
     
     // Получаем все зарплаты за указанный месяц
@@ -150,13 +150,21 @@ export class ReportsService {
     // Формируем сводку, исключая записи с null staffId
     const validPayrolls = payrolls.filter(p => p.staffId !== null);
     
+    // Если указан userId, фильтруем только по этому пользователю
+    const userFilteredPayrolls = userId
+      ? validPayrolls.filter(item =>
+          item.staffId &&
+          (item.staffId._id && item.staffId._id.toString() === userId)
+        )
+      : validPayrolls;
+    
     const summary = {
-      totalEmployees: validPayrolls.length,
-      totalAccruals: validPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
-      totalPenalties: validPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
-      totalPayout: validPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
-      averageSalary: validPayrolls.length > 0
-        ? validPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / validPayrolls.length
+      totalEmployees: userFilteredPayrolls.length,
+      totalAccruals: userFilteredPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
+      totalPenalties: userFilteredPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalPayout: userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
+      averageSalary: userFilteredPayrolls.length > 0
+        ? userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / userFilteredPayrolls.length
         : 0
     };
     
@@ -164,7 +172,7 @@ export class ReportsService {
   }
   
   // Метод для получения сводки по зарплатам по диапазону дат
-  async getSalarySummaryByDateRange(startDate: string, endDate: string) {
+  async getSalarySummaryByDateRange(startDate: string, endDate: string, userId?: string) {
     const payrollService = new PayrollService();
     
     // Получаем все зарплаты за указанный период
@@ -182,14 +190,22 @@ export class ReportsService {
       return itemDate >= start && itemDate <= end;
     });
     
+    // Если указан userId, фильтруем только по этому пользователю
+    const userFilteredPayrolls = userId
+      ? filteredPayrolls.filter(item =>
+          item.staffId &&
+          (item.staffId._id && item.staffId._id.toString() === userId)
+        )
+      : filteredPayrolls;
+    
     // Формируем сводку
     const summary = {
-      totalEmployees: filteredPayrolls.length,
-      totalAccruals: filteredPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
-      totalPenalties: filteredPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
-      totalPayout: filteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
-      averageSalary: filteredPayrolls.length > 0
-        ? filteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / filteredPayrolls.length
+      totalEmployees: userFilteredPayrolls.length,
+      totalAccruals: userFilteredPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
+      totalPenalties: userFilteredPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalPayout: userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
+      averageSalary: userFilteredPayrolls.length > 0
+        ? userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / userFilteredPayrolls.length
         : 0
     };
     

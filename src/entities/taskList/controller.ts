@@ -89,9 +89,25 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const task = await taskListService.update(req.params.id, req.body);
-    res.json(task);
- } catch (err: any) {
+    // Только администраторы и менеджеры могут обновлять любые задачи
+    // Обычные пользователи могут обновлять только задачи, назначенные им
+    const task = await taskListService.getById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: 'Задача не найдена' });
+    }
+    
+    const canUpdate =
+      req.user.role === 'admin' ||
+      req.user.role === 'manager' ||
+      task.assignedTo.toString() === req.user.id;
+    
+    if (!canUpdate) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update this task' });
+    }
+    
+    const updatedTask = await taskListService.update(req.params.id, req.body);
+    res.json(updatedTask);
+  } catch (err: any) {
     console.error('Error updating task:', err);
     res.status(404).json({ error: err.message || 'Ошибка обновления задачи' });
   }
@@ -103,6 +119,11 @@ export const deleteTask = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    // Только администраторы и менеджеры могут удалять задачи
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete tasks' });
+    }
+    
     const result = await taskListService.delete(req.params.id);
     res.json(result);
   } catch (err: any) {
@@ -112,17 +133,33 @@ export const deleteTask = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 export const markTaskAsCompleted = async (req: AuthenticatedRequest, res: Response) => {
-  try {
+ try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const task = await taskListService.markAsCompleted(req.params.id, req.user.id as string);
-    res.json(task);
+    // Проверяем, может ли пользователь завершить задачу
+    const task = await taskListService.getById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: 'Задача не найдена' });
+    }
+    
+    // Только администраторы, менеджеры или исполнитель задачи могут завершить задачу
+    const canComplete =
+      req.user.role === 'admin' ||
+      req.user.role === 'manager' ||
+      task.assignedTo.toString() === req.user.id;
+    
+    if (!canComplete) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to complete this task' });
+    }
+    
+    const updatedTask = await taskListService.markAsCompleted(req.params.id, req.user.id as string);
+    res.json(updatedTask);
  } catch (err: any) {
     console.error('Error marking task as completed:', err);
     res.status(404).json({ error: err.message || 'Ошибка завершения задачи' });
-  }
+ }
 };
 
 export const markTaskAsCancelled = async (req: AuthenticatedRequest, res: Response) => {
@@ -131,8 +168,24 @@ export const markTaskAsCancelled = async (req: AuthenticatedRequest, res: Respon
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const task = await taskListService.markAsCancelled(req.params.id, req.user.id as string);
-    res.json(task);
+    // Проверяем, может ли пользователь отменить задачу
+    const task = await taskListService.getById(req.params.id);
+    if (!task) {
+      return res.status(404).json({ error: 'Задача не найдена' });
+    }
+    
+    // Только администраторы, менеджеры или исполнитель задачи могут отменить задачу
+    const canCancel =
+      req.user.role === 'admin' ||
+      req.user.role === 'manager' ||
+      task.assignedTo.toString() === req.user.id;
+    
+    if (!canCancel) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to cancel this task' });
+    }
+    
+    const updatedTask = await taskListService.markAsCancelled(req.params.id, req.user.id as string);
+    res.json(updatedTask);
   } catch (err: any) {
     console.error('Error marking task as cancelled:', err);
     res.status(404).json({ error: err.message || 'Ошибка отмены задачи' });
@@ -239,7 +292,17 @@ export const getOverdueTasks = async (req: AuthenticatedRequest, res: Response) 
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const tasks = await taskListService.getOverdueTasks();
+    // Проверяем права доступа
+    // Пользователь может получать только просроченные задачи, назначенные ему, если он не администратор
+    let tasks;
+    if (req.user.role === 'admin' || req.user.role === 'manager') {
+      // Администраторы и менеджеры могут получать все просроченные задачи
+      tasks = await taskListService.getOverdueTasks();
+    } else {
+      // Обычные пользователи получают только задачи, назначенные им
+      tasks = await taskListService.getOverdueTasks(req.user.id as string);
+    }
+    
     res.json(tasks);
  } catch (err: any) {
     console.error('Error fetching overdue tasks:', err);
@@ -255,6 +318,14 @@ export const getTasksByUser = async (req: AuthenticatedRequest, res: Response) =
     
     const { userId } = req.params;
     
+    // Проверяем права доступа
+    // Пользователь может получать задачи только для себя, если он не администратор
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      if (req.user.id !== userId) {
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s tasks' });
+      }
+    }
+    
     const tasks = await taskListService.getTasksByUser(userId);
     res.json(tasks);
  } catch (err: any) {
@@ -267,6 +338,11 @@ export const getTaskStatistics = async (req: AuthenticatedRequest, res: Response
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администраторы и менеджеры могут получить общую статистику
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access task statistics' });
     }
     
     const stats = await taskListService.getTaskStatistics();

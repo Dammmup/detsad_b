@@ -301,14 +301,25 @@ export class TaskListService {
     return populatedTask;
   }
 
-  async getOverdueTasks() {
+  async getOverdueTasks(userId?: string) {
     const today = new Date();
     
-    const tasks = await Task.find({
+    // Формируем фильтр для поиска просроченных задач
+    const filter: any = {
       dueDate: { $lt: today },
       status: { $ne: 'completed' },
       $and: [{ status: { $ne: 'cancelled' }}]
-    })
+    };
+    
+    // Если указан userId, фильтруем задачи, назначенные конкретно этому пользователю
+    if (userId) {
+      filter.$or = [
+        { assignedTo: userId },
+        { assignedToSpecificUser: userId }
+      ];
+    }
+    
+    const tasks = await Task.find(filter)
     .populate('assignedTo', 'fullName role')
     .populate('assignedBy', 'fullName role')
     .sort({ dueDate: 1 });

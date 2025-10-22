@@ -41,6 +41,7 @@ function verifyToken(token: string, req: Request, res: Response, next: NextFunct
       
       res.locals.user = decoded; // Сохраняем пользователя в res.locals для дальнейшего использования
       (req as any).user = decoded; // Также сохраняем в req.user для совместимости
+      console.log('✅ Пользователь аутентифицирован:', decoded.fullName, 'Роль:', decoded.role);
       next();
     }).catch(err => {
       console.error('❌ Ошибка проверки пользователя:', err);

@@ -1,16 +1,17 @@
 import express from 'express';
 import { create, getAll, getById, update, deleteItem, getByPeriod } from './controller';
+import { authMiddleware } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
 // Основные маршруты
-router.post('/', create);
-router.get('/', getAll);
-router.get('/:id', getById);
-router.put('/:id', update);
-router.delete('/:id', deleteItem);
+router.post('/', authMiddleware, create);
+router.get('/', authMiddleware, getAll);
+router.get('/:id', authMiddleware, getById);
+router.put('/:id', authMiddleware, update);
+router.delete('/:id', authMiddleware, deleteItem);
 
 // Дополнительные маршруты
-router.get('/period/:period', getByPeriod);
+router.get('/period/:period', authMiddleware, getByPeriod);
 
 export default router;

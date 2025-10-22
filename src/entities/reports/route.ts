@@ -52,7 +52,7 @@ router.post('/:id/send', authMiddleware, authorizeRole(['admin', 'manager']), se
 router.post('/salary/export', authMiddleware, authorizeRole(['admin', 'manager']), exportSalaryReport);
 
 // Получение сводки по зарплатам
-router.get('/salary/summary', authMiddleware, authorizeRole(['admin', 'manager']), getSalarySummary);
+router.get('/salary/summary', authMiddleware, getSalarySummary);
 
 // Экспорт отчета по детям
 router.post('/children/export', authMiddleware, authorizeRole(['admin', 'manager']), exportChildrenReport);
@@ -61,9 +61,9 @@ router.post('/children/export', authMiddleware, authorizeRole(['admin', 'manager
 router.post('/attendance/export', authMiddleware, authorizeRole(['admin', 'manager']), exportAttendanceReport);
 
 // Получение сводки по детям
-router.get('/children/summary', authMiddleware, authorizeRole(['admin', 'manager']), getChildrenSummary);
+router.get('/children/summary', authMiddleware, getChildrenSummary);
 
 // Получение сводки по посещаемости
-router.get('/attendance/summary', authMiddleware, authorizeRole(['admin', 'manager']), getAttendanceSummary);
+router.get('/attendance/summary', authMiddleware, getAttendanceSummary);
 
 export default router;

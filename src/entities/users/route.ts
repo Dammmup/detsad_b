@@ -18,11 +18,11 @@ import { authMiddleware } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
-// Получить список всех пользователей (только для админов)
-router.get('/', authMiddleware, authorizeRole(['admin']), getAllUsers);
+// Получить список всех пользователей (доступно авторизованным пользователям)
+router.get('/', authMiddleware, getAllUsers);
 
 // Получить доступные роли пользователей
-router.get('/roles', getUserRoles);
+router.get('/roles', authMiddleware, getUserRoles);
 
 // Получить одного пользователя по id (только для админов)
 router.get('/:id', authMiddleware, authorizeRole(['admin']), getUserById);

@@ -1,37 +1,124 @@
 import { Request, Response } from 'express';
 import { UserService } from './service';
-import { AuthenticatedRequest } from '../../types/express';
+import { AuthUser } from '../../middlewares/authMiddleware';
 import { hashPassword } from '../../utils/hash';
 import Payroll from '../payroll/model';
 import Fine from '../fine/model';
 
+// Расширяем интерфейс Request для добавления свойства user
+interface AuthenticatedRequest extends Request {
+  user?: AuthUser;
+}
+
 const userService = new UserService();
 
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const includePasswords = req.query.includePasswords === 'true';
-    console.log('🔍 User requesting users list:', (req as any).user?.fullName, 'Role:', (req as any).user?.role);
+    console.log('🔍 User requesting users list:', req.user?.fullName, 'Role:', req.user?.role);
     console.log('🔍 Include passwords requested:', includePasswords);
-    // if passwords requested, verify requesting user is admin
-    if (includePasswords && (req as any).user?.role !== 'admin') {
-      console.log('❌ Access denied - user role:', (req as any).user?.role, 'required: admin');
+    
+    // Проверяем права доступа
+    // Только администраторы могут запрашивать пароли
+    if (includePasswords && req.user?.role !== 'admin') {
+      console.log('❌ Access denied - user role:', req.user?.role, 'required: admin');
       return res.status(403).json({ error: 'Forbidden' });
     }
+    
+    // Для обычных пользователей возвращаем только базовую информацию
     const users = await userService.getAll(includePasswords);
     console.log('🔍 Найдено пользователей:', users.length);
-    res.json(users);
+    
+    // Если пользователь не администратор, возвращаем только базовую информацию
+    if (req.user.role !== 'admin') {
+      const filteredUsers = users.map(user => {
+        // Исключаем чувствительные данные для обычных пользователей
+        const { passwordHash, initialPassword, ...filteredUser } = user.toObject();
+        return {
+          ...filteredUser,
+          // Возвращаем только необходимые поля
+          _id: filteredUser._id,
+          id: filteredUser._id,
+          fullName: filteredUser.fullName,
+          role: filteredUser.role,
+          phone: filteredUser.phone,
+          avatar: filteredUser.avatar,
+          isActive: filteredUser.active,
+          createdAt: filteredUser.createdAt,
+          updatedAt: filteredUser.updatedAt,
+          uniqNumber: filteredUser.uniqNumber,
+          notes: filteredUser.notes,
+          active: filteredUser.active,
+          iin: filteredUser.iin,
+          groupId: filteredUser.groupId,
+          birthday: filteredUser.birthday,
+          photo: filteredUser.photo,
+          parentName: filteredUser.parentName,
+          parentPhone: filteredUser.parentPhone,
+          email: filteredUser.email,
+          staffId: filteredUser.staffId,
+          staffName: filteredUser.staffName
+        };
+      });
+      
+      res.json(filteredUsers);
+    } else {
+      // Для администраторов - возвращаем полную информацию
+      res.json(users);
+    }
   } catch (error) {
     console.error('Error in GET /users:', error);
     res.status(500).json({ error: 'Ошибка при получении списка пользователей', details: error });
   }
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const user = await userService.getById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-    res.json(user);
- } catch (error) {
+    
+    // Проверяем права доступа
+    // Пользователь может получить информацию только о себе или если он администратор
+    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+      // Для обычных пользователей возвращаем только базовую информацию
+      const userObj = user.toObject();
+      const { passwordHash, initialPassword, ...filteredUser } = userObj;
+      res.json({
+        _id: filteredUser._id,
+        id: filteredUser._id,
+        fullName: filteredUser.fullName,
+        role: filteredUser.role,
+        phone: filteredUser.phone,
+        avatar: filteredUser.avatar,
+        isActive: filteredUser.active,
+        createdAt: filteredUser.createdAt,
+        updatedAt: filteredUser.updatedAt,
+        uniqNumber: filteredUser.uniqNumber,
+        notes: filteredUser.notes,
+        active: filteredUser.active,
+        iin: filteredUser.iin,
+        groupId: filteredUser.groupId,
+        birthday: filteredUser.birthday,
+        photo: filteredUser.photo,
+        parentName: filteredUser.parentName,
+        parentPhone: filteredUser.parentPhone,
+        email: filteredUser.email,
+        staffId: filteredUser.staffId,
+        staffName: filteredUser.staffName
+      });
+    } else {
+      // Для администраторов и владельца - возвращаем полную информацию
+      res.json(user);
+    }
+  } catch (error) {
     res.status(500).json({ error: 'Ошибка при получении данных пользователя' });
   }
 };
@@ -165,22 +252,34 @@ export const createUser = async (req: Request, res: Response) => {
  }
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const user = await userService.getById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-
+    
+    // Проверяем права доступа
+    // Пользователь может обновлять только свои данные или если он администратор
+    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update this user' });
+    }
+ 
     // Обновление заметок и других полей
     if (req.body !== undefined && user) {
       if (req.body.notes !== undefined) user.notes = req.body.notes;
-      if (req.body.role !== undefined) user.role = req.body.role;
+      // Только администратор может изменять роль
+      if (req.body.role !== undefined && req.user.role === 'admin') user.role = req.body.role;
       if (req.body.fullName !== undefined) user.fullName = req.body.fullName;
       if (req.body.phone !== undefined) user.phone = req.body.phone;
-      if (req.body.active !== undefined) user.active = req.body.active;
+      // Только администратор может изменять активность
+      if (req.body.active !== undefined && req.user.role === 'admin') user.active = req.body.active;
       if (req.body.iin !== undefined) user.iin = req.body.iin;
       if (req.body.groupId !== undefined) user.groupId = req.body.groupId;
     }
-
+ 
     const updatedUser = await userService.update(req.params.id, user.toObject());
     if (!updatedUser) {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
@@ -194,19 +293,37 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администратор может удалять пользователей
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete users' });
+    }
+    
     const result = await userService.delete(req.params.id);
     if (!result) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при удалении пользователя' });
- }
+  }
 };
 
 // Обновить зарплатные и штрафные настройки сотрудника
-export const updatePayrollSettings = async (req: Request, res: Response) => {
+export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администратор может обновлять настройки зарплаты
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update payroll settings' });
+    }
+    
     const user = await userService.getById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -253,8 +370,17 @@ export const getUserRoles = (req: Request, res: Response) => {
 };
 
 // Update user salary
-export const updateUserSalary = async (req: Request, res: Response) => {
+export const updateUserSalary = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администратор может обновлять зарплату
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update user salary' });
+    }
+    
     const user = await userService.getById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -265,20 +391,25 @@ export const updateUserSalary = async (req: Request, res: Response) => {
     console.log('Updated user salary:', updatedUser, req.body.salary);
     res.json(updatedUser);
   } catch (err) {
-    res.status(50).json({ error: 'Error updating user salary' });
+    res.status(500).json({ error: 'Error updating user salary' });
   }
 };
 
 // Add a fine to user (create Fine document, update user's totalFines)
-export const addUserFine = async (req: Request, res: Response) => {
+export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!(req as AuthenticatedRequest).user) {
+    if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    const authReq = req as AuthenticatedRequest;
+    
+    // Только администратор может добавлять штрафы
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add fines' });
+    }
+    
     const { amount, reason, type = 'other', notes } = req.body;
     const userId = req.params.id;
-    const createdBy = authReq.user.id; // Now we know user is defined
+    const createdBy = req.user.id; // Now we know user is defined
 
     if (!amount || !reason) {
       return res.status(400).json({ error: 'Amount and reason are required' });
@@ -310,13 +441,23 @@ export const addUserFine = async (req: Request, res: Response) => {
 };
 
 // Get all fines for a user (from Fine collection)
-export const getUserFines = async (req: Request, res: Response) => {
+export const getUserFines = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const user = await userService.getById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
+    
+    // Проверяем права доступа
+    // Пользователь может получить штрафы только для себя или если он администратор
+    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s fines' });
+    }
+ 
     const fines = await Fine.find({ user: req.params.id }).sort({ date: -1 });
     res.json({ fines, totalFines: 0 }); // Временно возвращаем 0, пока не реализована новая логика
   } catch (error) {
@@ -326,8 +467,17 @@ export const getUserFines = async (req: Request, res: Response) => {
 };
 
 // Remove a fine
-export const removeUserFine = async (req: Request, res: Response) => {
+export const removeUserFine = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администратор может удалять штрафы
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to remove fines' });
+    }
+    
     const { userId, fineId } = req.params;
     const fine = await Fine.findByIdAndDelete(fineId);
     if (!fine) {
@@ -340,19 +490,30 @@ export const removeUserFine = async (req: Request, res: Response) => {
       await userService.update(userId, user.toObject());
     }
     res.json({ message: 'Fine removed successfully' });
- } catch (error) {
+  } catch (error) {
     console.error('Error removing fine:', error);
     res.status(500).json({ error: 'Error removing fine' });
   }
 };
 
 // Calculate total fines for a user
-export const getUserTotalFines = async (req: Request, res: Response) => {
+export const getUserTotalFines = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
     const user = await userService.getById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    // Проверяем права доступа
+    // Пользователь может получить информацию о штрафах только для себя или если он администратор
+    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s fines' });
+    }
+    
     res.json({ totalFines: 0 }); // Временно возвращаем 0, пока не реализована новая логика
   } catch (error) {
     console.error('Error calculating total fines:', error);

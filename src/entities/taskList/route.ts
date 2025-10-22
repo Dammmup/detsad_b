@@ -58,12 +58,12 @@ router.delete('/:id/attachment', authMiddleware, authorizeRole(['admin', 'manage
 router.post('/:id/note', authMiddleware, authorizeRole(['admin', 'manager']), addTaskNote);
 
 // Get overdue tasks
-router.get('/overdue', authMiddleware, authorizeRole(['admin', 'manager']), getOverdueTasks);
+router.get('/overdue', authMiddleware, getOverdueTasks);
 
 // Get tasks by user
-router.get('/user/:userId', authMiddleware, authorizeRole(['admin', 'manager']), getTasksByUser);
+router.get('/user/:userId', authMiddleware, getTasksByUser);
 
 // Get task statistics
-router.get('/statistics', authMiddleware, authorizeRole(['admin', 'manager']), getTaskStatistics);
+router.get('/statistics', authMiddleware, getTaskStatistics);
 
 export default router;

@@ -15,7 +15,22 @@ export const getAllAttendance = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { groupId, childId, date, startDate, endDate, status } = req.query;
+    let { groupId, childId, date, startDate, endDate, status } = req.query;
+    
+    // Проверяем права доступа
+    // Пользователь может получать только данные по своей группе, если он не администратор
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Для воспитателей и помощников воспитателя разрешаем доступ к посещаемости в их группе
+      if (req.user.role === 'teacher' || req.user.role === 'assistant') {
+        // Если не указан groupId, устанавливаем его на группу пользователя (если она есть)
+        if (!groupId && req.user.groupId) {
+          groupId = req.user.groupId;
+        }
+      } else {
+        // Для других ролей ограничиваем доступ
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access attendance data' });
+      }
+    }
     
     const attendance = await childAttendanceService.getAll(
       { groupId: groupId as string, childId: childId as string, date: date as string, startDate: startDate as string, endDate: endDate as string, status: status as string },
@@ -27,7 +42,7 @@ export const getAllAttendance = async (req: AuthenticatedRequest, res: Response)
  } catch (err) {
     console.error('Error fetching child attendance:', err);
     res.status(500).json({ error: 'Ошибка получения посещаемости' });
-  }
+ }
 };
 
 export const createOrUpdateAttendance = async (req: AuthenticatedRequest, res: Response) => {
@@ -66,7 +81,17 @@ export const getAttendanceStats = async (req: AuthenticatedRequest, res: Respons
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { groupId, startDate, endDate } = req.query;
+    let { groupId, startDate, endDate } = req.query;
+    
+    // Проверяем права доступа
+    // Пользователь может получать статистику только по своей группе, если он не администратор
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      // Для воспитателей и других ролей, которые работают с детьми,
+      // нужно ограничить доступ к статистике только по их группе
+      if (!groupId && req.user.role !== 'teacher' && req.user.role !== 'assistant') {
+        return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access statistics' });
+      }
+    }
     
     const stats = await childAttendanceService.getStats(
       { groupId: groupId as string, startDate: startDate as string, endDate: endDate as string }
