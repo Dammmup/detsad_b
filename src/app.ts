@@ -39,30 +39,10 @@ import qwen3ChatRoutes from './entities/qwen3Chat/route';
 import uiStateRoutes from './entities/uiState/route';
 
 const app = express();
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://aldamiram.vercel.app'
-];
 
-const corsOptions = {
-  origin: (origin: string | undefined, callback: Function) => {
-    // Разрешаем запросы без origin (например, из Postman)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin} not allowed`));
-    }
-  },
-  credentials: true, // ❌ отключаем cookies, используем токены в заголовке Authorization
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
-  optionsSuccessStatus: 200 // Ответ 200 для preflight-запросов
-};
 
 // ✅ Добавляем CORS до всех роутов
-app.use(cors(corsOptions));
+app.use(cors());
 // app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
