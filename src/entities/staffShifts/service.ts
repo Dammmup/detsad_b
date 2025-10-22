@@ -109,8 +109,8 @@ export class ShiftsService {
   }
 
   async bulkCreate(shiftsData: any[], userId: string) {
-    const createdShifts = [];
-    const errors = [];
+    const createdShifts: any[] = [];
+    const errors: Array<{ shift: any; error: string }> = [];
     
     for (const shiftData of shiftsData) {
       try {

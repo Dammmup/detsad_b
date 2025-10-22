@@ -148,7 +148,13 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     
     console.log(`Найдено ${staff.length} сотрудников для расчета`);
     
-    const results = [];
+    const results: Array<{
+      staffId: string;
+      staffName: string;
+      baseSalary: number;
+      penalties: number;
+      total: number;
+    }> = [];
     
     for (const employee of staff) {
       console.log(`🔍 Обработка сотрудника: ${employee.fullName}, ID: ${(employee as any)._id}`);
@@ -274,7 +280,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       }
       
       results.push({
-        staffId: employee._id,
+        staffId: (employee._id as unknown as string),
         staffName: employee.fullName,
         baseSalary,
         penalties: totalPenalties,

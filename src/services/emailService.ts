@@ -157,7 +157,7 @@ class EmailService {
       console.log(`📧 Preparing to send ${reportsData.length} monthly reports to ${recipients.length} recipients`);
 
       // Создаем архив с отчетами
-      const attachments = [];
+      const attachments: Array<{ filename: string; content: Buffer }> = [];
       
       for (const reportData of reportsData) {
         try {
@@ -212,7 +212,7 @@ class EmailService {
           
           attachments.push({
             filename: `${reportData.filename}.xlsx`,
-            content: buffer as unknown as Buffer
+            content: buffer as any
           });
         } catch (reportError) {
           console.error(`❌ Error processing report ${reportData.filename}:`, reportError);

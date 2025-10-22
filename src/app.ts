@@ -55,7 +55,7 @@ const corsOptions = {
       callback(new Error(`CORS blocked: ${origin} not allowed`));
     }
   },
-  credentials: false, // ❌ отключаем cookies, используем токены в заголовке Authorization
+  credentials: true, // ❌ отключаем cookies, используем токены в заголовке Authorization
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
   optionsSuccessStatus: 200 // Ответ 200 для preflight-запросов

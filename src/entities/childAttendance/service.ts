@@ -102,8 +102,8 @@ export class ChildAttendanceService {
       throw new Error('Требуется массив records и groupId');
     }
     
-    const results = [];
-    const errors = [];
+    const results: any[] = [];
+    const errors: Array<{ record: any; error: string }> = [];
     
     for (const record of records) {
       try {
