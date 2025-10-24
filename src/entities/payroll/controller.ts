@@ -71,6 +71,12 @@ export const createPayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    // Проверка на отрицательные значения
+    const { baseSalary, bonuses, deductions, advance } = req.body;
+    if (baseSalary < 0 || bonuses < 0 || deductions < 0 || (advance !== undefined && advance < 0)) {
+      return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
+    }
+    
     const payroll = await payrollService.create(req.body);
     res.status(201).json(payroll);
   } catch (err: any) {
@@ -83,6 +89,15 @@ export const updatePayroll = async (req: AuthenticatedRequest, res: Response) =>
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Проверка на отрицательные значения
+    const { baseSalary, bonuses, deductions, advance } = req.body;
+    if ((baseSalary !== undefined && baseSalary < 0) ||
+        (bonuses !== undefined && bonuses < 0) ||
+        (deductions !== undefined && deductions < 0) ||
+        (advance !== undefined && advance < 0)) {
+      return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
     
     const payroll = await payrollService.update(req.params.id, req.body);

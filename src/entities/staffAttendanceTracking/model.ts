@@ -111,7 +111,7 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   },
   status: {
     type: String,
-    enum: ['active', 'completed', 'on_break', 'overtime', 'absent', 'checked_in', 'checked_out', 'missed', 'pending_approval'],
+    enum: ['active', 'completed', 'absent', 'checked_in', 'checked_out', 'missed', 'pending_approval'],
     default: 'absent',
     index: true
   },

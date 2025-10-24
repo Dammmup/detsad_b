@@ -42,71 +42,93 @@ export class ShiftsService {
     return shifts;
   }
 
-  async create(shiftData: any, userId: string) {
-    // Validate shift data before creating
-    if (!shiftData.staffId) {
-      throw new Error('Не указан ID сотрудника');
-    }
-    if (!shiftData.date) {
-      throw new Error('Не указана дата смены');
-    }
-    if (!shiftData.startTime) {
-      throw new Error('Не указано время начала');
-    }
-    if (!shiftData.endTime) {
-      throw new Error('Не указано время окончания');
-    }
-    if (!shiftData.shiftType && !shiftData.type) {
-      throw new Error('Не указан тип смены');
-    }
-    if (!shiftData.status) {
-      throw new Error('Не указан статус смены');
-    }
-    
-    const newShiftData = {
-      ...shiftData,
-      createdBy: userId,
-      shiftType: shiftData.type || shiftData.shiftType
-    };
-    
-    // Удаляем поле type, если оно существует, чтобы избежать конфликта
-    delete newShiftData.type;
-    
-    // Преобразуем staffId в ObjectId, если он передан как строка
-    if (typeof newShiftData.staffId === 'string') {
-      newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
-    }
-    
-    // Преобразуем alternativeStaffId в ObjectId, если он передан как строка
-    if (typeof newShiftData.alternativeStaffId === 'string') {
-      newShiftData.alternativeStaffId = new mongoose.Types.ObjectId(newShiftData.alternativeStaffId);
-    }
-    
-    // Преобразуем createdBy в ObjectId, если он передан как строка
-    if (typeof newShiftData.createdBy === 'string') {
-      newShiftData.createdBy = new mongoose.Types.ObjectId(newShiftData.createdBy);
-    }
-    
+ 
     // Проверяем, нет ли уже смены для этого сотрудника в этот день
-    const existingShift = await Shift.findOne({
-      staffId: newShiftData.staffId,
-      date: newShiftData.date,
-      _id: { $ne: newShiftData._id } // Исключаем текущую смену при обновлении
-    });
-    
-    if (existingShift) {
-      throw new Error('У сотрудника уже есть смена в этот день');
-    }
-    
-    const shift = new Shift(newShiftData);
-    await shift.save();
-    
-    const populatedShift = await Shift.findById(shift._id)
-      .populate('staffId', 'fullName role')
-      .populate('createdBy', 'fullName');
-    
-    return populatedShift;
+   async create(shiftData: any, userId: string) {
+  // Validate shift data before creating
+  // Проверяем, что передано корректное поле ID сотрудника
+  const staffId = shiftData.staffId || shiftData.userId;
+  if (!staffId) {
+    throw new Error('Не указан ID сотрудника');
   }
+  if (!shiftData.date) {
+    throw new Error('Не указана дата смены');
+  }
+  if (!shiftData.startTime) {
+    throw new Error('Не указано время начала');
+  }
+  if (!shiftData.endTime) {
+    throw new Error('Не указано время окончания');
+  }
+  if (!shiftData.status) {
+    throw new Error('Не указан статус смены');
+  }
+  
+  const newShiftData = {
+    ...shiftData,
+    staffId: staffId, // Используем правильное поле
+    createdBy: userId
+  };
+  
+  // Удаляем поле type, если оно существует, чтобы избежать конфликта
+  delete newShiftData.type;
+  delete newShiftData.userId; // Удаляем userId, так как он не нужен в модели
+  
+  // Преобразуем staffId в ObjectId, если он передан как строка
+  if (typeof newShiftData.staffId === 'string') {
+    // Проверяем, является ли строка корректным ObjectId
+    const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+    if (!objectIdRegex.test(newShiftData.staffId)) {
+      throw new Error('Неверный формат ID сотрудника. Должен быть 24-символьный шестнадцатеричный код.');
+    }
+    newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
+  }
+  
+// Преобразуем alternativeStaffId в ObjectId, если он передан как строка и не пустой
+if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternativeStaffId.trim() !== '') {
+  // Проверяем, является ли строка корректным ObjectId
+  const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+  if (!objectIdRegex.test(newShiftData.alternativeStaffId)) {
+    throw new Error('Неверный формат ID альтернативного сотрудника. Должен быть 24-символьный шестнадцатеричный код.');
+  }
+  newShiftData.alternativeStaffId = new mongoose.Types.ObjectId(newShiftData.alternativeStaffId);
+} else if (newShiftData.alternativeStaffId === '' || newShiftData.alternativeStaffId === null || newShiftData.alternativeStaffId === undefined) {
+  // Если поле пустое или не передано, удаляем его из данных
+  delete newShiftData.alternativeStaffId;
+}
+
+  
+  // Преобразуем createdBy в ObjectId, если он передан как строка
+  if (typeof newShiftData.createdBy === 'string') {
+    // Проверяем, является ли строка корректным ObjectId
+    const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+    if (!objectIdRegex.test(newShiftData.createdBy)) {
+      throw new Error('Неверный формат ID пользователя. Должен быть 24-символьный шестнадцатеричный код.');
+    }
+    newShiftData.createdBy = new mongoose.Types.ObjectId(newShiftData.createdBy);
+  }
+  
+  // Проверяем, нет ли уже смены для этого сотрудника в этот день
+  const existingShift = await Shift.findOne({
+    staffId: newShiftData.staffId,
+    date: newShiftData.date,
+    _id: { $ne: newShiftData._id } // Исключаем текущую смену при обновлении
+  });
+  
+  if (existingShift) {
+    throw new Error('У сотрудника уже есть смена в этот день');
+  }
+  
+  const shift = new Shift(newShiftData);
+  await shift.save();
+  
+  const populatedShift = await Shift.findById(shift._id)
+    .populate('staffId', 'fullName role')
+    .populate('createdBy', 'fullName');
+  
+  return populatedShift;
+}
+    
 
   async bulkCreate(shiftsData: any[], userId: string) {
     const createdShifts: any[] = [];
@@ -116,8 +138,7 @@ export class ShiftsService {
       try {
         const newShiftData = {
           ...shiftData,
-          createdBy: userId,
-          shiftType: shiftData.type || shiftData.shiftType
+          createdBy: userId
         };
         
         // Удаляем поле type, если оно существует, чтобы избежать конфликта
@@ -128,11 +149,21 @@ export class ShiftsService {
           newShiftData.staffId = new mongoose.Types.ObjectId(newShiftData.staffId);
         }
         
-        // Преобразуем alternativeStaffId в ObjectId, если он передан как строка
-        if (typeof newShiftData.alternativeStaffId === 'string') {
-          newShiftData.alternativeStaffId = new mongoose.Types.ObjectId(newShiftData.alternativeStaffId);
-        }
-        
+        // Преобразуем alternativeStaffId в ObjectId, если он передан как строка и не пустой
+// Преобразуем alternativeStaffId в ObjectId, если он передан как строка и не пустой
+if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternativeStaffId.trim() !== '') {
+  // Проверяем, является ли строка корректным ObjectId
+  const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+  if (!objectIdRegex.test(newShiftData.alternativeStaffId)) {
+    throw new Error('Неверный формат ID альтернативного сотрудника. Должен быть 24-символьный шестнадцатеричный код.');
+  }
+  newShiftData.alternativeStaffId = new mongoose.Types.ObjectId(newShiftData.alternativeStaffId);
+} else if (newShiftData.alternativeStaffId === '' || newShiftData.alternativeStaffId === null || newShiftData.alternativeStaffId === undefined) {
+  // Если поле пустое или не передано, удаляем его из данных
+  delete newShiftData.alternativeStaffId;
+}
+
+
         // Преобразуем createdBy в ObjectId, если он передан как строка
         if (typeof newShiftData.createdBy === 'string') {
           newShiftData.createdBy = new mongoose.Types.ObjectId(newShiftData.createdBy);
@@ -161,9 +192,6 @@ export class ShiftsService {
         }
         if (!newShiftData.endTime) {
           throw new Error('Не указано время окончания');
-        }
-        if (!newShiftData.shiftType) {
-          throw new Error('Не указан тип смены');
         }
         if (!newShiftData.status) {
           throw new Error('Не указан статус смены');
@@ -215,12 +243,16 @@ export class ShiftsService {
     }
     
     // Обновим поля
-    if (data.alternativeStaffId) {
-      // Преобразуем alternativeStaffId в ObjectId, если он передан как строка
-      if (typeof data.alternativeStaffId === 'string') {
-        data.alternativeStaffId = new mongoose.Types.ObjectId(data.alternativeStaffId);
-      }
-    }
+if (data.alternativeStaffId) {
+  // Преобразуем alternativeStaffId в ObjectId, если он передан как строка и не пустой
+  if (typeof data.alternativeStaffId === 'string' && data.alternativeStaffId.trim() !== '') {
+    data.alternativeStaffId = new mongoose.Types.ObjectId(data.alternativeStaffId);
+  } else if (data.alternativeStaffId === '' || data.alternativeStaffId === null || data.alternativeStaffId === undefined) {
+    // Если поле пустое или не передано, удаляем его из данных
+    delete data.alternativeStaffId;
+  }
+}
+
     Object.assign(shift, data);
     
     // Сохраним, чтобы запустить middleware

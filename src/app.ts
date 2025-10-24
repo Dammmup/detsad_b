@@ -35,7 +35,8 @@ import { initializeTaskScheduler } from './services/taskScheduler';
 import mantouxJournalRoutes from './entities/mantouxJournal/route';
 import somaticJournalRoutes from './entities/somaticJournal/route';
 import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/route';
-
+import qwen3ChatRoutes from './entities/qwen3Chat/route';
+import uiStateRoutes from './entities/uiState/route';
 
 const app = express();
 
@@ -88,6 +89,8 @@ app.use('/product-certificates', productCertificateRoutes);
 app.use('/detergent-log', detergentLogRoutes);
 app.use('/food-stock-log', foodStockLogRoutes);
 app.use('/food-staff-health', foodStaffHealthRoutes);
+app.use('/qwen3-chat', qwen3ChatRoutes);
+app.use('/api', uiStateRoutes);
 app.use('/api/auth', authRoutes);
 
 // Health check

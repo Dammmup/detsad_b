@@ -10,6 +10,8 @@ export interface IPayroll extends Document {
  total: number;
   status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent'; // Добавляем статусы для аренды
   paymentDate?: Date;
+  advance?: number; // Аванс
+  advanceDate?: Date; // Дата аванса
   createdAt: Date;
  updatedAt: Date;
  accruals: number;
@@ -79,6 +81,8 @@ const PayrollSchema = new Schema<IPayroll>({
     type: String,
   },
   // Дополнительные поля
+  advance: Number, // Аванс
+  advanceDate: Date, // Дата аванса
   shiftRate: Number,
   penaltyDetails: {
     type: String,

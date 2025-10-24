@@ -3,12 +3,11 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ISimpleShift extends Document {
   staffId: mongoose.Types.ObjectId;
   date: string; // YYYY-MM-DD format
-  shiftType: 'full' | 'day_off' | 'vacation' | 'sick_leave';
   startTime: string; // HH:MM format
   endTime: string; // HH:MM format
   actualStart?: string; // HH:MM format
   actualEnd?: string; // HH:MM format
- status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'late' | 'active';
+ status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | "in_progress";
   breakTime?: number; // minutes
   overtimeMinutes?: number;
   lateMinutes?: number;
@@ -32,11 +31,6 @@ const Shiftschema: Schema = new Schema({
     required: true,
     index: true
   },
-  shiftType: {
-    type: String,
-    enum: ['full', 'day_off', 'vacation', 'sick_leave'],
-    required: true
-  },
   startTime: {
     type: String,
     required: true,
@@ -57,7 +51,7 @@ const Shiftschema: Schema = new Schema({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'late', 'confirmed', 'active'],
+    enum: ['scheduled', 'completed', 'cancelled', 'no_show', 'confirmed', 'in_progress'],
     default: 'scheduled'
   },
   breakTime: {
@@ -94,7 +88,7 @@ const Shiftschema: Schema = new Schema({
 // Pre-save middleware to update status based on check-in/check-out times
 Shiftschema.pre('save', function(this: ISimpleShift, next) {
   // If we have actual start time but no actual end time, set status to in_progress
-  if (this.actualStart && !this.actualEnd && this.status !== 'active') {
+  if (this.actualStart && !this.actualEnd) {
     this.status = 'in_progress';
   }
   // If we have both actual start and end times, set status to completed

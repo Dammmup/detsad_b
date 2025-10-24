@@ -121,7 +121,8 @@ export class PayrollService {
     // Вычисляем общую сумму
     const total = (payrollData.baseSalary || 0) +
                   (payrollData.bonuses || 0) -
-                  (payrollData.deductions || 0);
+                  (payrollData.deductions || 0) -
+                  (payrollData.advance || 0);
     
     const newPayrollData = {
       ...payrollData,
@@ -141,7 +142,8 @@ export class PayrollService {
     // При обновлении пересчитываем общую сумму
     if (data.baseSalary !== undefined ||
         data.bonuses !== undefined ||
-        data.deductions !== undefined) {
+        data.deductions !== undefined ||
+        data.advance !== undefined) {
       
       const payroll = await Payroll.findById(id);
       if (!payroll) {
@@ -151,8 +153,9 @@ export class PayrollService {
       const baseSalary = data.baseSalary !== undefined ? data.baseSalary : payroll.baseSalary;
       const bonuses = data.bonuses !== undefined ? data.bonuses : payroll.bonuses;
       const deductions = data.deductions !== undefined ? data.deductions : payroll.deductions;
+      const advance = data.advance !== undefined ? data.advance : payroll.advance || 0;
       
-      data.total = baseSalary + bonuses - deductions;
+      data.total = baseSalary + bonuses - deductions - advance;
     }
     
     const updatedPayroll = await Payroll.findByIdAndUpdate(

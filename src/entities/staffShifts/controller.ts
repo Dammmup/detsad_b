@@ -42,9 +42,19 @@ export const createSimpleShift = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to create shifts' });
     }
     
-    const result = await shiftsService.create(req.body, req.user.id as string);
+    // Преобразуем данные для корректного формата перед передачей в сервис
+    const shiftData = {
+      ...req.body,
+      staffId: req.body.userId || req.body.staffId, // Поддерживаем оба варианта
+      createdBy: req.user.id
+    };
+    
+    // Удаляем поля, которые не должны быть переданы в модель
+    delete shiftData.userId; // Удаляем userId, так как в модели используется staffId
+    
+    const result = await shiftsService.create(shiftData, req.user.id as string);
     res.status(201).json(result);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error creating shift:', err);
     if (err.name === 'ValidationError') {
       // Return specific validation error details
@@ -57,6 +67,7 @@ export const createSimpleShift = async (req: Request, res: Response) => {
     res.status(400).json({ error: err.message || 'Ошибка создания смены' });
   }
 };
+
 
 export const updateSimpleShift = async (req: Request, res: Response) => {
   try {

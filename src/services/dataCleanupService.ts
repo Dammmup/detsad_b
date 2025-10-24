@@ -199,17 +199,13 @@ class DataCleanupService {
         return [
           staffMember?.fullName || '',
           formattedDate,
-          '', // shiftType больше нет в модели
           plannedTime,
           workDurationStr,
           record.penalties?.late?.amount || 0,
           record.overtimeDuration || 0,
-          record.status === 'active' ? 'В процессе' :
           record.status === 'completed' ? 'Завершено' :
           record.status === 'checked_in' ? 'Отметился' :
           record.status === 'checked_out' ? 'Ушел' :
-          record.status === 'on_break' ? 'На перерыве' :
-          record.status === 'overtime' ? 'Сверхурочные' :
           record.status === 'absent' ? 'Отсутствовал' :
           record.status === 'missed' ? 'Пропущено' :
           record.status === 'pending_approval' ? 'Ожидает одобрения' : record.status || '',
