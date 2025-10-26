@@ -24,6 +24,7 @@ export interface IChild extends Document {
   checkups?: string;
   // Прочее
  notes?: string;
+ photo?: string;
   createdAt?: Date;
  updatedAt?: Date;
 }
@@ -50,6 +51,7 @@ const ChildSchema = new Schema<IChild>({
  incapacity: String,
   checkups: String,
   notes: String,
+ photo: String,
 }, { timestamps: true });
 
 export default mongoose.model<IChild>('Child', ChildSchema, 'children');
