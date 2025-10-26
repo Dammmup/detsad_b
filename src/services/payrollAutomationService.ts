@@ -3,6 +3,7 @@ import Shift, { ISimpleShift } from '.././entities/staffShifts/model';
 import User, { IUser } from '.././entities/users/model';
 import Fine from '.././entities/fine/model';
 import EmailService from './emailService';
+import { SettingsService } from '../entities/settings/service';
 
 // Создаем экземпляр EmailService
 const emailService = new EmailService();
@@ -111,16 +112,26 @@ const calculateDailyRate = (employee: IUser): number => {
   }
 };
 
-// Рабочие дни в месяце (пн-пт)
-const getWorkingDaysInMonth = (date: Date): number => {
+// Рабочие дни в месяце (с учетом выходных и праздников)
+const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const lastDay = new Date(year, month + 1, 0).getDate();
   let workdays = 0;
+  
+  const settingsService = new SettingsService();
+  
   for (let d = 1; d <= lastDay; d++) {
-    const day = new Date(year, month, d).getDay();
-    if (day !== 0 && day !== 6) workdays++; // exclude Sun(0) and Sat(6)
-  }
+    const currentDate = new Date(year, month, d);
+    const dateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Проверяем, является ли день выходным или праздничным
+    const isNonWorkingDay = await settingsService.isNonWorkingDay(dateStr);
+    
+    if (!isNonWorkingDay) {
+      workdays++;
+    }
+ }
   return workdays;
 };
 
@@ -186,7 +197,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       const countedShifts = attendanceRecords.filter(s => shouldCountShift(s));
       switch (baseSalaryType) {
         case 'month': {
-          const workDaysInMonth = getWorkingDaysInMonth(startDate);
+          const workDaysInMonth = await getWorkingDaysInMonth(startDate);
           accruals = workDaysInMonth > 0 ? (baseSalary / workDaysInMonth) * countedShifts.length : 0;
           break;
         }

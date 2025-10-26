@@ -7,15 +7,13 @@ export interface IUser extends Document {
   passwordHash?: string;
   initialPassword?: string;
   role: string;
-  avatar?: string;
-  isActive: boolean;
+  active: boolean;
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
   // Дополнительные поля из старой модели
   uniqNumber?: string;
   notes?: string;
-  active: boolean;
   iin?: string;
   groupId?: mongoose.Types.ObjectId;
   // Поля из auth модели
@@ -57,11 +55,9 @@ const UserSchema: Schema = new Schema({
     default: 'staff',
     index: true
   },
-  avatar: String,
-  isActive: {
+  active: {
     type: Boolean,
-    default: true,
-    index: true
+    default: true
   },
   lastLogin: Date,
   // Дополнительные поля из старой модели
@@ -70,10 +66,6 @@ const UserSchema: Schema = new Schema({
     index: true
   },
   notes: String,
-  active: {
-    type: Boolean,
-    default: true
-  },
   iin: {
     type: String,
     index: true
@@ -85,12 +77,10 @@ const UserSchema: Schema = new Schema({
   },
   // Поля из auth модели
   birthday: { type: Date },
-  photo: { type: String }
+  photo: { type: String },
 
 }, {
   timestamps: true
 });
-
-
 
 export default mongoose.model<IUser>('User', UserSchema, 'users');

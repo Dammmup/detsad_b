@@ -37,6 +37,7 @@ import somaticJournalRoutes from './entities/somaticJournal/route';
 import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/route';
 import qwen3ChatRoutes from './entities/qwen3Chat/route';
 import uiStateRoutes from './entities/uiState/route';
+import mainEventsRoutes from './entities/mainEvents/route';
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use('/food-staff-health', foodStaffHealthRoutes);
 app.use('/qwen3-chat', qwen3ChatRoutes);
 app.use('/api', uiStateRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/main-events', mainEventsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

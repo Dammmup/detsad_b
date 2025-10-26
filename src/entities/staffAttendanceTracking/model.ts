@@ -13,13 +13,13 @@ export interface ILocation {
 export interface IStaffAttendanceTracking extends Document {
   staffId: mongoose.Types.ObjectId;
   date: Date;
- checkInTime?: Date;
- groupId: mongoose.Types.ObjectId;
+  checkInTime?: Date;
+  groupId?: mongoose.Types.ObjectId;
   checkOutTime?: Date;
- workDuration?: number; // minutes
+  workDuration?: number; // minutes
   breakDuration?: number; // minutes
   overtimeDuration?: number; // minutes
-  status: 'active' | 'completed' | 'on_break' | 'overtime' | 'absent' | 'checked_in' | 'checked_out' | 'missed' | 'pending_approval';
+  status: 'present' | 'absent' | 'scheduled' | 'active' | 'completed' | 'on_break' | 'overtime' | 'checked_in' | 'checked_out' | 'missed' | 'pending_approval';
   penalties: {
     late: {
       minutes: number;
@@ -36,7 +36,7 @@ export interface IStaffAttendanceTracking extends Document {
       reason?: string;
     };
   };
- bonuses: {
+  bonuses: {
     overtime: {
       minutes: number;
       amount: number;
@@ -111,8 +111,8 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   },
   status: {
     type: String,
-    enum: ['active', 'completed', 'absent', 'checked_in', 'checked_out', 'missed', 'pending_approval'],
-    default: 'absent',
+    enum: ['present', 'absent', 'scheduled', 'active', 'completed', 'on_break', 'overtime', 'checked_in', 'checked_out', 'missed', 'pending_approval'],
+    default: 'scheduled',
     index: true
   },
   penalties: {

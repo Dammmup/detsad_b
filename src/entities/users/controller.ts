@@ -37,7 +37,8 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
     if (req.user.role !== 'admin') {
       const filteredUsers = users.map(user => {
         // Исключаем чувствительные данные для обычных пользователей
-        const { passwordHash, initialPassword, ...filteredUser } = user.toObject();
+        const userObj = user.toObject();
+        const { passwordHash, initialPassword, ...filteredUser } = userObj;
         return {
           ...filteredUser,
           // Возвращаем только необходимые поля
@@ -68,7 +69,13 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
       res.json(filteredUsers);
     } else {
       // Для администраторов - возвращаем полную информацию
-      res.json(users);
+      // Но исключаем passwordHash для безопасности
+      const usersWithFilteredPasswords = users.map(user => {
+        const userObj = user.toObject();
+        if (userObj.passwordHash) delete userObj.passwordHash;
+        return userObj;
+      });
+      res.json(usersWithFilteredPasswords);
     }
   } catch (error) {
     console.error('Error in GET /users:', error);
@@ -90,33 +97,45 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
       // Для обычных пользователей возвращаем только базовую информацию
       const userObj = user.toObject();
-      const { passwordHash, initialPassword, ...filteredUser } = userObj;
-      res.json({
-        _id: filteredUser._id,
-        id: filteredUser._id,
-        fullName: filteredUser.fullName,
-        role: filteredUser.role,
-        phone: filteredUser.phone,
-        avatar: filteredUser.avatar,
-        isActive: filteredUser.active,
-        createdAt: filteredUser.createdAt,
-        updatedAt: filteredUser.updatedAt,
-        uniqNumber: filteredUser.uniqNumber,
-        notes: filteredUser.notes,
-        active: filteredUser.active,
-        iin: filteredUser.iin,
-        groupId: filteredUser.groupId,
-        birthday: filteredUser.birthday,
-        photo: filteredUser.photo,
-        parentName: filteredUser.parentName,
-        parentPhone: filteredUser.parentPhone,
-        email: filteredUser.email,
-        staffId: filteredUser.staffId,
-        staffName: filteredUser.staffName
-      });
+      const { passwordHash, ...filteredUser } = userObj;
+      // Обычный пользователь может видеть только свой initialPassword
+      if (req.user.id === req.params.id) {
+        res.json({
+          ...filteredUser,
+          initialPassword: userObj.initialPassword
+        });
+      } else {
+        const { initialPassword, ...nonPasswordUser } = filteredUser;
+        res.json({
+          _id: nonPasswordUser._id,
+          id: nonPasswordUser._id,
+          fullName: nonPasswordUser.fullName,
+          role: nonPasswordUser.role,
+          phone: nonPasswordUser.phone,
+          avatar: nonPasswordUser.avatar,
+          isActive: nonPasswordUser.active,
+          createdAt: nonPasswordUser.createdAt,
+          updatedAt: nonPasswordUser.updatedAt,
+          uniqNumber: nonPasswordUser.uniqNumber,
+          notes: nonPasswordUser.notes,
+          active: nonPasswordUser.active,
+          iin: nonPasswordUser.iin,
+          groupId: nonPasswordUser.groupId,
+          birthday: nonPasswordUser.birthday,
+          photo: nonPasswordUser.photo,
+          parentName: nonPasswordUser.parentName,
+          parentPhone: nonPasswordUser.parentPhone,
+          email: nonPasswordUser.email,
+          staffId: nonPasswordUser.staffId,
+          staffName: nonPasswordUser.staffName
+        });
+      }
     } else {
       // Для администраторов и владельца - возвращаем полную информацию
-      res.json(user);
+      // Но исключаем passwordHash для безопасности
+      const userObj = user.toObject();
+      if (userObj.passwordHash) delete userObj.passwordHash;
+      res.json(userObj);
     }
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при получении данных пользователя' });
@@ -278,16 +297,42 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       if (req.body.active !== undefined && req.user.role === 'admin') user.active = req.body.active;
       if (req.body.iin !== undefined) user.iin = req.body.iin;
       if (req.body.groupId !== undefined) user.groupId = req.body.groupId;
+      // Обновление начального пароля
+      if (req.body.initialPassword !== undefined) {
+        // Пользователь может изменять свой initialPassword, но не может изменить его для другого пользователя
+        if (req.user.role === 'admin' || req.user.id === req.params.id) {
+          // Проверяем, что пароль не пустой
+          if (req.body.initialPassword && typeof req.body.initialPassword === 'string') {
+            user.initialPassword = req.body.initialPassword;
+            // Также обновляем passwordHash для входа в систему
+            (user as any).passwordHash = await hashPassword(req.body.initialPassword);
+          } else {
+            // Если пароль пустой, возвращаем ошибку
+            return res.status(400).json({ error: 'Пароль не может быть пустым' });
+          }
+        } else {
+          return res.status(403).json({ error: 'Forbidden: Insufficient permissions to change password' });
+        }
+      }
+      // Обновление фото
+      if (req.body.photo !== undefined) user.photo = req.body.photo;
     }
  
     const updatedUser = await userService.update(req.params.id, user.toObject());
     if (!updatedUser) {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
     }
-    // исключаем passwordHash
+    // исключаем passwordHash, но оставляем initialPassword для владельца аккаунта
     const userObj = updatedUser.toObject();
     if (userObj.passwordHash) delete userObj.passwordHash;
-    res.json(userObj);
+    // Проверяем, является ли пользователь владельцем аккаунта или администратором
+    if (req.user.role === 'admin' || req.user.id === req.params.id) {
+      res.json(userObj);
+    } else {
+      // Для обычных пользователей убираем initialPassword
+      const { initialPassword, ...filteredUser } = userObj;
+      res.json(filteredUser);
+    }
   } catch (error) {
     res.status(400).json({ error: 'Ошибка при обновлении данных пользователя', details: error });
   }
@@ -341,7 +386,14 @@ export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Resp
     }
     const userObj = updatedUser.toObject();
     if (userObj.passwordHash) delete (userObj as any).passwordHash;
-    res.json(userObj);
+    // Проверяем, является ли пользователь владельцем аккаунта или администратором
+    if (req.user.role === 'admin' || req.user.id === req.params.id) {
+      res.json(userObj);
+    } else {
+      // Для обычных пользователей убираем initialPassword
+      const { initialPassword, ...filteredUser } = userObj;
+      res.json(filteredUser);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Error updating payroll settings' });
   }

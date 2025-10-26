@@ -26,7 +26,8 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       res.json({
         id: result.user.id,
         fullName: result.user.fullName,
-        role: result.user.role
+        role: result.user.role,
+        active: result.user.active
       });
     } else {
       res.status(401).json({ error: 'Недействительный токен' });

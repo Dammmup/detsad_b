@@ -31,7 +31,7 @@ router.get('/:id', authMiddleware, authorizeRole(['admin']), getUserById);
 router.post('/', authMiddleware, authorizeRole(['admin']), createUser);
 
 // Обновить данные пользователя (только для админов)
-router.put('/:id', authMiddleware, authorizeRole(['admin']), updateUser);
+router.put('/:id', authMiddleware, updateUser);
 
 // Обновить зарплатные и штрафные настройки сотрудника
 router.put('/:id/payroll-settings', authMiddleware, authorizeRole(['admin']), updatePayrollSettings);

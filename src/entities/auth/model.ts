@@ -13,6 +13,7 @@ export interface IFine extends Document {
   approved: boolean;
   createdBy: mongoose.Types.ObjectId;
   notes?: string;
+  active:boolean;
 }
 
 // Экспортируем только интерфейс IFine, так как модель User уже определена в users/model.ts

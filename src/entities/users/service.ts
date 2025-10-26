@@ -10,7 +10,7 @@ export class UserService {
   }
 
   async getById(id: string): Promise<IUser | null> {
-    return await User.findById(id).select('-passwordHash -initialPassword');
+    return await User.findById(id).select('-passwordHash');
   }
 
   async getByPhone(phone: string): Promise<IUser | null> {
@@ -31,7 +31,11 @@ export class UserService {
     if ((data as any).password) {
       (data as any).password = await hashPassword((data as any).password);
     }
-    return await User.findByIdAndUpdate(id, data, { new: true }).select('-passwordHash -initialPassword');
+    // Если обновляется initialPassword, сохраняем его как есть (без хеширования)
+    if ((data as any).initialPassword !== undefined) {
+      // initialPassword не хешируется, просто сохраняем как есть
+    }
+    return await User.findByIdAndUpdate(id, data, { new: true }).select('-passwordHash');
   }
 
   async delete(id: string): Promise<boolean> {

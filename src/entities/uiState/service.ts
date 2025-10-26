@@ -17,7 +17,6 @@ const uiStateSchema = new mongoose.Schema({
 });
 
 // Создаем индекс для автоматической очистки устаревших записей
-uiStateSchema.index({ timestamp: 1 }, { expireAfterSeconds: 3600 }); // 1 час
 
 // Модель для UIState
 const UIStateModel = mongoose.model('UIState', uiStateSchema, 'uiStates');
