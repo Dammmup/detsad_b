@@ -1,7 +1,6 @@
 import cron from 'node-cron';
 import { runPayrollAutomation } from './payrollAutomationService';
 import { MainEventsService } from '../entities/mainEvents/service';
-import { AbsenceTrackingService } from '../entities/absenceTracking/absenceTrackingService';
 
 /**
  * Инициализирует планировщик задач для автоматического расчета зарплат
@@ -33,21 +32,7 @@ export const initializeTaskScheduler = () => {
     }
   });
   
-  // Запускаем автоматическую отметку отсутствия каждый день в 23:59 (в конце дня)
-  cron.schedule('59 23 * * *', async () => {
-    console.log('Запуск запланированной задачи: автоматическая отметка отсутствия');
-    try {
-      const absenceTrackingService = new AbsenceTrackingService();
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD
-      
-      await absenceTrackingService.markAllAbsencesForDay(yesterdayStr);
-      console.log(`Автоматическая отметка отсутствия за ${yesterdayStr} выполнена успешно`);
-    } catch (error) {
-      console.error('Ошибка при выполнении автоматической отметки отсутствия:', error);
-    }
-  });
+
   
   console.log('Планировщик задач инициализирован. Автоматический расчет зарплат будет выполняться ежедневно в 01:00');
   console.log('Проверка событий mainEvents будет выполняться ежедневно в 00:00');

@@ -131,6 +131,7 @@ const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
     if (!isNonWorkingDay) {
       workdays++;
     }
+    
  }
   return workdays;
 };

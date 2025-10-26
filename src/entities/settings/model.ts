@@ -12,6 +12,7 @@ export interface IKindergartenSettings extends Document {
     end: string;
   };
   workingDays: string[];
+  holidays: string[]; // массив дат праздников в формате YYYY-MM-DD
   timezone: string;
   language: string;
   currency: string;
@@ -76,6 +77,7 @@ const KindergartenSettingsSchema = new Schema<IKindergartenSettings>({
     end: { type: String, required: true }
   },
   workingDays: [{ type: String, required: true }],
+  holidays: [{ type: String }], // массив дат праздников в формате YYYY-MM-DD
   timezone: { type: String, required: true, default: 'Asia/Almaty' },
   language: { type: String, required: true, default: 'ru' },
   currency: { type: String, required: true, default: 'KZT' }
