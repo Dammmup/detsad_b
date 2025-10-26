@@ -1,7 +1,7 @@
 import { IUser } from '../users/model';
 import User from '../users/model';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { hashPassword, comparePassword } from '../../utils/hash';
 
 export class AuthService {

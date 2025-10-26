@@ -352,3 +352,22 @@ export const getTaskStatistics = async (req: AuthenticatedRequest, res: Response
     res.status(500).json({ error: err.message || 'Ошибка получения статистики задач' });
  }
 };
+
+export const toggleTaskStatus = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const updatedTask = await taskListService.toggleStatus(req.params.id, userId);
+    res.json(updatedTask);
+  } catch (err: any) {
+    console.error('Error toggling task status:', err);
+    res.status(404).json({ error: err.message || 'Ошибка переключения статуса задачи' });
+  }
+};

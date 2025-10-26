@@ -14,7 +14,8 @@ import {
   addTaskNote,
   getOverdueTasks,
   getTasksByUser,
-  getTaskStatistics
+  getTaskStatistics,
+  toggleTaskStatus
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -65,5 +66,8 @@ router.get('/user/:userId', authMiddleware, getTasksByUser);
 
 // Get task statistics
 router.get('/statistics', authMiddleware, getTaskStatistics);
+
+// Toggle task status (new route)
+router.patch('/:id/toggle', authMiddleware, toggleTaskStatus);
 
 export default router;

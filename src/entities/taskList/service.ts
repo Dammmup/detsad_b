@@ -404,4 +404,36 @@ export class TaskListService {
       }, {})
     };
   }
+
+  async toggleStatus(id: string, userId: string) {
+    const task = await Task.findById(id);
+
+    if (!task) {
+      throw new Error('Задача не найдена');
+    }
+
+    // Инвертируем статус
+    task.status = task.status === 'completed' ? 'pending' : 'completed';
+
+    // Если задача завершена, устанавливаем, кем и когда
+    if (task.status === 'completed') {
+      task.completedBy = userId as any;
+      task.completedAt = new Date();
+    } else {
+      // Если статус снимается, очищаем поля
+      task.completedBy = undefined;
+      task.completedAt = undefined;
+    }
+
+    await task.save();
+
+    const populatedTask = await Task.findById(task._id)
+      .populate('assignedTo', 'fullName role')
+      .populate('assignedBy', 'fullName role')
+      .populate('assignedToSpecificUser', 'fullName role')
+      .populate('completedBy', 'fullName role')
+      .populate('cancelledBy', 'fullName role');
+
+    return populatedTask;
+  }
 }
