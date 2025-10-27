@@ -5,8 +5,10 @@ import StaffAttendanceTracking from '../staffAttendanceTracking/model';
 import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
+import { HolidaysService } from '../holidays/service';
 
 const settingsService = new SettingsService();
+const holidaysService = new HolidaysService();
 
 export class ShiftsService {
   async getAll(filters: { staffId?: string, date?: string, status?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
@@ -231,8 +233,18 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     
     // Проверяем, нет ли уже смены для этого сотрудника в этот день (кроме текущей смены)
     if (data.date && data.staffId) {
+      // Преобразуем staffId в ObjectId, если он передан как строка
+      let staffIdForQuery = data.staffId;
+      if (typeof data.staffId === 'string') {
+        const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+        if (!objectIdRegex.test(data.staffId)) {
+          throw new Error('Неверный формат ID сотрудника. Должен быть 24-символьный шестнадцатеричный код.');
+        }
+        staffIdForQuery = new mongoose.Types.ObjectId(data.staffId);
+      }
+      
       const existingShift = await Shift.findOne({
-        staffId: data.staffId,
+        staffId: staffIdForQuery,
         date: data.date,
         _id: { $ne: id } // Исключаем текущую смену
       });
@@ -242,17 +254,44 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       }
     }
     
-    // Обновим поля
-if (data.alternativeStaffId) {
-  // Преобразуем alternativeStaffId в ObjectId, если он передан как строка и не пустой
-  if (typeof data.alternativeStaffId === 'string' && data.alternativeStaffId.trim() !== '') {
-    data.alternativeStaffId = new mongoose.Types.ObjectId(data.alternativeStaffId);
-  } else if (data.alternativeStaffId === '' || data.alternativeStaffId === null || data.alternativeStaffId === undefined) {
-    // Если поле пустое или не передано, удаляем его из данных
-    delete data.alternativeStaffId;
-  }
-}
-
+    // Обновим поля, преобразуя ObjectId при необходимости
+    if (data.staffId) {
+      // Преобразуем staffId в ObjectId, если он передан как строка
+      if (typeof data.staffId === 'string') {
+        const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+        if (!objectIdRegex.test(data.staffId)) {
+          throw new Error('Неверный формат ID сотрудника. Должен быть 24-символьный шестнадцатеричный код.');
+        }
+        data.staffId = new mongoose.Types.ObjectId(data.staffId);
+      }
+    }
+    
+    if (data.alternativeStaffId !== undefined && data.alternativeStaffId !== null && data.alternativeStaffId !== '') {
+      // Преобразуем alternativeStaffId в ObjectId, если он передан как строка и не пустой
+      if (typeof data.alternativeStaffId === 'string') {
+        const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+        if (!objectIdRegex.test(data.alternativeStaffId)) {
+          throw new Error('Неверный формат ID альтернативного сотрудника. Должен быть 24-символьный шестнадцатеричный код.');
+        }
+        data.alternativeStaffId = new mongoose.Types.ObjectId(data.alternativeStaffId);
+      }
+    } else {
+      // Если поле пустое или не передано, удаляем его из данных
+      delete data.alternativeStaffId;
+    }
+    
+    // Обновляем createdBy, если он передан
+    if (data.createdBy) {
+      // Преобразуем createdBy в ObjectId, если он передан как строка
+      if (typeof data.createdBy === 'string') {
+        const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+        if (!objectIdRegex.test(data.createdBy)) {
+          throw new Error('Неверный формат ID пользователя. Должен быть 24-символьный шестнадцатеричный код.');
+        }
+        data.createdBy = new mongoose.Types.ObjectId(data.createdBy);
+      }
+    }
+    
     Object.assign(shift, data);
     
     // Сохраним, чтобы запустить middleware
@@ -263,7 +302,7 @@ if (data.alternativeStaffId) {
     await shift.populate('createdBy', 'fullName');
     
     return shift;
- }
+}
 
   async delete(id: string) {
     const shift = await Shift.findByIdAndDelete(id);
@@ -497,5 +536,13 @@ if (data.alternativeStaffId) {
     }
     
     return record;
+  }
+  
+  /**
+   * Проверить, является ли дата смены праздничной
+   */
+  async isShiftDateHoliday(shiftDate: string): Promise<boolean> {
+    const date = new Date(shiftDate);
+    return await holidaysService.isHoliday(date);
   }
 }

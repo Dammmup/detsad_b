@@ -38,6 +38,7 @@ import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/ro
 import qwen3ChatRoutes from './entities/qwen3Chat/route';
 import uiStateRoutes from './entities/uiState/route';
 import mainEventsRoutes from './entities/mainEvents/route';
+import holidayRoutes from './entities/holidays/route';
 
 const app = express();
 
@@ -94,6 +95,7 @@ app.use('/qwen3-chat', qwen3ChatRoutes);
 app.use('/api', uiStateRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/main-events', mainEventsRoutes);
+app.use('/holidays', holidayRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

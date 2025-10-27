@@ -51,7 +51,7 @@ const Shiftschema: Schema = new Schema({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'completed', 'cancelled', 'no_show', 'confirmed', 'in_progress'],
+    enum: ['scheduled', 'completed', 'cancelled', 'no_show', 'confirmed', 'in_progress', 'absent'],
     default: 'scheduled'
   },
   breakTime: {
