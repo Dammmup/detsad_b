@@ -89,6 +89,18 @@ export class HolidaysService {
       throw new Error('Year is required for non-recurring holidays');
     }
     
+    // Проверяем, существует ли уже праздник с такими же параметрами (день, месяц, год)
+    const existingHoliday = await Holiday.findOne({
+      day: data.day !== undefined ? data.day : (await Holiday.findById(id))?.day,
+      month: data.month !== undefined ? data.month : (await Holiday.findById(id))?.month,
+      year: data.year !== undefined ? data.year : (await Holiday.findById(id))?.year,
+      _id: { $ne: id } // Исключаем текущий праздник из проверки
+    });
+    
+    if (existingHoliday) {
+      throw new Error('Праздник с такой датой уже существует');
+    }
+    
     const holiday = await Holiday.findByIdAndUpdate(
       id,
       { ...data },

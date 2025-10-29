@@ -292,7 +292,17 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       }
     }
     
-    Object.assign(shift, data);
+    // Обновляем только указанные поля, избегая перезаписи служебных полей
+    const allowedFields = [
+      'date', 'startTime', 'endTime', 'status', 'breakTime', 'overtimeMinutes',
+      'lateMinutes', 'earlyLeaveMinutes', 'notes', 'createdBy', 'alternativeStaffId'
+    ];
+    
+    for (const field of allowedFields) {
+      if (data.hasOwnProperty(field)) {
+        shift.set(field, data[field]);
+      }
+    }
     
     // Сохраним, чтобы запустить middleware
     await shift.save();
@@ -341,9 +351,9 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
     const actualStartTime = new Date(`${shift.date} ${currentTime}`);
     
-    // If trying to check in after shift end, mark as no_show and do not count this shift
+    // If trying to check in after shift end, mark as in_progress since they did come
     if (actualStartTime.getTime() > shiftEndTime.getTime()) {
-      shift.status = 'no_show';
+      shift.set('status', 'in_progress');
       await shift.save();
       
       let timeTracking = await StaffAttendanceTracking.findOne({
@@ -365,18 +375,21 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
         : 'Отметка после окончания смены';
       await timeTracking.save();
       
-      return { shift, timeTracking, message: 'Отметка после окончания смены. Смена помечена как неявка и не засчитана.' };
+      return { shift, timeTracking, message: 'Отметка после окончания смены. Смена помечена как начатая.' };
     }
     
     // Update shift as in-progress
-    shift.actualStart = currentTime;
-    shift.status = 'in_progress';
+    shift.set('actualStart', currentTime);
+    shift.set('status', 'in_progress');
+    
+    // Обновляем статус в базе данных
+    await shift.save();
     
     // Calculate lateness based on shift start time
     const lateMinutes = Math.max(0, Math.floor((actualStartTime.getTime() - shiftStartTime.getTime()) / (1000 * 60)));
     
     if (lateMinutes > 0) {
-      shift.lateMinutes = lateMinutes;
+      shift.set('lateMinutes', lateMinutes);
     }
     
     await shift.save();
@@ -432,8 +445,8 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     const currentTime = now.toTimeString().slice(0, 5);
     
     // Update shift
-    shift.actualEnd = currentTime;
-    shift.status = 'completed';
+    shift.set('actualEnd', currentTime);
+    shift.set('status', 'completed');
     
     // Calculate early leave based on shift end time
     const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
@@ -441,7 +454,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     const earlyMinutes = Math.max(0, Math.floor((shiftEndTime.getTime() - actualEndTime.getTime()) / (1000 * 60)));
     
     if (earlyMinutes > 0) {
-      shift.earlyLeaveMinutes = earlyMinutes;
+      shift.set('earlyLeaveMinutes', earlyMinutes);
     }
     
     await shift.save();

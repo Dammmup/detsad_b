@@ -7,7 +7,7 @@ export interface ISimpleShift extends Document {
   endTime: string; // HH:MM format
   actualStart?: string; // HH:MM format
   actualEnd?: string; // HH:MM format
- status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | "in_progress";
+ status: 'scheduled' | 'completed' | 'in_progress';
   breakTime?: number; // minutes
   overtimeMinutes?: number;
   lateMinutes?: number;
@@ -51,7 +51,7 @@ const Shiftschema: Schema = new Schema({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'completed', 'cancelled', 'no_show', 'confirmed', 'in_progress', 'absent'],
+    enum: ['scheduled', 'completed', 'in_progress'],
     default: 'scheduled'
   },
   breakTime: {
@@ -87,21 +87,39 @@ const Shiftschema: Schema = new Schema({
 
 // Pre-save middleware to update status based on check-in/check-out times
 Shiftschema.pre('save', function(this: ISimpleShift, next) {
+  // If status was explicitly modified in this operation, don't override it
+  if (this.isModified('status')) {
+    next();
+    return;
+ }
+  
   // If we have actual start time but no actual end time, set status to in_progress
-  if (this.actualStart && !this.actualEnd) {
+ if (this.actualStart && !this.actualEnd) {
     this.status = 'in_progress';
   }
   // If we have both actual start and end times, set status to completed
-  else if (this.actualStart && this.actualEnd) {
-    this.status = 'completed';
+ else if (this.actualStart && this.actualEnd) {
+    // Only set to completed if actualStart and actualEnd were modified in this operation
+    // This prevents overriding explicit status changes when both fields already existed
+    if (this.isModified('actualStart') && this.isModified('actualEnd')) {
+      // Both were modified in this operation, so mark as completed
+      this.status = 'completed';
+    } else if (this.isModified('actualStart') && !this.isModified('actualEnd')) {
+      // Only actualStart was modified (check-in), keep as in_progress
+      this.status = 'in_progress';
+    } else if (!this.isModified('actualStart') && this.isModified('actualEnd')) {
+      // Only actualEnd was modified (check-out), set to completed
+      this.status = 'completed';
+    }
+    // If neither was modified, it means both existed before, so we don't change the status
   }
   // If we have no actual times, keep original status or set to scheduled
-  else if (!this.actualStart && !this.actualEnd) {
+ else if (!this.actualStart && !this.actualEnd) {
     // Only set to scheduled if status is not already set to a specific value
     if (!this.status) {
       this.status = 'scheduled';
     }
-  }
+ }
   
   next();
 });
