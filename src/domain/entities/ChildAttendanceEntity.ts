@@ -6,8 +6,8 @@ export interface IChildAttendanceEntity {
   groupId: ObjectId;
   date: Date;
   status: 'present' | 'absent' | 'late' | 'sick' | 'vacation';
-  checkInTime?: Date;
-  checkOutTime?: Date;
+  actualStart?: Date;
+  actualEnd?: Date;
   notes?: string;
   markedBy: ObjectId; // Teacher or admin who marked attendance
   createdAt?: Date;
@@ -20,8 +20,8 @@ export class ChildAttendanceEntity {
   groupId: ObjectId;
   date: Date;
   status: 'present' | 'absent' | 'late' | 'sick' | 'vacation';
-  checkInTime?: Date;
- checkOutTime?: Date;
+  actualStart?: Date;
+ actualEnd?: Date;
   notes?: string;
   markedBy: ObjectId;
   createdAt?: Date;
@@ -35,8 +35,8 @@ export class ChildAttendanceEntity {
     this.groupId = data.groupId;
     this.date = data.date;
     this.status = data.status;
-    this.checkInTime = data.checkInTime;
-    this.checkOutTime = data.checkOutTime;
+    this.actualStart = data.actualStart;
+    this.actualEnd = data.actualEnd;
     this.notes = data.notes;
     this.markedBy = data.markedBy;
     this.createdAt = data.createdAt || new Date();
@@ -65,37 +65,37 @@ export class ChildAttendanceEntity {
       throw new Error(`Недопустимый статус. Допустимые значения: ${validStatuses.join(', ')}`);
     }
     
-    if (data.checkInTime && data.checkOutTime && data.checkInTime > data.checkOutTime) {
+    if (data.actualStart && data.actualEnd && data.actualStart > data.actualEnd) {
       throw new Error('Время прибытия не может быть позже времени убытия');
     }
  }
 
   public update(data: Partial<IChildAttendanceEntity>): void {
     if (data.status !== undefined) this.status = data.status;
-    if (data.checkInTime !== undefined) this.checkInTime = data.checkInTime;
-    if (data.checkOutTime !== undefined) this.checkOutTime = data.checkOutTime;
+    if (data.actualStart !== undefined) this.actualStart = data.actualStart;
+    if (data.actualEnd !== undefined) this.actualEnd = data.actualEnd;
     if (data.notes !== undefined) this.notes = data.notes;
     
     this.updatedAt = new Date();
   }
 
   public getDuration(): number {
-    if (!this.checkInTime || !this.checkOutTime) return 0;
-    return this.checkOutTime.getTime() - this.checkInTime.getTime();
+    if (!this.actualStart || !this.actualEnd) return 0;
+    return this.actualEnd.getTime() - this.actualStart.getTime();
  }
 
   public isLate(scheduledTime: string = '08:00'): boolean {
-    if (!this.checkInTime || this.status !== 'present') return false;
+    if (!this.actualStart || this.status !== 'present') return false;
     
     const [hours, minutes] = scheduledTime.split(':').map(Number);
     const scheduled = new Date(this.date);
     scheduled.setHours(hours, minutes, 0, 0);
     
-    return this.checkInTime > scheduled;
+    return this.actualStart > scheduled;
   }
 
   public getAttendanceHours(): number {
-    if (!this.checkInTime || !this.checkOutTime) return 0;
+    if (!this.actualStart || !this.actualEnd) return 0;
     return this.getDuration() / (1000 * 60 * 60); // Convert milliseconds to hours
   }
 }

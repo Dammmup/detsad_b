@@ -48,7 +48,7 @@ export class StaffAttendanceTrackingService {
     const attendanceRecord = new StaffAttendanceTracking({
       staffId: userId,
       date: new Date(),
-      checkInTime: new Date(),
+      actualStart: new Date(),
       status: 'active',
       clockInLocation: {
         name: 'Current Location',
@@ -72,15 +72,15 @@ export class StaffAttendanceTrackingService {
     });
     
     if (scheduledShift && scheduledShift.startTime) {
-      const checkInTime = new Date();
+      const actualStart = new Date();
       const [hours, minutes] = scheduledShift.startTime.split(':').map(Number);
       
       // Create a date object with the scheduled start time
-      const scheduledStart = new Date(checkInTime);
+      const scheduledStart = new Date(actualStart);
       scheduledStart.setHours(hours, minutes, 0, 0);
       
       // Calculate lateness in minutes
-      const latenessMs = checkInTime.getTime() - scheduledStart.getTime();
+      const latenessMs = actualStart.getTime() - scheduledStart.getTime();
       const latenessMinutes = Math.floor(latenessMs / (1000 * 60));
       
       if (latenessMinutes > 0) {
@@ -128,7 +128,7 @@ export class StaffAttendanceTrackingService {
     }
     
     // Update attendance record
-    attendanceRecord.checkOutTime = new Date();
+    attendanceRecord.actualEnd = new Date();
     
     // Calculate early leave if scheduled shift exists
     const Shift = mongoose.model('Shift', require('../staffShifts/model').default.schema);
@@ -138,15 +138,15 @@ export class StaffAttendanceTrackingService {
     });
     
     if (scheduledShift && scheduledShift.endTime) {
-      const checkOutTime = new Date();
+      const actualEnd = new Date();
       const [hours, minutes] = scheduledShift.endTime.split(':').map(Number);
       
       // Create a date object with the scheduled end time
-      const scheduledEnd = new Date(checkOutTime);
+      const scheduledEnd = new Date(actualEnd);
       scheduledEnd.setHours(hours, minutes, 0, 0);
       
       // Calculate early leave in minutes
-      const earlyLeaveMs = scheduledEnd.getTime() - checkOutTime.getTime();
+      const earlyLeaveMs = scheduledEnd.getTime() - actualEnd.getTime();
       const earlyLeaveMinutes = Math.floor(earlyLeaveMs / (1000 * 60));
       
       if (earlyLeaveMinutes > 0) {

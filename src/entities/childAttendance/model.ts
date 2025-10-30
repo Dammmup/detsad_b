@@ -5,9 +5,9 @@ export interface IChildAttendance extends Document {
   groupId: mongoose.Types.ObjectId;
   date: Date;
   status: 'present' | 'absent' | 'late' | 'sick' | 'vacation';
-  checkInTime?: Date;
- checkOutTime?: Date;
-  notes?: string;
+  actualStart?: Date;
+  actualEnd?: Date;
+   notes?: string;
   markedBy: mongoose.Types.ObjectId; // Teacher or admin who marked attendance
   createdAt: Date;
  updatedAt: Date;
@@ -37,9 +37,9 @@ const ChildAttendanceSchema: Schema = new Schema({
     required: true,
     default: 'absent'
   },
-  checkInTime: Date,
-  checkOutTime: Date,
- notes: {
+  actualStart: Date,
+  actualEnd: Date,
+  notes: {
     type: String,
     maxlength: 500
   },
@@ -55,19 +55,19 @@ const ChildAttendanceSchema: Schema = new Schema({
 
 // Виртуальные поля
 ChildAttendanceSchema.virtual('duration').get(function(this: IChildAttendance) {
-  if (!this.checkInTime || !this.checkOutTime) return 0;
-  return this.checkOutTime.getTime() - this.checkInTime.getTime();
+  if (!this.actualStart || !this.actualEnd) return 0;
+  return this.actualEnd.getTime() - this.actualStart.getTime();
 });
 
 // Методы
 ChildAttendanceSchema.methods.isLate = function(scheduledTime: string = '08:00') {
-  if (!this.checkInTime || this.status !== 'present') return false;
+  if (!this.actualStart || this.status !== 'present') return false;
   
   const [hours, minutes] = scheduledTime.split(':').map(Number);
   const scheduled = new Date(this.date);
   scheduled.setHours(hours, minutes, 0, 0);
   
-  return this.checkInTime > scheduled;
+  return this.actualStart > scheduled;
 };
 
 export default mongoose.model<IChildAttendance>('ChildAttendance', ChildAttendanceSchema);

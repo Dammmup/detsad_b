@@ -129,8 +129,8 @@ class DataCleanupService {
           record.status === 'absent' ? 'Отсутствовал' :
           record.status === 'late' ? 'Опоздал' :
           record.status === 'sick' ? 'Болел' : record.status || '',
-          record.checkInTime || '',
-          record.checkOutTime || '',
+          record.actualStart || '',
+          record.actualEnd || '',
           group?.name || '',
           record.notes || ''
         ];
@@ -188,9 +188,9 @@ class DataCleanupService {
         const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
         const formattedDate = `${date.toLocaleDateString('ru-RU')} (${weekdays[date.getDay()]})`;
         
-        // Рассчитываем плановое время из checkInTime и checkOutTime
-        const checkInTimeStr = record.checkInTime ? new Date(record.checkInTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
-        const checkOutTimeStr = record.checkOutTime ? new Date(record.checkOutTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        // Рассчитываем плановое время из actualStart и actualEnd
+        const checkInTimeStr = record.actualStart ? new Date(record.actualStart).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
+        const checkOutTimeStr = record.actualEnd ? new Date(record.actualEnd).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '';
         const plannedTime = `${checkInTimeStr} - ${checkOutTimeStr}`;
         
         // Рассчитываем фактическое время из workDuration

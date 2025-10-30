@@ -343,8 +343,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       console.log('Geolocation check enabled:', geoSettings);
     }
     
+    // Получаем настройки детского сада для определения часового пояса
+    const settings = await settingsService.getKindergartenSettings();
+    const timezone = settings?.timezone || 'Asia/Almaty'; // По умолчанию используем Астану
+    
+    // Создаем дату с учетом часового пояса
     const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5);
+    const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
     
     // Calculate schedule boundaries
     const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
@@ -367,7 +372,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
           date: shift.date
         });
       }
-      timeTracking.checkInTime = now;
+      timeTracking.actualStart = now;
       timeTracking.status = 'missed';
       // Optionally annotate reason
       timeTracking.notes = timeTracking.notes
@@ -407,7 +412,9 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       });
     }
     
-    timeTracking.checkInTime = now;
+    // Сохраняем время с учетом часового пояса Астаны
+    const astanaTime = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+    timeTracking.actualStart = astanaTime;
     timeTracking.status = 'active';
     
     // Calculate late penalty based on payroll settings
@@ -441,8 +448,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       throw new Error('Нет прав для отметки в этой смене');
     }
     
+    // Получаем настройки детского сада для определения часового пояса
+    const settings = await settingsService.getKindergartenSettings();
+    const timezone = settings?.timezone || 'Asia/Almaty'; // По умолчанию используем Астану
+    
+    // Создаем дату с учетом часового пояса
     const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5);
+    const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
     
     // Update shift
     shift.set('actualEnd', currentTime);
@@ -466,11 +478,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     });
     
     if (timeTracking) {
-      timeTracking.checkOutTime = now;
+      // Сохраняем время ухода с учетом часового пояса Астаны
+      const astanaTime = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+      timeTracking.actualEnd = astanaTime;
       timeTracking.status = 'completed';
       // Calculate work duration manually
-      if (timeTracking.checkInTime) {
-        const duration = now.getTime() - timeTracking.checkInTime.getTime();
+      if (timeTracking.actualStart) {
+        const duration = astanaTime.getTime() - timeTracking.actualStart.getTime();
         timeTracking.workDuration = Math.floor(duration / (1000 * 60)) - (timeTracking.breakDuration || 0);
       }
       

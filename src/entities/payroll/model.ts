@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPayroll extends Document {
   staffId?: mongoose.Types.ObjectId; // Может быть undefined для аренды
-  tenantId?: mongoose.Types.ObjectId; // Для арендаторов
+  // tenant?: boolean; // Для арендаторов - поле перемещено в сущность staff
   period: string; // например, '2025-01'
   baseSalary: number;
   bonuses: number;
@@ -43,11 +43,11 @@ const PayrollSchema = new Schema<IPayroll>({
     ref: 'User',
     index: true  // Убираем required: true, так как может быть undefined для аренды
   },
-  tenantId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    index: true // Добавляем поле tenantId для арендаторов
- },
+  // tenant: {
+  //   type: Boolean,
+  //   default: false,
+  //   index: true // Добавляем поле tenant для арендаторов
+  // },
   period: {
     type: String,
     required: true

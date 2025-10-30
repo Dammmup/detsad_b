@@ -12,6 +12,7 @@ router.put('/:id', authMiddleware, update);
 router.delete('/:id', authMiddleware, deleteItem);
 
 // Дополнительные маршруты
-router.get('/period/:period', authMiddleware, getByPeriod);
+// Изменяем маршрут для поддержки JSON-периода
+router.get('/period', authMiddleware, getByPeriod);
 
 export default router;

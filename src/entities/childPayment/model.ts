@@ -5,15 +5,18 @@ import { IUser } from '../users/model';
 export interface IChildPayment extends Document {
   childId?: mongoose.Types.ObjectId; // Ссылка на ребенка, если оплата от ребенка
   userId?: mongoose.Types.ObjectId; // Ссылка на пользователя, если оплата от другого пользователя
-  period: string; // период оплаты в формате YYYY-MM
+  period: {
+    start: Date;
+    end: Date;
+  }; // период оплаты в виде объекта с датами начала и конца
   amount: number; // Сумма оплаты
   total: number; // Общая сумма к оплате
   status: 'active' | 'overdue' | 'paid' | 'draft'; // Статус оплаты
-  latePenalties?: number; // Штрафы за просрочку
+ latePenalties?: number; // Штрафы за просрочку
   absencePenalties?: number; // Штрафы за неявки
   penalties?: number; // Общие штрафы
-  latePenaltyRate?: number; // Ставка штрафа за просрочку
-  accruals?: number; // Надбавки
+ latePenaltyRate?: number; // Ставка штрафа за просрочку
+ accruals?: number; // Надбавки
   deductions?: number; // Вычеты
   comments?: string; // Комментарии
   paidAmount?: number; // Оплаченная сумма
@@ -34,8 +37,14 @@ const ChildPaymentSchema = new Schema<IChildPayment>({
     index: true
   },
   period: {
-    type: String,
-    required: true
+    start: {
+      type: Date,
+      required: true
+    },
+    end: {
+      type: Date,
+      required: true
+    }
   },
   amount: {
     type: Number,

@@ -13,9 +13,9 @@ export interface ILocation {
 export interface IStaffAttendanceTracking extends Document {
   staffId: mongoose.Types.ObjectId;
   date: Date;
-  checkInTime?: Date;
+ actualStart?: Date;
   groupId?: mongoose.Types.ObjectId;
-  checkOutTime?: Date;
+  actualEnd?: Date;
   workDuration?: number; // minutes
   breakDuration?: number; // minutes
   overtimeDuration?: number; // minutes
@@ -95,8 +95,8 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
     required: true,
     index: true
   },
-  checkInTime: Date,
-  checkOutTime: Date,
+  actualStart: Date,
+  actualEnd: Date,
   workDuration: {
     type: Number,
     default: 0
@@ -194,8 +194,8 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
 
 // Pre-save middleware to calculate hours
 StaffAttendanceTrackingSchema.pre('save', function(this: IStaffAttendanceTracking, next) {
-  if (this.checkInTime && this.checkOutTime) {
-    const totalMs = this.checkOutTime.getTime() - this.checkInTime.getTime();
+  if (this.actualStart && this.actualEnd) {
+    const totalMs = this.actualEnd.getTime() - this.actualStart.getTime();
     let totalMinutes = Math.floor(totalMs / (1000 * 60));
     
     // Subtract break duration
@@ -212,7 +212,7 @@ StaffAttendanceTrackingSchema.pre('save', function(this: IStaffAttendanceTrackin
     
     // Update status if completed, but only if it's not already set to a final status
     const finalStatuses = ['completed', 'missed', 'pending_approval'];
-    if (this.checkOutTime && !finalStatuses.includes(this.status)) {
+    if (this.actualEnd && !finalStatuses.includes(this.status)) {
       // Only update status if it's one of the in-progress statuses
       if (this.status === 'active' || this.status === 'checked_in' || this.status === 'on_break') {
         this.status = 'completed';

@@ -68,13 +68,32 @@ export const deleteItem = async (req: Request, res: Response): Promise<void> => 
 
 export const getByPeriod = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { period, childId, userId } = req.query;
-    if (!period) {
+    const { childId, userId } = req.query;
+    const { period } = req.params;
+    
+    // Проверяем, является ли period JSON-строкой с объектом
+    let periodObj;
+    try {
+      const parsed = JSON.parse(period);
+      if (parsed.start && parsed.end) {
+        periodObj = parsed;
+      } else {
+        res.status(400).json({ error: 'Invalid period format. Expected { start: string, end: string }' });
+        return;
+      }
+    } catch {
+      // Если не JSON, проверяем формат старого периода для совместимости
+      res.status(400).json({ error: 'Period must be in JSON format { start: string, end: string }' });
+      return;
+    }
+    
+    if (!periodObj) {
       res.status(400).json({ error: 'Period is required' });
       return;
     }
+    
     const payment = await getChildPaymentByPeriod(
-      period as string,
+      periodObj,
       childId as string,
       userId as string
     );
@@ -83,7 +102,7 @@ export const getByPeriod = async (req: Request, res: Response): Promise<void> =>
       return;
     }
     res.json(payment);
-  } catch (error: any) {
+ } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };

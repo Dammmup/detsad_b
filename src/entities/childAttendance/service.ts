@@ -51,7 +51,7 @@ export class ChildAttendanceService {
   }
 
   async createOrUpdate(attendanceData: any, userId: string) {
-    const { childId, groupId, date, status, checkInTime, checkOutTime, notes } = attendanceData;
+    const { childId, groupId, date, status, actualStart, actualEnd, notes } = attendanceData;
     
     if (!childId || !groupId || !date || !status) {
       throw new Error('Обязательные поля: childId, groupId, date, status');
@@ -74,8 +74,8 @@ export class ChildAttendanceService {
       groupId,
       date: new Date(date),
       status,
-      checkInTime: checkInTime ? new Date(checkInTime) : undefined,
-      checkOutTime: checkOutTime ? new Date(checkOutTime) : undefined,
+      actualStart: actualStart ? new Date(actualStart) : undefined,
+      actualEnd: actualEnd ? new Date(actualEnd) : undefined,
       notes,
       markedBy: userId
     };
@@ -132,6 +132,8 @@ export class ChildAttendanceService {
           groupId,
           date: new Date(date),
           status,
+          actualStart: record.actualStart ? new Date(record.actualStart) : undefined,
+          actualEnd: record.actualEnd ? new Date(record.actualEnd) : undefined,
           notes,
           markedBy: userId
         };

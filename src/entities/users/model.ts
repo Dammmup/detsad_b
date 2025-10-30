@@ -19,6 +19,7 @@ export interface IUser extends Document {
   // Поля из auth модели
   birthday?: Date;
   photo?: string;
+  tenant?: boolean; // Для арендаторов
 }
 
 const UserSchema: Schema = new Schema({
@@ -78,6 +79,11 @@ const UserSchema: Schema = new Schema({
   // Поля из auth модели
   birthday: { type: Date },
   photo: { type: String },
+  tenant: {
+    type: Boolean,
+    default: false,
+    index: true
+  }
 
 }, {
   timestamps: true
