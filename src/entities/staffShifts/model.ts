@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
-export interface ISimpleShift extends Document {
+export interface IShift extends Document {
   staffId: mongoose.Types.ObjectId;
   date: string; // YYYY-MM-DD format
   startTime: string; // HH:MM format
@@ -86,7 +87,7 @@ const Shiftschema: Schema = new Schema({
 });
 
 // Pre-save middleware to update status based on check-in/check-out times
-Shiftschema.pre('save', function(this: ISimpleShift, next) {
+Shiftschema.pre('save', function(this: IShift, next) {
   // If status was explicitly modified in this operation, don't override it
   if (this.isModified('status')) {
     next();
@@ -169,7 +170,16 @@ Shiftschema.methods.calculateLateness = function() {
   return Math.max(0, actualMinutes - scheduledMinutes);
 };
 
-export default mongoose.model<ISimpleShift>('Shift', Shiftschema);
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createShiftModel = createModelFactory<IShift>(
+  'Shift',
+  Shiftschema,
+  'shifts',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createShiftModel;
 
 // Ensure the User model is registered
 import '../users/model';

@@ -3,29 +3,32 @@ import Child from './model';
 import Group from '../groups/model'; // Добавляем импорт модели Group
 
 export class ChildService {
+  private get childModel() {
+    return Child();
+  }
   async getAll(): Promise<IChild[]> {
-    return await Child.find().populate('groupId');
+    return await this.childModel.find().populate('groupId');
   }
 
   async getById(id: string): Promise<IChild | null> {
-    return await Child.findById(id).populate('groupId');
+    return await this.childModel.findById(id).populate('groupId');
   }
 
   async getByGroupId(groupId: string): Promise<IChild[]> {
-    return await Child.find({ groupId }).populate('groupId');
+    return await this.childModel.find({ groupId }).populate('groupId');
   }
 
   async create(data: Partial<IChild>): Promise<IChild> {
-    const child = new Child(data);
+    const child = new this.childModel(data);
     return await child.save();
   }
 
   async update(id: string, data: Partial<IChild>): Promise<IChild | null> {
-    return await Child.findByIdAndUpdate(id, data, { new: true }).populate('groupId');
+    return await this.childModel.findByIdAndUpdate(id, data, { new: true }).populate('groupId');
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await Child.findByIdAndDelete(id);
+    const result = await this.childModel.findByIdAndDelete(id);
     return !!result;
   }
 }

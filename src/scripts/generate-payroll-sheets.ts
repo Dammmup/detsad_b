@@ -88,13 +88,13 @@ async function generatePayrollSheets(period: string) {
     const [year, month] = period.split('-').map(Number);
     
     // Получаем всех сотрудников
-    const staff = await User.find({ role: { $ne: 'admin' } });
+    const staff = await User().find({ role: { $ne: 'admin' } });
     
     // Получаем все смены за указанный период
     const startDate = new Date(year, month - 1, 1); // Первый день месяца
     const endDate = new Date(year, month, 0); // Последний день месяца
     
-    const shifts = await StaffShift.find({
+    const shifts = await StaffShift().find({
       date: { $gte: startDate, $lte: endDate }
     }).populate('staffId', '_id');
     
@@ -150,7 +150,7 @@ async function generatePayrollSheets(period: string) {
       const total = baseSalary + bonuses - penalties;
       
       // Проверяем, существует ли уже запись для этого сотрудника и периода
-      let payroll = await Payroll.findOne({
+      let payroll = await Payroll().findOne({
         staffId: employeeWithPayroll._id,
         period: period
       });
@@ -166,7 +166,7 @@ async function generatePayrollSheets(period: string) {
         console.log(`Обновлена зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
       } else {
         // Создаем новую запись
-        payroll = new Payroll({
+        payroll = new (Payroll())({
           staffId: employeeWithPayroll._id,
           period: period,
           baseSalary: baseSalary,

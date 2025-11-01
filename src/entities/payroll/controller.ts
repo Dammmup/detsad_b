@@ -174,19 +174,19 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
     }
     
     // Импортируем необходимые модели
-    const Payroll = (await import('../payroll/model')).default;
-    const User = (await import('../users/model')).default;
-    const StaffShift = (await import('../staffShifts/model')).default;
+    const PayrollModel = (await import('../payroll/model')).default;
+    const UserModel = (await import('../users/model')).default;
+    const StaffShiftModel = (await import('../staffShifts/model')).default;
     
     // Получаем всех сотрудников
-    const staff = await User.find({ role: { $ne: 'admin' } });
+    const staff = await UserModel().find({ role: { $ne: 'admin' } });
     
     // Получаем все смены за указанный период
     const [year, month] = period.split('-').map(Number);
     const startDate = new Date(year, month - 1, 1); // Первый день месяца
     const endDate = new Date(year, month, 0); // Последний день месяца
     
-    const shifts = await StaffShift.find({
+    const shifts = await StaffShiftModel().find({
       date: { $gte: startDate, $lte: endDate }
     }).populate('staffId', '_id');
     
@@ -250,7 +250,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       const total = baseSalary + bonuses - deductions;
       
       // Проверяем, существует ли уже запись для этого сотрудника и периода
-      let payroll = await Payroll.findOne({
+      let payroll = await PayrollModel().findOne({
         staffId: employeeWithPayroll._id,
         period: period
       });
@@ -267,7 +267,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
         console.log(`Обновлена зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
       } else {
         // Создаем новую запись
-        payroll = new Payroll({
+        payroll = new (PayrollModel())({
           staffId: employeeWithPayroll._id,
           period: period,
           baseSalary: baseSalary,
@@ -321,7 +321,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
     
     // Для упрощения предположим, что арендаторы - это пользователи с определенными признаками
     // В реальной системе может быть отдельная коллекция арендаторов или специальная роль
-    const allUsers = await User.find({ role: { $ne: 'admin' } });
+    const allUsers = await User().find({ role: { $ne: 'admin' } });
     
     // Отфильтруем пользователей, которые потенциально могут быть арендаторами
     // В данном случае будем считать арендаторами всех пользователей, кроме специфических ролей
@@ -342,7 +342,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
       const total = rentAmount; // В упрощенной версии без штрафов
       
       // Проверяем, существует ли уже запись для этого арендатора и периода
-      let rentRecord = await Payroll.findOne({
+      let rentRecord = await Payroll().findOne({
         tenantId: tenant._id, // Используем tenantId вместо staffId для аренды
         period: period
       });
@@ -357,7 +357,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
         console.log(`Обновлена аренда для арендатора ${tenant.fullName}: ${total} тг`);
       } else {
         // Создаем новую запись аренды
-        rentRecord = new Payroll({
+        rentRecord = new (Payroll())({
           tenantId: tenant._id, // Используем tenantId для арендатора
           period: period,
           baseSalary: rentAmount, // Базовая сумма аренды
@@ -378,4 +378,126 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
     console.error('Error generating rent sheets:', err);
     res.status(500).json({ error: err.message || 'Ошибка генерации арендных листов' });
   }
+};
+
+/**
+* Добавляет штраф к записи зарплаты
+*/
+export const addFine = async (req: AuthenticatedRequest, res: Response) => {
+ try {
+   if (!req.user) {
+     return res.status(401).json({ error: 'Authentication required' });
+   }
+   
+   // Только администратор может добавлять штрафы
+   if (req.user.role !== 'admin') {
+     return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add fines' });
+   }
+   
+   const { amount, reason, type = 'other', notes } = req.body;
+   const payrollId = req.params.id;
+   
+   if (!amount || !reason) {
+     return res.status(400).json({ error: 'Amount and reason are required' });
+   }
+   
+   const payrollService = new PayrollService();
+   const updatedPayroll = await payrollService.addFine(payrollId, {
+     amount: Number(amount),
+     reason,
+     type,
+     notes
+   });
+   
+   res.status(201).json(updatedPayroll);
+ } catch (error) {
+   console.error('Error adding fine:', error);
+   res.status(500).json({ error: 'Error adding fine' });
+ }
+};
+
+/**
+* Получает все штрафы для записи зарплаты
+*/
+export const getFines = async (req: AuthenticatedRequest, res: Response) => {
+ try {
+   if (!req.user) {
+     return res.status(401).json({ error: 'Authentication required' });
+   }
+   
+   const payrollId = req.params.id;
+   
+   // Проверяем права доступа
+   // Пользователь может получить штрафы только для своей зарплаты или если он администратор
+   if (req.user.role !== 'admin') {
+     const payrollService = new PayrollService();
+     const payroll = await payrollService.getById(payrollId);
+     if (!payroll || !payroll.staffId || payroll.staffId._id.toString() !== req.user.id) {
+       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this payroll fines' });
+     }
+   }
+   
+   const payrollService = new PayrollService();
+   const fines = await payrollService.getFines(payrollId);
+   res.json({ fines });
+ } catch (error) {
+   console.error('Error getting fines:', error);
+   res.status(500).json({ error: 'Error getting fines' });
+ }
+};
+
+/**
+* Удаляет штраф из записи зарплаты
+*/
+export const removeFine = async (req: AuthenticatedRequest, res: Response) => {
+ try {
+   if (!req.user) {
+     return res.status(401).json({ error: 'Authentication required' });
+   }
+   
+   // Только администратор может удалять штрафы
+   if (req.user.role !== 'admin') {
+     return res.status(403).json({ error: 'Forbidden: Insufficient permissions to remove fines' });
+   }
+   
+   const { payrollId, fineIndex } = req.params;
+   
+   const payrollService = new PayrollService();
+   const updatedPayroll = await payrollService.removeFine(payrollId, Number(fineIndex));
+   
+   res.json(updatedPayroll);
+ } catch (error) {
+   console.error('Error removing fine:', error);
+   res.status(500).json({ error: 'Error removing fine' });
+ }
+};
+
+/**
+* Получает общую сумму штрафов для записи зарплаты
+*/
+export const getTotalFines = async (req: AuthenticatedRequest, res: Response) => {
+ try {
+   if (!req.user) {
+     return res.status(401).json({ error: 'Authentication required' });
+   }
+   
+   const payrollId = req.params.id;
+   
+   // Проверяем права доступа
+   // Пользователь может получить информацию о штрафах только для своей зарплаты или если он администратор
+   if (req.user.role !== 'admin') {
+     const payrollService = new PayrollService();
+     const payroll = await payrollService.getById(payrollId);
+     if (!payroll || !payroll.staffId || payroll.staffId._id.toString() !== req.user.id) {
+       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this payroll fines' });
+     }
+   }
+   
+   const payrollService = new PayrollService();
+   const totalFines = await payrollService.getTotalFines(payrollId);
+   res.json({ totalFines });
+ } catch (error) {
+   console.error('Error calculating total fines:', error);
+   res.status(500).json({ error: 'Error calculating total fines' });
+ }
 };

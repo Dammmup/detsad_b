@@ -2,8 +2,6 @@ import express from 'express';
 import { 
  clockIn,
   clockOut,
-  startBreak,
-  endBreak,
   getEntries,
   getSummary,
   getAllStaffAttendanceRecords,
@@ -73,11 +71,7 @@ router.post('/clock-out', [
   body('notes').optional().isString().isLength({ max: 500 })
 ], handleValidationErrors, clockOut);
 
-// POST /attendance/break-start - Start break
-router.post('/break-start', authMiddleware, startBreak);
 
-// POST /attendance/break-end - End break
-router.post('/break-end', authMiddleware, endBreak);
 
 // GET /attendance/entries - Get time entries with pagination
 router.get('/entries', [

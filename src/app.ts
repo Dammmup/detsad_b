@@ -1,19 +1,19 @@
 // ...existing code...
-import helminthJournalRoutes from './entities/helminthJournal/route';
-import tubPositiveJournalRoutes from './entities/tubPositiveJournal/route';
-import infectiousDiseasesJournalRoutes from './entities/infectiousDiseasesJournal/route';
-import contactInfectionJournalRoutes from './entities/contactInfectionJournal/route';
-import riskGroupChildrenRoutes from './entities/riskGroupChildren/route';
+import helminthJournalRoutes from './entities/medician/helminthJournal/route';
+import tubPositiveJournalRoutes from './entities/medician/tubPositiveJournal/route';
+import infectiousDiseasesJournalRoutes from './entities/medician/infectiousDiseasesJournal/route';
+import contactInfectionJournalRoutes from './entities/medician/contactInfectionJournal/route';
+import riskGroupChildrenRoutes from './entities/medician/riskGroupChildren/route';
 import rentRoutes from './entities/rent/route'; // Добавляем маршрут для аренды
 import express from 'express';
 import cors from 'cors';
 // import cookieParser from 'cookie-parser'; // ❌ полностью убираем поддержку cookies
-import organolepticJournalRoutes from './entities/organolepticJournal/route';
-import perishableBrakRoutes from './entities/perishableBrak/route';
-import productCertificateRoutes from './entities/productCertificates/route';
-import detergentLogRoutes from './entities/detergentLog/route';
-import foodStockLogRoutes from './entities/foodStockLog/route';
-import foodStaffHealthRoutes from './entities/foodStaffHealth/route';
+import organolepticJournalRoutes from './entities/food/organolepticJournal/route';
+import perishableBrakRoutes from './entities/food/perishableBrak/route';
+import productCertificateRoutes from './entities/food/productCertificates/route';
+import detergentLogRoutes from './entities/food/detergentLog/route';
+import foodStockLogRoutes from './entities/food/foodStockLog/route';
+import foodStaffHealthRoutes from './entities/food/foodStaffHealth/route';
 import authRoutes from './entities/auth/route';
 import userRoutes from './entities/users/route';
 import groupRoutes from './entities/groups/route';
@@ -23,22 +23,23 @@ import payrollRoutes from './entities/payroll/route';
 import settingsRoutes from './entities/settings/route';
 import documentsRoutes from './entities/documents/route';
 import reportsRoutes from './entities/reports/route';
-import medicalJournalRoutes from './entities/medicalJournals/route';
-import menuItemsRoutes from './entities/menuItems/route';
-import healthPassportRoutes from './entities/healthPassport/route';
+import medicalJournalRoutes from './entities/medician/medicalJournals/route';
+import menuItemsRoutes from './entities/food/menuItems/route';
+import healthPassportRoutes from './entities/medician/healthPassport/route';
 import documentGenerateRoutes from './entities/documents/generate/route';
 import payrollAutomationRoutes from './entities/payroll/automation/route';
 import taskListRoutes from './entities/taskList/route';
 import childrenRoutes from './entities/children/route';
 import childPaymentRoutes from './entities/childPayment/route';
 import { initializeTaskScheduler } from './services/taskScheduler';
-import mantouxJournalRoutes from './entities/mantouxJournal/route';
-import somaticJournalRoutes from './entities/somaticJournal/route';
+import mantouxJournalRoutes from './entities/medician/mantouxJournal/route';
+import somaticJournalRoutes from './entities/medician/somaticJournal/route';
 import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/route';
 import qwen3ChatRoutes from './entities/qwen3Chat/route';
 import uiStateRoutes from './entities/uiState/route';
 import mainEventsRoutes from './entities/mainEvents/route';
 import holidayRoutes from './entities/holidays/route';
+import telegramRoutes from './api/telegram';
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use('/api', uiStateRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/main-events', mainEventsRoutes);
 app.use('/holidays', holidayRoutes);
+app.use('/telegram', telegramRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

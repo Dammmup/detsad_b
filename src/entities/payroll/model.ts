@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IPayroll extends Document {
   staffId?: mongoose.Types.ObjectId; // Может быть undefined для аренды
@@ -24,7 +25,16 @@ export interface IPayroll extends Document {
     latePenalties?: number;
     absencePenalties?: number;
     userFines?: number;
- };
+  };
+  // Добавляем массив штрафов для более детального учета
+  fines?: Array<{
+    amount: number;
+    reason: string;
+    type: string;
+    notes?: string;
+    date: Date;
+    createdAt: Date;
+  }>;
   // Поля для штрафов, добавленные для совместимости с payrollAutomationService
  penalties?: number;
  latePenalties?: number;
@@ -87,7 +97,38 @@ const PayrollSchema = new Schema<IPayroll>({
   penaltyDetails: {
     type: String,
     amount: Number
- },
+  },
+  fines: [{
+    amount: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    reason: {
+      type: String,
+      required: true,
+      maxlength: 500
+    },
+    type: {
+      type: String,
+      required: true,
+      default: 'other',
+      enum: ['late', 'early_leave', 'absence', 'violation', 'other']
+    },
+    notes: {
+      type: String,
+      maxlength: 1000
+    },
+    date: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   penalties: Number,
   latePenalties: Number,
   absencePenalties: Number,
@@ -102,4 +143,13 @@ const PayrollSchema = new Schema<IPayroll>({
   timestamps: true
 });
 
-export default mongoose.model<IPayroll>('Payroll', PayrollSchema, 'payrolls');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createPayrollModel = createModelFactory<IPayroll>(
+  'Payroll',
+  PayrollSchema,
+  'payrolls',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createPayrollModel;

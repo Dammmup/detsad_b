@@ -1,25 +1,28 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IUser extends Document {
   phone: string;
   fullName: string;
-  password: string;
-  passwordHash?: string;
+ password: string;
+ passwordHash?: string;
   initialPassword?: string;
   role: string;
   active: boolean;
   lastLogin?: Date;
   createdAt: Date;
-  updatedAt: Date;
-  // Дополнительные поля из старой модели
-  uniqNumber?: string;
+ updatedAt: Date;
+ // Дополнительные поля из старой модели
+ uniqNumber?: string;
   notes?: string;
-  iin?: string;
+ iin?: string;
   groupId?: mongoose.Types.ObjectId;
   // Поля из auth модели
   birthday?: Date;
-  photo?: string;
-  tenant?: boolean; // Для арендаторов
+ photo?: string;
+ tenant?: boolean; // Для арендаторов
+  telegramChatId?: string;
+ telegramLinkCode?: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -48,7 +51,7 @@ const UserSchema: Schema = new Schema({
   initialPassword: {
     type: String,
     select: false
-  },
+ },
   role: {
     type: String,
     required: [true, 'Роль обязательна'],
@@ -61,7 +64,7 @@ const UserSchema: Schema = new Schema({
     default: true
   },
   lastLogin: Date,
-  // Дополнительные поля из старой модели
+ // Дополнительные поля из старой модели
   uniqNumber: {
     type: String,
     index: true
@@ -79,14 +82,31 @@ const UserSchema: Schema = new Schema({
   // Поля из auth модели
   birthday: { type: Date },
   photo: { type: String },
-  tenant: {
+ tenant: {
     type: Boolean,
     default: false,
     index: true
-  }
+  },
+  telegramChatId: {
+    type: String,
+    required: false
+  },
+  telegramLinkCode: {
+    type: String,
+    required: false
+ }
 
 }, {
   timestamps: true
 });
 
-export default mongoose.model<IUser>('User', UserSchema, 'users');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createUserModel = createModelFactory<IUser>(
+  'User',
+  UserSchema,
+  'users',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createUserModel;

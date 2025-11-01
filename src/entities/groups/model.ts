@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IGroup extends Document {
   name: string;
@@ -6,7 +7,7 @@ export interface IGroup extends Document {
  ageRange?: string;
   ageGroup?: string;
   capacity?: number;
- maxStudents?: number;
+  maxStudents?: number;
   isActive: boolean;
  teacherId?: mongoose.Types.ObjectId;
   assistantId?: mongoose.Types.ObjectId;
@@ -39,7 +40,7 @@ export interface IGroupInput extends Partial<IGroup> {
 }
 
 const GroupSchema: Schema = new Schema({
- name: {
+  name: {
     type: String,
     required: [true, 'Название группы обязательно'],
     unique: true,
@@ -48,7 +49,7 @@ const GroupSchema: Schema = new Schema({
     index: true
   },
   description: String,
-  ageRange: String,
+ ageRange: String,
   ageGroup: String,
   capacity: {
     type: Number,
@@ -84,4 +85,13 @@ const GroupSchema: Schema = new Schema({
 
 // Добавим индекс для поиска по названию группы
 
-export default mongoose.model<IGroup>('Group', GroupSchema, 'groups');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createGroupModel = createModelFactory<IGroup>(
+  'Group',
+  GroupSchema,
+  'groups',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createGroupModel;

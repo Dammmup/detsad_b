@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface ITask extends Document {
   title: string;
@@ -154,4 +155,13 @@ TaskSchema.methods.addNote = function(note: string) {
   return this.save();
 };
 
-export default mongoose.model<ITask>('Task', TaskSchema, 'tasks');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createTaskModel = createModelFactory<ITask>(
+  'Task',
+  TaskSchema,
+  'tasks',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createTaskModel;

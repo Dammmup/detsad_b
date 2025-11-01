@@ -52,38 +52,6 @@ export const clockOut = async (req: Request, res: Response) => {
  }
 };
 
-export const startBreak = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const userId = req.user.id as string;
-    
-    const result = await staffAttendanceTrackingService.startBreak(userId);
-    
-    res.json(result);
-  } catch (error) {
-    console.error('Error starting break:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
-  }
-};
-
-export const endBreak = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const userId = req.user.id as string;
-    
-    const result = await staffAttendanceTrackingService.endBreak(userId);
-    
-    res.json(result);
-  } catch (error) {
-    console.error('Error ending break:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
- }
-};
-
 export const getEntries = async (req: Request, res: Response) => {
   try {
     if (!req.user) {

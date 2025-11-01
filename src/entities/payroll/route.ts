@@ -9,7 +9,11 @@ import {
   markPayrollAsPaid,
   getAllPayrollsByUsers,
   generatePayrollSheets,
-  generateRentSheets
+  generateRentSheets,
+  addFine,
+  getFines,
+  removeFine,
+  getTotalFines
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -45,5 +49,11 @@ router.post('/generate-sheets', authMiddleware, authorizeRole(['admin']), genera
 
 // Сгенерировать арендные листы
 router.post('/generate-rent-sheets', authMiddleware, authorizeRole(['admin']), generateRentSheets);
+
+// Маршруты для работы со штрафами
+router.post('/:id/fines', authMiddleware, authorizeRole(['admin']), addFine);
+router.get('/:id/fines', authMiddleware, getFines);
+router.delete('/:payrollId/fines/:fineIndex', authMiddleware, authorizeRole(['admin']), removeFine);
+router.get('/:id/fines/total', authMiddleware, getTotalFines);
 
 export default router;

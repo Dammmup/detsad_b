@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IChildAttendance extends Document {
   childId: mongoose.Types.ObjectId;
@@ -70,4 +71,13 @@ ChildAttendanceSchema.methods.isLate = function(scheduledTime: string = '08:00')
   return this.actualStart > scheduled;
 };
 
-export default mongoose.model<IChildAttendance>('ChildAttendance', ChildAttendanceSchema);
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createChildAttendanceModel = createModelFactory<IChildAttendance>(
+  'ChildAttendance',
+  ChildAttendanceSchema,
+  'childattendances',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createChildAttendanceModel;

@@ -1,9 +1,9 @@
 import express from 'express';
 import {
   getAllShifts,
-  createSimpleShift,
-  updateSimpleShift,
-  deleteSimpleShift,
+  createShift,
+  updateShift,
+  deleteShift,
   checkInSimple,
   checkOutSimple,
   getTimeTrackingSimple,
@@ -20,7 +20,7 @@ const shiftsService = new ShiftsService();
 router.get('/', authMiddleware, getAllShifts);
 
 // Create new shift
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createSimpleShift);
+router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createShift);
 
 // Bulk create shifts
 router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
@@ -38,10 +38,10 @@ router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async 
 });
 
 // Update shift
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager']), updateSimpleShift);
+router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager']), updateShift);
 
 // Delete shift
-router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager']), deleteSimpleShift);
+router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager']), deleteShift);
 
 // Check in/out for staff
 router.post('/checkin/:shiftId', authMiddleware, checkInSimple);

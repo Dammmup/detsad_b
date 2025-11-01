@@ -8,7 +8,7 @@ export interface UIState {
   route: string; // Текущий маршрут
   visibleText?: string | null; // Видимый текст на странице
   componentsState?: any; // Состояние компонентов
-  errors: string[]; // Обнаруженные ошибки
+  uiErrors: string[]; // Обнаруженные ошибки
   localStorageData?: any; // Данные из localStorage
   sessionStorageData?: any; // Данные из sessionStorage
   domSnapshot?: any; // Снимок DOM (опционально, для анализа)
@@ -21,7 +21,7 @@ export interface UIStateRequest {
  route: string;
  visibleText?: string;
   componentsState?: any;
-  errors: string[];
+  uiErrors: string[];
   localStorageData?: any;
   sessionStorageData?: any;
   domSnapshot?: string;

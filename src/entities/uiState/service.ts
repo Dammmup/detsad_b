@@ -10,11 +10,11 @@ const uiStateSchema = new mongoose.Schema({
   route: { type: String, required: true },
   visibleText: { type: String },
   componentsState: { type: mongoose.Schema.Types.Mixed },
-  errors: [String],
+  uiErrors: [String], // Переименовываем поле
   localStorageData: { type: mongoose.Schema.Types.Mixed },
   sessionStorageData: { type: mongoose.Schema.Types.Mixed },
   domSnapshot: { type: mongoose.Schema.Types.Mixed }
-});
+}, { suppressReservedKeysWarning: true });
 
 // Создаем индекс для автоматической очистки устаревших записей
 
@@ -27,6 +27,7 @@ export class UIStateService {
     try {
       const uiState = new UIStateModel({
         ...uiStateData,
+        uiErrors: uiStateData.uiErrors, // Поле уже называется uiErrors
         timestamp: new Date()
       });
       
@@ -59,7 +60,8 @@ export class UIStateService {
         id: uiState._id.toString(),
         userId: uiState.userId || undefined,
         visibleText: uiState.visibleText || undefined,
-        domSnapshot: uiState.domSnapshot || undefined
+        domSnapshot: uiState.domSnapshot || undefined,
+        uiErrors: uiState.uiErrors || [] // Поле уже называется uiErrors
       };
     } catch (error) {
       console.error('Ошибка при получении последнего состояния UI:', error);
@@ -81,7 +83,8 @@ export class UIStateService {
         id: uiState._id.toString(),
         userId: uiState.userId || undefined,
         visibleText: uiState.visibleText || undefined,
-        domSnapshot: uiState.domSnapshot || undefined
+        domSnapshot: uiState.domSnapshot || undefined,
+        uiErrors: uiState.uiErrors || [] // Поле уже называется uiErrors
       };
     } catch (error) {
       console.error('Ошибка при получении состояния UI по ID:', error);

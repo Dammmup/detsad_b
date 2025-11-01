@@ -5,6 +5,8 @@ import Shift from '../staffShifts/model'; // Import the shift model to check per
 import User from '../users/model'; // Import the user model
 import mongoose from 'mongoose';
 
+// Используем модели как функции для получения экземпляров моделей
+
 export class ChildAttendanceService {
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
     const filter: any = {};
@@ -16,7 +18,7 @@ export class ChildAttendanceService {
         filter.groupId = filters.groupId;
       } else {
         // Find teacher's groups and filter by them
-        const teacherGroups = await Group.find({ teacherId: userId });
+        const teacherGroups = await Group().find({ teacherId: userId });
         filter.groupId = { $in: teacherGroups.map(g => g._id) };
       }
     } else if (filters.groupId) {
@@ -44,7 +46,7 @@ export class ChildAttendanceService {
       filter.status = filters.status;
     }
     
-    const attendance = await ChildAttendance.find(filter)
+    const attendance = await ChildAttendance().find(filter)
       .sort({ date: -1, childId: 1 });
     
     return attendance;
@@ -64,7 +66,7 @@ export class ChildAttendanceService {
     }
     
     // Check if record already exists for this child and date
-    const existingRecord = await ChildAttendance.findOne({
+    const existingRecord = await ChildAttendance().findOne({
       childId,
       date: new Date(date)
     });
@@ -83,14 +85,14 @@ export class ChildAttendanceService {
     let attendance;
     if (existingRecord) {
       // Update existing record
-      attendance = await ChildAttendance.findOneAndUpdate(
+      attendance = await ChildAttendance().findOneAndUpdate(
         { childId, date: new Date(date) },
         newAttendanceData,
         { new: true }
       );
     } else {
       // Create new record
-      attendance = new ChildAttendance(newAttendanceData);
+      attendance = new (ChildAttendance())(newAttendanceData);
       await attendance.save();
     }
     
@@ -122,7 +124,7 @@ export class ChildAttendanceService {
         }
         
         // Check if record exists
-        const existingRecord = await ChildAttendance.findOne({
+        const existingRecord = await ChildAttendance().findOne({
           childId,
           date: new Date(date)
         });
@@ -140,13 +142,13 @@ export class ChildAttendanceService {
         
         let attendance;
         if (existingRecord) {
-          attendance = await ChildAttendance.findByIdAndUpdate(
+          attendance = await ChildAttendance().findByIdAndUpdate(
             existingRecord._id,
             attendanceData,
             { new: true }
           );
         } else {
-          attendance = new ChildAttendance(attendanceData);
+          attendance = new (ChildAttendance())(attendanceData);
           await attendance.save();
         }
         
@@ -162,7 +164,7 @@ export class ChildAttendanceService {
       results,
       errors
     };
-  }
+ }
 
   async getStats(filters: { groupId?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
@@ -178,7 +180,7 @@ export class ChildAttendanceService {
       };
     }
     
-    const stats = await ChildAttendance.aggregate([
+    const stats = await ChildAttendance().aggregate([
       { $match: filter },
       {
         $group: {
@@ -188,7 +190,7 @@ export class ChildAttendanceService {
       }
     ]);
     
-    const totalRecords = await ChildAttendance.countDocuments(filter);
+    const totalRecords = await ChildAttendance().countDocuments(filter);
     
     const result = {
       total: totalRecords,
@@ -205,7 +207,7 @@ export class ChildAttendanceService {
  }
 
   async delete(id: string) {
-    const attendance = await ChildAttendance.findByIdAndDelete(id);
+    const attendance = await ChildAttendance().findByIdAndDelete(id);
     
     if (!attendance) {
       throw new Error('Запись не найдена');
@@ -215,8 +217,8 @@ export class ChildAttendanceService {
   }
 
   async debug() {
-    const totalRecords = await ChildAttendance.countDocuments();
-    const recentRecords = await ChildAttendance.find()
+    const totalRecords = await ChildAttendance().countDocuments();
+    const recentRecords = await ChildAttendance().find()
       .sort({ createdAt: -1 })
       .limit(5);
     
@@ -230,20 +232,20 @@ export class ChildAttendanceService {
   // Метод для проверки прав на отметку посещаемости
   private async checkAttendancePermission(userId: string, groupId: string, date: string): Promise<boolean> {
     // Проверяем, является ли пользователь администратором
-    const user = await User.findById(userId);
+    const user = await User().findById(userId);
     if (user && (user.role === 'admin' || user.role === 'manager')) {
       return true;
     }
     
     // Проверяем, является ли пользователь воспитателем или помощником этой группы
-    const group = await Group.findById(groupId);
+    const group = await Group().findById(groupId);
     if (group && (group.teacherId?.toString() === userId || group.assistantId?.toString() === userId)) {
       return true;
     }
     
     // Проверяем, назначен ли пользователь как альтернативный сотрудник на смену в этой группе
     const shiftDate = new Date(date).toISOString().split('T')[0]; // Преобразуем в формат YYYY-MM-DD
-    const shift = await Shift.findOne({
+    const shift = await Shift().findOne({
       date: shiftDate,
       $or: [
         { staffId: new mongoose.Types.ObjectId(userId) },

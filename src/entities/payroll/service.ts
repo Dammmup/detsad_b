@@ -2,6 +2,7 @@ import Payroll from './model';
 import { IPayroll } from './model';
 import User from '../users/model';
 import { IUser } from '../users/model';
+import { sendTelegramNotification } from '../../utils/telegramNotify';
 
 export class PayrollService {
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
@@ -11,7 +12,7 @@ export class PayrollService {
     if (filters.period) filter.period = filters.period;
     if (filters.status) filter.status = filters.status;
     
-    const payrolls = await Payroll.find(filter)
+    const payrolls = await Payroll().find(filter)
       .populate('staffId', 'fullName role')
       .sort({ period: -1 });
     
@@ -21,17 +22,17 @@ export class PayrollService {
  async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
     
-    // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll
-    // Вместо этого мы получаем всех пользователей и затем фильтруем по наличию записей в Payroll
+    // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll()
+    // Вместо этого мы получаем всех пользователей и затем фильтруем по наличию записей в Payroll()
     if (filters.status) filter.status = filters.status;
     
     // Получаем всех пользователей, подходящих под фильтр
-    const users = await User.find(filter).select('_id fullName role iin uniqNumber payroll').sort({ fullName: 1 });
+    const users = await User().find(filter).select('_id fullName role iin uniqNumber payroll').sort({ fullName: 1 });
     
     // Получаем все записи зарплат для указанного периода, если он задан
     let payrollRecords: any[] = [];
     if (filters.period) {
-      payrollRecords = await Payroll.find({ period: filters.period })
+      payrollRecords = await Payroll().find({ period: filters.period })
         .populate('staffId', 'fullName role')
         .sort({ createdAt: -1 });
     }
@@ -107,7 +108,7 @@ export class PayrollService {
   }
 
  async getById(id: string) {
-    const payroll = await Payroll.findById(id)
+    const payroll = await Payroll().findById(id)
       .populate('staffId', 'fullName role');
     
     if (!payroll) {
@@ -129,12 +130,21 @@ export class PayrollService {
       total
     };
     
-    const payroll = new Payroll(newPayrollData);
+    const payroll = new (Payroll())(newPayrollData);
     await payroll.save();
     
-    const populatedPayroll = await Payroll.findById(payroll._id)
-      .populate('staffId', 'fullName role');
-    
+    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
+    // Уведомление в Telegram
+    if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
+      let msg = `Ваша зарплата за период ${populatedPayroll.period}:\n` +
+        `Основная: ${populatedPayroll.baseSalary} тг\n` +
+        `Бонусы: ${populatedPayroll.bonuses} тг\n` +
+        `Вычеты: ${populatedPayroll.deductions} тг\n` +
+        `Аванс: ${populatedPayroll.advance || 0} тг\n` +
+        `ИТОГО: ${populatedPayroll.total} тг\n` +
+        `Статус: ${(populatedPayroll.status === 'paid') ? 'Выплачено' : 'Начислено'}`;
+      await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
+    }
     return populatedPayroll;
   }
 
@@ -145,7 +155,7 @@ export class PayrollService {
         data.deductions !== undefined ||
         data.advance !== undefined) {
       
-      const payroll = await Payroll.findById(id);
+      const payroll = await Payroll().findById(id);
       if (!payroll) {
         throw new Error('Зарплата не найдена');
       }
@@ -158,21 +168,31 @@ export class PayrollService {
       data.total = baseSalary + bonuses - deductions - advance;
     }
     
-    const updatedPayroll = await Payroll.findByIdAndUpdate(
+    const updatedPayroll = await Payroll().findByIdAndUpdate(
       id,
       data,
       { new: true }
-    ).populate('staffId', 'fullName role');
+    ).populate('staffId', 'fullName role telegramChatId');
     
     if (!updatedPayroll) {
       throw new Error('Зарплата не найдена');
     }
-    
+    // Уведомление в Telegram
+    if (updatedPayroll?.staffId && (updatedPayroll.staffId as any).telegramChatId) {
+      let msg = `Ваша зарплата за период ${updatedPayroll.period}:\n` +
+        `Основная: ${updatedPayroll.baseSalary} тг\n` +
+        `Бонусы: ${updatedPayroll.bonuses} тг\n` +
+        `Вычеты: ${updatedPayroll.deductions} тг\n` +
+        `Аванс: ${updatedPayroll.advance || 0} тг\n` +
+        `ИТОГО: ${updatedPayroll.total} тг\n` +
+        `Статус: ${(updatedPayroll.status === 'paid') ? 'Выплачено' : 'Начислено'}`;
+      await sendTelegramNotification((updatedPayroll.staffId as any).telegramChatId, msg);
+    }
     return updatedPayroll;
   }
 
   async delete(id: string) {
-    const result = await Payroll.findByIdAndDelete(id);
+    const result = await Payroll().findByIdAndDelete(id);
     
     if (!result) {
       throw new Error('Зарплата не найдена');
@@ -182,7 +202,7 @@ export class PayrollService {
   }
 
   async approve(id: string) {
-    const payroll = await Payroll.findByIdAndUpdate(
+    const payroll = await Payroll().findByIdAndUpdate(
       id,
       {
         status: 'approved',
@@ -199,7 +219,7 @@ export class PayrollService {
  }
 
   async markAsPaid(id: string) {
-    const payroll = await Payroll.findByIdAndUpdate(
+    const payroll = await Payroll().findByIdAndUpdate(
       id,
       {
         status: 'paid',
@@ -214,4 +234,94 @@ export class PayrollService {
     
     return payroll;
   }
+
+ /**
+  * Добавляет штраф к записи зарплаты
+  */
+ async addFine(payrollId: string, fineData: { amount: number; reason: string; type: string; notes?: string }) {
+   const payroll = await Payroll().findById(payrollId);
+   if (!payroll) {
+     throw new Error('Зарплата не найдена');
+   }
+
+   // Создаем новый штраф
+   const fine = {
+     amount: Number(fineData.amount),
+     reason: fineData.reason,
+     type: fineData.type,
+     notes: fineData.notes,
+     date: new Date(),
+     createdAt: new Date()
+   };
+
+   // Добавляем штраф в массив
+   if (!payroll.fines) {
+     payroll.fines = [];
+   }
+   payroll.fines.push(fine);
+
+   // Обновляем общую сумму штрафов
+   const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
+   payroll.userFines = totalFines;
+   payroll.penalties = (payroll.penalties || 0) + fine.amount;
+   payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+
+   await payroll.save();
+
+   const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
+   return populatedPayroll;
+ }
+
+ /**
+  * Получает все штрафы для записи зарплаты
+  */
+ async getFines(payrollId: string) {
+   const payroll = await Payroll().findById(payrollId);
+   if (!payroll) {
+     throw new Error('Зарплата не найдена');
+   }
+
+   return payroll.fines || [];
+ }
+
+ /**
+  * Удаляет штраф из записи зарплаты
+  */
+ async removeFine(payrollId: string, fineIndex: number) {
+   const payroll = await Payroll().findById(payrollId);
+   if (!payroll) {
+     throw new Error('Зарплата не найдена');
+   }
+
+   if (!payroll.fines || fineIndex < 0 || fineIndex >= payroll.fines.length) {
+     throw new Error('Штраф не найден');
+   }
+
+   // Получаем сумму удаляемого штрафа
+   const removedFine = payroll.fines.splice(fineIndex, 1)[0];
+   const fineAmount = removedFine.amount;
+
+   // Обновляем общую сумму штрафов
+   const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
+   payroll.userFines = totalFines;
+   payroll.penalties = Math.max(0, (payroll.penalties || 0) - fineAmount);
+   payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+
+   await payroll.save();
+
+   const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
+   return populatedPayroll;
+ }
+
+ /**
+  * Получает общую сумму штрафов для записи зарплаты
+  */
+ async getTotalFines(payrollId: string) {
+   const payroll = await Payroll().findById(payrollId);
+   if (!payroll) {
+     throw new Error('Зарплата не найдена');
+   }
+
+   return payroll.userFines || 0;
+ }
 }

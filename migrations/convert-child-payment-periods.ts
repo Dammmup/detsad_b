@@ -49,7 +49,7 @@ export async function up() {
   
   try {
     // Получаем все записи оплат
-    const payments = await ChildPayment.find({});
+    const payments = await ChildPayment().find({});
     console.log(`Найдено ${payments.length} записей для миграции`);
     
     let updatedCount = 0;
@@ -62,7 +62,7 @@ export async function up() {
           const parsedPeriod = parsePeriodString(payment.period);
           
           // Обновляем запись с новым форматом периода
-          await ChildPayment.updateOne(
+          await ChildPayment().updateOne(
             { _id: payment._id },
             {
               $set: {

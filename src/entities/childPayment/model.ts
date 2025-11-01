@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IChild } from '../children/model';
 import { IUser } from '../users/model';
+import { createModelFactory } from '../../config/database';
 
 export interface IChildPayment extends Document {
   childId?: mongoose.Types.ObjectId; // Ссылка на ребенка, если оплата от ребенка
@@ -80,4 +81,13 @@ ChildPaymentSchema.pre('validate', function(next) {
   next();
 });
 
-export default mongoose.model<IChildPayment>('ChildPayment', ChildPaymentSchema, 'childPayments');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createChildPaymentModel = createModelFactory<IChildPayment>(
+  'ChildPayment',
+  ChildPaymentSchema,
+  'childPayments',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createChildPaymentModel;

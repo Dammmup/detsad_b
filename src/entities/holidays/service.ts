@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import Holiday, { IHoliday } from './model';
+import { IHoliday } from './model';
+import { getModel } from '../../config/modelRegistry';
 
 export class HolidaysService {
   /**
@@ -26,6 +27,7 @@ export class HolidaysService {
       }
     }
     
+    const Holiday = getModel<IHoliday>('Holiday');
     return await Holiday.find(query).sort({ month: 1, day: 1 });
   }
 
@@ -37,9 +39,10 @@ export class HolidaysService {
       throw new Error('Invalid holiday ID');
     }
     
+    const Holiday = getModel<IHoliday>('Holiday');
     const holiday = await Holiday.findById(id);
     if (!holiday) {
-      throw new Error('Holiday not found');
+      throw new Error('Holiday() not found');
     }
     
     return holiday;
@@ -63,6 +66,7 @@ export class HolidaysService {
       throw new Error('Year is required for non-recurring holidays');
     }
     
+    const Holiday = getModel<IHoliday>('Holiday');
     const holiday = new Holiday(holidayData);
     return await holiday.save();
   }
@@ -90,6 +94,7 @@ export class HolidaysService {
     }
     
     // Проверяем, существует ли уже праздник с такими же параметрами (день, месяц, год)
+    const Holiday = getModel<IHoliday>('Holiday');
     const existingHoliday = await Holiday.findOne({
       day: data.day !== undefined ? data.day : (await Holiday.findById(id))?.day,
       month: data.month !== undefined ? data.month : (await Holiday.findById(id))?.month,
@@ -108,7 +113,7 @@ export class HolidaysService {
     );
     
     if (!holiday) {
-      throw new Error('Holiday not found');
+      throw new Error('Holiday() not found');
     }
     
     return holiday;
@@ -122,10 +127,11 @@ export class HolidaysService {
       throw new Error('Invalid holiday ID');
     }
     
+    const Holiday = getModel<IHoliday>('Holiday');
     const holiday = await Holiday.findByIdAndDelete(id);
     
     if (!holiday) {
-      throw new Error('Holiday not found');
+      throw new Error('Holiday() not found');
     }
     
     return holiday;
@@ -140,6 +146,7 @@ export class HolidaysService {
     const year = date.getFullYear();
     
     // Проверяем, есть ли праздник в этот день и месяц
+    const Holiday = getModel<IHoliday>('Holiday');
     const holiday = await Holiday.findOne({
       day: day,
       month: month,
@@ -160,6 +167,7 @@ export class HolidaysService {
     const month = date.getMonth() + 1; // Месяцы в JavaScript начинаются с 0
     const year = date.getFullYear();
     
+    const Holiday = getModel<IHoliday>('Holiday');
     return await Holiday.findOne({
       day: day,
       month: month,
@@ -187,6 +195,7 @@ export class HolidaysService {
     // Для каждого года в диапазоне
     for (let year = startYear; year <= endYear; year++) {
       // Получаем все праздники для этого года (повторяющиеся и специфичные)
+      const Holiday = getModel<IHoliday>('Holiday');
       const yearHolidays = await Holiday.find({
         $or: [
           { isRecurring: true },

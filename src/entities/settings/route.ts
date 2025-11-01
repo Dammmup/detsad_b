@@ -35,7 +35,7 @@ router.get('/security', authMiddleware, authorizeRole(['admin']), getSecuritySet
 router.put('/security', authMiddleware, authorizeRole(['admin']), updateSecuritySettings);
 
 // Получить настройки геолокации
-router.get('/geolocation', authMiddleware, authorizeRole(['admin']), getGeolocationSettings);
+router.get('/geolocation', authMiddleware, getGeolocationSettings);
 
 // Обновить настройки геолокации
 router.put('/geolocation', authMiddleware, authorizeRole(['admin']), updateGeolocationSettings);

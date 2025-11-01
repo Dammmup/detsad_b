@@ -1,7 +1,15 @@
 import { Request, Response } from 'express';
 import { HolidaysService } from './service';
 
-const holidaysService = new HolidaysService();
+// Отложенное создание экземпляра сервиса
+let holidaysService: HolidaysService | null = null;
+
+const getHolidaysService = (): HolidaysService => {
+  if (!holidaysService) {
+    holidaysService = new HolidaysService();
+  }
+  return holidaysService;
+};
 
 export const getAllHolidays = async (req: Request, res: Response) => {
   try {
@@ -16,7 +24,7 @@ export const getAllHolidays = async (req: Request, res: Response) => {
     if (month) filters.month = parseInt(month as string);
     if (isRecurring !== undefined) filters.isRecurring = isRecurring === 'true';
     
-    const holidays = await holidaysService.getAll(filters);
+    const holidays = await getHolidaysService().getAll(filters);
     res.json(holidays);
   } catch (err) {
     console.error('Error fetching holidays:', err);
@@ -30,7 +38,7 @@ export const getHolidayById = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const holiday = await holidaysService.getById(req.params.id);
+    const holiday = await getHolidaysService().getById(req.params.id);
     res.json(holiday);
   } catch (err) {
     console.error('Error fetching holiday:', err);
@@ -49,7 +57,7 @@ export const createHoliday = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to create holidays' });
     }
     
-    const holiday = await holidaysService.create(req.body);
+    const holiday = await getHolidaysService().create(req.body);
     res.status(201).json(holiday);
   } catch (err) {
     console.error('Error creating holiday:', err);
@@ -68,7 +76,7 @@ export const updateHoliday = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update holidays' });
     }
     
-    const holiday = await holidaysService.update(req.params.id, req.body);
+    const holiday = await getHolidaysService().update(req.params.id, req.body);
     res.json(holiday);
   } catch (err) {
     console.error('Error updating holiday:', err);
@@ -87,7 +95,7 @@ export const deleteHoliday = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete holidays' });
     }
     
-    await holidaysService.delete(req.params.id);
+    await getHolidaysService().delete(req.params.id);
     res.json({ message: 'Праздник успешно удален' });
   } catch (err) {
     console.error('Error deleting holiday:', err);
@@ -113,7 +121,7 @@ export const checkIfHoliday = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid date format' });
     }
     
-    const isHoliday = await holidaysService.isHoliday(dateObj);
+    const isHoliday = await getHolidaysService().isHoliday(dateObj);
     res.json({ isHoliday, date: dateObj });
   } catch (err) {
     console.error('Error checking holiday:', err);

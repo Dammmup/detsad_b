@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IHoliday extends Document {
   name: string;        // Название праздника
@@ -11,7 +12,10 @@ export interface IHoliday extends Document {
   updatedAt: Date;
 }
 
-const HolidaySchema: Schema = new Schema({
+// Фабрика модели Holiday
+const createHolidayModel = createModelFactory<IHoliday>(
+  'Holiday',
+  new Schema({
   name: {
     type: String,
     required: true,
@@ -44,9 +48,10 @@ const HolidaySchema: Schema = new Schema({
   }
 }, {
   timestamps: true
-});
+}),
+'holidays',
+'default'
+);
 
-// Создаем индекс для быстрого поиска праздников по дню и месяцу
-HolidaySchema.index({ day: 1, month: 1 });
-
-export default mongoose.model<IHoliday>('Holiday', HolidaySchema);
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createHolidayModel;

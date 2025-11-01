@@ -21,7 +21,8 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as AuthUser;
     
     // Проверяем, что пользователь все еще существует в базе данных
-    User.findById(decoded.id).then(user => {
+    const userModel = User();
+    userModel.findById(decoded.id).then(user => {
       if (!user || !user.active) {
         return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
       }

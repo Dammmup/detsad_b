@@ -3,6 +3,32 @@ import ChildPayment, { IChildPayment } from './model';
 import Child from '../children/model';
 import User from '../users/model';
 
+// Отложенное создание моделей
+let ChildPaymentModel: any = null;
+let ChildModel: any = null;
+let UserModel: any = null;
+
+const getChildPaymentModel = () => {
+  if (!ChildPaymentModel) {
+    ChildPaymentModel = ChildPayment();
+  }
+  return ChildPaymentModel;
+};
+
+const getChildModel = () => {
+  if (!ChildModel) {
+    ChildModel = Child();
+  }
+  return ChildModel;
+};
+
+const getUserModel = () => {
+  if (!UserModel) {
+    UserModel = User();
+  }
+  return UserModel;
+};
+
 export const createChildPayment = async (paymentData: Partial<IChildPayment>): Promise<IChildPayment> => {
   // Валидация: проверяем, что либо childId, либо userId присутствует
   if (!paymentData.childId && !paymentData.userId) {
@@ -11,22 +37,24 @@ export const createChildPayment = async (paymentData: Partial<IChildPayment>): P
 
   // Проверяем существование ребенка или пользователя
   if (paymentData.childId) {
-    const child = await Child.findById(paymentData.childId);
+    const child = await getChildModel().findById(paymentData.childId);
     if (!child) {
       throw new Error('Child not found');
     }
   } else if (paymentData.userId) {
-    const user = await User.findById(paymentData.userId);
+    const user = await getUserModel().findById(paymentData.userId);
     if (!user) {
       throw new Error('User not found');
     }
   }
 
-  const payment = new ChildPayment(paymentData);
+  const childPaymentModel = getChildPaymentModel();
+  const payment = new childPaymentModel(paymentData);
   return await payment.save();
 };
 
 export const getChildPayments = async (filters: any = {}): Promise<IChildPayment[]> => {
+  const childPaymentModel = getChildPaymentModel();
   const query: any = {};
 
   if (filters.childId) {
@@ -49,44 +77,47 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
     query.status = filters.status;
   }
 
-  return await ChildPayment.find(query)
+  return await childPaymentModel.find(query)
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 };
 
 export const getChildPaymentById = async (id: string): Promise<IChildPayment | null> => {
-  return await ChildPayment.findById(id)
+  const childPaymentModel = getChildPaymentModel();
+  return await childPaymentModel.findById(id)
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 };
 
 export const updateChildPayment = async (id: string, updateData: Partial<IChildPayment>): Promise<IChildPayment | null> => {
+  const childPaymentModel = getChildPaymentModel();
   // Проверяем, существует ли оплата
-  const existingPayment = await ChildPayment.findById(id);
+  const existingPayment = await childPaymentModel.findById(id);
   if (!existingPayment) {
     throw new Error('Child payment not found');
   }
 
   // Если обновляем childId или userId, проверяем их существование
- if (updateData.childId) {
-    const child = await Child.findById(updateData.childId);
+  if (updateData.childId) {
+    const child = await getChildModel().findById(updateData.childId);
     if (!child) {
       throw new Error('Child not found');
     }
   } else if (updateData.userId) {
-    const user = await User.findById(updateData.userId);
+    const user = await getUserModel().findById(updateData.userId);
     if (!user) {
       throw new Error('User not found');
     }
   }
 
-  return await ChildPayment.findByIdAndUpdate(id, updateData, { new: true })
+  return await childPaymentModel.findByIdAndUpdate(id, updateData, { new: true })
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 };
 
 export const deleteChildPayment = async (id: string): Promise<boolean> => {
-  const result = await ChildPayment.findByIdAndDelete(id);
+  const childPaymentModel = getChildPaymentModel();
+  const result = await childPaymentModel.findByIdAndDelete(id);
   return !!result;
 };
 
@@ -99,6 +130,7 @@ export const getChildPaymentByPeriod = async (
   childId?: string,
   userId?: string
 ): Promise<IChildPayment | null> => {
+  const childPaymentModel = getChildPaymentModel();
   const query: any = {
     'period.start': new Date(period.start),
     'period.end': new Date(period.end)
@@ -112,7 +144,7 @@ export const getChildPaymentByPeriod = async (
     throw new Error('Either childId or userId must be specified');
   }
 
-  return await ChildPayment.findOne(query)
+  return await childPaymentModel.findOne(query)
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 };

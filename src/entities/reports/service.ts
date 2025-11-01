@@ -219,7 +219,7 @@ export class ReportsService {
       filter.groupId = groupId;
     }
     
-    const children = await (await import('../children/model')).default.find(filter)
+    const children = await (await import('../children/model')).default().find(filter)
       .populate('groupId', 'name');
     
     const summary = {
@@ -255,7 +255,7 @@ export class ReportsService {
       filter.groupId = groupId;
     }
     
-    const attendanceRecords = await (await import('../childAttendance/model')).default.find(filter)
+    const attendanceRecords = await (await import('../childAttendance/model')).default().find(filter)
       .populate('childId', 'fullName')
       .populate('groupId', 'name');
     

@@ -1,7 +1,7 @@
 import express from 'express';
 import {
- getAllUsers,
- getUserById,
+  getAllUsers,
+  getUserById,
   createUser,
   updateUser,
   deleteUser,
@@ -11,7 +11,8 @@ import {
   addUserFine,
   getUserFines,
   removeUserFine,
-  getUserTotalFines
+  getUserTotalFines,
+  generateTelegramCode
 } from './controller';
 import { authorizeRole } from '../../middlewares/authRole';
 import { authMiddleware } from '../../middlewares/authMiddleware';
@@ -49,9 +50,12 @@ router.get('/:id/fines', authMiddleware, authorizeRole(['admin']), getUserFines)
 router.get('/:id/fines/total', authMiddleware, authorizeRole(['admin']), getUserTotalFines);
 
 // Удалить штраф пользователя
-router.delete('/:userId/fines/:fineId', authMiddleware, authorizeRole(['admin']), removeUserFine);
+router.delete('/:payrollId/fines/:fineIndex', authMiddleware, authorizeRole(['admin']), removeUserFine);
 
 // Удалить пользователя (только для админов)
 router.delete('/:id', authMiddleware, authorizeRole(['admin']), deleteUser);
+
+// Генерация кода для привязки Telegram
+router.post('/:id/generate-telegram-code', authMiddleware, generateTelegramCode);
 
 export default router;

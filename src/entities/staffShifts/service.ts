@@ -1,5 +1,5 @@
 import mongoose, { Types } from 'mongoose';
-import { ISimpleShift } from './model';
+import { IShift } from './model';
 import Shift from './model';
 import StaffAttendanceTracking from '../staffAttendanceTracking/model';
 import User from '../../entities/users/model';
@@ -11,6 +11,21 @@ const settingsService = new SettingsService();
 const holidaysService = new HolidaysService();
 
 export class ShiftsService {
+  // Helper function to calculate distance between two coordinates
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // Distance in meters
+ }
   async getAll(filters: { staffId?: string, date?: string, status?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
     const filter: any = {};
     
@@ -36,7 +51,7 @@ export class ShiftsService {
       };
     }
     
-    const shifts = await Shift.find(filter)
+    const shifts = await Shift().find(filter)
       .populate('staffId', 'fullName role')
       .populate('createdBy', 'fullName')
       .sort({ date: 1, createdAt: -1 });
@@ -111,7 +126,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   }
   
   // Проверяем, нет ли уже смены для этого сотрудника в этот день
-  const existingShift = await Shift.findOne({
+  const existingShift = await Shift().findOne({
     staffId: newShiftData.staffId,
     date: newShiftData.date,
     _id: { $ne: newShiftData._id } // Исключаем текущую смену при обновлении
@@ -121,10 +136,10 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     throw new Error('У сотрудника уже есть смена в этот день');
   }
   
-  const shift = new Shift(newShiftData);
+  const shift = new (Shift())(newShiftData);
   await shift.save();
   
-  const populatedShift = await Shift.findById(shift._id)
+  const populatedShift = await Shift().findById(shift._id)
     .populate('staffId', 'fullName role')
     .populate('createdBy', 'fullName');
   
@@ -172,7 +187,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
         }
         
         // Проверяем, нет ли уже смены для этого сотрудника в этот день
-        const existingShift = await Shift.findOne({
+        const existingShift = await Shift().findOne({
           staffId: newShiftData.staffId,
           date: newShiftData.date,
           _id: { $ne: newShiftData._id } // Исключаем текущую смену при обновлении
@@ -199,10 +214,10 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
           throw new Error('Не указан статус смены');
         }
         
-        const shift = new Shift(newShiftData);
+        const shift = new (Shift())(newShiftData);
         await shift.save();
         
-        const populatedShift = await Shift.findById(shift._id)
+        const populatedShift = await Shift().findById(shift._id)
           .populate('staffId', 'fullName role')
           .populate('createdBy', 'fullName');
         
@@ -225,7 +240,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
 
   async update(id: string, data: any) {
     // Найдем смену
-    const shift = await Shift.findById(id);
+    const shift = await Shift().findById(id);
     
     if (!shift) {
       throw new Error('Смена не найдена');
@@ -243,7 +258,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
         staffIdForQuery = new mongoose.Types.ObjectId(data.staffId);
       }
       
-      const existingShift = await Shift.findOne({
+      const existingShift = await Shift().findOne({
         staffId: staffIdForQuery,
         date: data.date,
         _id: { $ne: id } // Исключаем текущую смену
@@ -315,7 +330,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
 }
 
   async delete(id: string) {
-    const shift = await Shift.findByIdAndDelete(id);
+    const shift = await Shift().findByIdAndDelete(id);
     
     if (!shift) {
       throw new Error('Смена не найдена');
@@ -323,65 +338,75 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     return shift;
   }
 
-  async checkIn(shiftId: string, userId: string, role: string) {
-    const shift = await Shift.findById(shiftId);
-    if (!shift) {
-      throw new Error('Смена не найдена');
-    }
-    // Check if user can check in to this shift
-    if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
-        (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new Types.ObjectId(userId))) &&
-        role !== 'admin') {
-      throw new Error('Нет прав для отметки в этой смене');
-    }
-    
-    // Проверяем геолокацию пользователя
-    const geoSettings = await settingsService.getGeolocationSettings();
-    if (geoSettings && geoSettings.enabled) {
-      // Если включена проверка геолокации, проверяем, находится ли пользователь в зоне
-      // TODO: Добавить логику проверки геолокации
-      console.log('Geolocation check enabled:', geoSettings);
-    }
-    
-    // Получаем настройки детского сада для определения часового пояса
-    const settings = await settingsService.getKindergartenSettings();
-    const timezone = settings?.timezone || 'Asia/Almaty'; // По умолчанию используем Астану
-    
-    // Создаем дату с учетом часового пояса
-    const now = new Date();
-    const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
-    
-    // Calculate schedule boundaries
-    const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
-    const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
-    const actualStartTime = new Date(`${shift.date} ${currentTime}`);
-    
-    // If trying to check in after shift end, mark as in_progress since they did come
-    if (actualStartTime.getTime() > shiftEndTime.getTime()) {
-      shift.set('status', 'in_progress');
-      await shift.save();
-      
-      let timeTracking = await StaffAttendanceTracking.findOne({
-        staffId: userId,
-        date: shift.date
-      });
-      
-      if (!timeTracking) {
-        timeTracking = new StaffAttendanceTracking({
-          staffId: userId,
-          date: shift.date
-        });
-      }
-      timeTracking.actualStart = now;
-      timeTracking.status = 'missed';
-      // Optionally annotate reason
-      timeTracking.notes = timeTracking.notes
-        ? `${timeTracking.notes}\nОтметка после окончания смены`
-        : 'Отметка после окончания смены';
-      await timeTracking.save();
-      
-      return { shift, timeTracking, message: 'Отметка после окончания смены. Смена помечена как начатая.' };
-    }
+  async checkIn(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
+     const shift = await Shift().findById(shiftId);
+     if (!shift) {
+       throw new Error('Смена не найдена');
+     }
+     // Check if user can check in to this shift
+     if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
+         (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new Types.ObjectId(userId))) &&
+         role !== 'admin') {
+       throw new Error('Нет прав для отметки в этой смене');
+     }
+     
+     // Проверяем геолокацию пользователя, если она передана
+     if (locationData) {
+       const geoSettings = await settingsService.getGeolocationSettings();
+       if (geoSettings && geoSettings.enabled) {
+         // Вычисляем расстояние между текущей позицией и заданными координатами
+         const distance = this.calculateDistance(
+           locationData.latitude,
+           locationData.longitude,
+           geoSettings.coordinates.latitude,
+           geoSettings.coordinates.longitude
+         );
+         
+         if (distance > geoSettings.radius) {
+           throw new Error(`Вы находитесь вне геозоны. Разрешено в радиусе ${geoSettings.radius} метров.`);
+         }
+       }
+     }
+     
+     // Получаем настройки детского сада для определения часового пояса
+     const settings = await settingsService.getKindergartenSettings();
+     const timezone = settings?.timezone || 'Asia/Almaty'; // По умолчанию используем Астану
+     
+     // Создаем дату с учетом часового пояса
+     const now = new Date();
+     const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
+     
+     // Calculate schedule boundaries
+     const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
+     const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
+     const actualStartTime = new Date(`${shift.date} ${currentTime}`);
+     
+     // If trying to check in after shift end, mark as in_progress since they did come
+     if (actualStartTime.getTime() > shiftEndTime.getTime()) {
+       shift.set('status', 'in_progress');
+       await shift.save();
+       
+       let timeTracking = await StaffAttendanceTracking().findOne({
+         staffId: userId,
+         date: shift.date
+       });
+       
+       if (!timeTracking) {
+         timeTracking = new (StaffAttendanceTracking())({
+           staffId: userId,
+           date: shift.date
+         });
+       }
+       timeTracking.actualStart = now;
+       timeTracking.status = 'absent';
+       // Optionally annotate reason
+       timeTracking.notes = timeTracking.notes
+         ? `${timeTracking.notes}\nОтметка после окончания смены`
+         : 'Отметка после окончания смены';
+       await timeTracking.save();
+       
+       return { shift, timeTracking, message: 'Отметка после окончания смены. Смена помечена как начатая.' };
+     }
     
     // Update shift as in-progress
     shift.set('actualStart', currentTime);
@@ -400,13 +425,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     await shift.save();
     
     // Create or update time tracking record
-    let timeTracking = await StaffAttendanceTracking.findOne({
+    let timeTracking = await StaffAttendanceTracking().findOne({
       staffId: userId,
       date: shift.date
     });
     
     if (!timeTracking) {
-      timeTracking = new StaffAttendanceTracking({
+      timeTracking = new (StaffAttendanceTracking())({
         staffId: userId,
         date: shift.date
       });
@@ -415,13 +440,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     // Сохраняем время с учетом часового пояса Астаны
     const astanaTime = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
     timeTracking.actualStart = astanaTime;
-    timeTracking.status = 'active';
+    timeTracking.status = 'in_progress';
     
     // Calculate late penalty based on payroll settings
     if (lateMinutes > 0) {
       // Получаем настройки зарплаты сотрудника
-      const payroll = await Payroll.findOne({ staffId: userId });
-      const penaltyRate = payroll?.penaltyDetails?.amount || 500; // По умолчанию 500 тенге за минуту
+      const payroll = await Payroll().findOne({ staffId: userId });
+      const penaltyRate = payroll?.penaltyDetails?.amount || 50; // По умолчанию 500 тенге за минуту
       
       const penaltyAmount = lateMinutes * penaltyRate;
       timeTracking.penalties.late = {
@@ -436,8 +461,8 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     return { shift, timeTracking, message: 'Успешно отмечен приход' };
   }
 
-  async checkOut(shiftId: string, userId: string, role: string) {
-    const shift = await Shift.findById(shiftId);
+  async checkOut(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
+    const shift = await Shift().findById(shiftId);
     if (!shift) {
       throw new Error('Смена не найдена');
     }
@@ -472,7 +497,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     await shift.save();
     
     // Update time tracking
-    const timeTracking = await StaffAttendanceTracking.findOne({
+    const timeTracking = await StaffAttendanceTracking().findOne({
       staffId: userId,
       date: shift.date
     });
@@ -491,7 +516,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       // Calculate early leave penalty based on payroll settings
       if (earlyMinutes > 0) {
         // Получаем настройки зарплаты сотрудника
-        const payroll = await Payroll.findOne({ staffId: userId });
+        const payroll = await Payroll().findOne({ staffId: userId });
         const penaltyRate = payroll?.penaltyDetails?.amount || 500; // По умолчанию 500 тенге за минуту
         
         const penaltyAmount = earlyMinutes * penaltyRate;
@@ -505,7 +530,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       // Penalty for late checkout (after scheduled end) - does not count for payroll
       const lateCheckoutMinutes = Math.max(0, Math.floor((actualEndTime.getTime() - shiftEndTime.getTime()) / (1000 * 60)));
       if (lateCheckoutMinutes > 0) {
-        const payroll = await Payroll.findOne({ staffId: userId });
+        const payroll = await Payroll().findOne({ staffId: userId });
         const penaltyRate = payroll?.penaltyDetails?.amount || 500;
         const penaltyAmount = lateCheckoutMinutes * penaltyRate;
         timeTracking.penalties.unauthorized = {
@@ -518,7 +543,25 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       await timeTracking.save();
     }
     
-    return { shift, timeTracking, message: 'Успешно отмечен уход' };
+    // Проверяем геолокацию пользователя, если она передана
+    if (locationData) {
+      const geoSettings = await settingsService.getGeolocationSettings();
+      if (geoSettings && geoSettings.enabled) {
+        // Вычисляем расстояние между текущей позицией и заданными координатами
+        const distance = this.calculateDistance(
+          locationData.latitude,
+          locationData.longitude,
+          geoSettings.coordinates.latitude,
+          geoSettings.coordinates.longitude
+        );
+        
+        if (distance > geoSettings.radius) {
+          throw new Error(`Вы находитесь вне геозоны. Разрешено в радиусе ${geoSettings.radius} метров.`);
+        }
+      }
+    }
+    
+    return { shift, message: 'Успешно отмечен уход' }; // timeTracking as any,
   }
 
   async getTimeTrackingRecords(filters: { staffId?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
@@ -537,7 +580,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       };
     }
     
-    const records = await StaffAttendanceTracking.find(filter)
+    const records = await StaffAttendanceTracking().find(filter)
       .populate('staffId', 'fullName role')
       .populate('shiftId')
       .sort({ date: -1 });
@@ -546,7 +589,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   }
 
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {
-    const record = await StaffAttendanceTracking.findByIdAndUpdate(
+    const record = await StaffAttendanceTracking().findByIdAndUpdate(
       id,
       {
         penalties,

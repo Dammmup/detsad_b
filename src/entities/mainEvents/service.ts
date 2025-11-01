@@ -2,7 +2,7 @@ import MainEvent, { IMainEvent } from './model';
 import EmailService from '../../services/emailService';
 import { IChildAttendance } from '../childAttendance/model';
 import { IChildPayment } from '../childPayment/model';
-import { ISimpleShift } from '../staffShifts/model';
+import { IShift } from '../staffShifts/model';
 import { IPayroll } from '../payroll/model';
 import { IRent } from '../rent/model';
 import { IReport } from '../reports/model';
@@ -226,10 +226,10 @@ export class MainEventsService {
  }
  
  // Экспорт данных смен сотрудников
- private async exportStaffShifts(): Promise<ISimpleShift[]> {
+ private async exportStaffShifts(): Promise<IShift[]> {
    // Временная заглушка - в реальном приложении здесь будет вызов соответствующего сервиса
    console.log('Экспорт данных смен сотрудников');
-   return [] as ISimpleShift[];
+   return [] as IShift[];
  }
  
  // Экспорт данных зарплат
@@ -279,7 +279,7 @@ export class MainEventsService {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
     
-    await (await import('../childAttendance/model')).default.deleteMany({
+    await (await import('../childAttendance/model')).default().deleteMany({
       date: {
         $gte: startOfDay,
         $lt: endOfDay
@@ -293,7 +293,7 @@ export class MainEventsService {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
     
-    await (await import('../childPayment/model')).default.deleteMany({
+    await (await import('../childPayment/model')).default().deleteMany({
       createdAt: {
         $gte: startOfDay,
         $lt: endOfDay
@@ -306,7 +306,7 @@ export class MainEventsService {
     const today = new Date();
     const dateString = today.toISOString().split('T')[0]; // Формат YYYY-MM-DD
     
-    await (await import('../staffShifts/model')).default.deleteMany({
+    await (await import('../staffShifts/model')).default().deleteMany({
       date: dateString
     });
   }
@@ -318,7 +318,7 @@ export class MainEventsService {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const period = `${year}-${month}`;
     
-    await (await import('../payroll/model')).default.deleteMany({
+    await (await import('../payroll/model')).default().deleteMany({
       period: period
     });
   }
@@ -330,7 +330,7 @@ export class MainEventsService {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const period = `${year}-${month}`;
     
-    await (await import('../rent/model')).default.deleteMany({
+    await (await import('../rent/model')).default().deleteMany({
       period: period
     });
   }

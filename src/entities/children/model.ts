@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IChild extends Document {
   fullName: string;
@@ -10,31 +11,31 @@ export interface IChild extends Document {
   groupId?: mongoose.Types.ObjectId;
   active?: boolean;
   // Медицинские данные
-  gender?: string;
-  clinic?: string;
-  bloodGroup?: string;
+ gender?: string;
+ clinic?: string;
+ bloodGroup?: string;
   rhesus?: string;
   disability?: string;
- dispensary?: string;
+  dispensary?: string;
   diagnosis?: string;
- allergy?: string;
- infections?: string;
- hospitalizations?: string;
+  allergy?: string;
+  infections?: string;
+  hospitalizations?: string;
   incapacity?: string;
   checkups?: string;
   // Прочее
- notes?: string;
- photo?: string;
+  notes?: string;
+  photo?: string;
   createdAt?: Date;
- updatedAt?: Date;
+  updatedAt?: Date;
 }
 
 const ChildSchema = new Schema<IChild>({
   fullName: { type: String, required: true },
   iin: String,
- birthday: Date,
+  birthday: Date,
   address: String,
- parentName: String,
+  parentName: String,
   parentPhone: String,
   groupId: { type: Schema.Types.ObjectId, ref: 'Group' },
   active: { type: Boolean, default: true },
@@ -42,16 +43,25 @@ const ChildSchema = new Schema<IChild>({
   clinic: String,
   bloodGroup: String,
   rhesus: String,
- disability: String,
- dispensary: String,
- diagnosis: String,
- allergy: String,
- infections: String,
- hospitalizations: String,
- incapacity: String,
+  disability: String,
+  dispensary: String,
+  diagnosis: String,
+  allergy: String,
+  infections: String,
+  hospitalizations: String,
+  incapacity: String,
   checkups: String,
   notes: String,
- photo: String,
+  photo: String,
 }, { timestamps: true });
 
-export default mongoose.model<IChild>('Child', ChildSchema, 'children');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createChildModel = createModelFactory<IChild>(
+  'Child',
+  ChildSchema,
+  'children',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createChildModel;

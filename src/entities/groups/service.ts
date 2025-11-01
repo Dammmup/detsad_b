@@ -4,15 +4,22 @@ import Group from './model';
 import Child from '../children/model';
 
 export class GroupService {
+  private get groupModel() {
+    return Group();
+  }
+  
+  private get childModel() {
+    return Child();
+  }
   async getAll(userId?: string, role?: string): Promise<any[]> {
     // Admin sees all groups, teachers see only their groups
     const filter = role === 'admin' ? {} : { teacherId: userId };
-    const groups = await Group.find(filter);
+    const groups = await this.groupModel.find(filter);
     
     // Для каждой группы получаем детей, которые в ней состоят
     const groupsWithChildren = await Promise.all(
       groups.map(async (group) => {
-        const children = await Child.find({ groupId: group._id });
+        const children = await this.childModel.find({ groupId: group._id });
         return { ...group.toObject(), children };
       })
     );
@@ -21,11 +28,11 @@ export class GroupService {
   }
 
   async getById(id: string): Promise<any | null> {
-    const group = await Group.findById(id);
+    const group = await this.groupModel.findById(id);
     if (!group) return null;
     
     // Получаем детей, которые входят в эту группу
-    const children = await Child.find({ groupId: group._id });
+    const children = await this.childModel.find({ groupId: group._id });
     
     return { ...group.toObject(), children };
   }
@@ -48,7 +55,7 @@ export class GroupService {
     // Удаляем поле teacher из данных, чтобы избежать сохранения в базе данных
     delete groupData.teacher;
 
-    const group = new Group(groupData);
+    const group = new this.groupModel(groupData);
     return await group.save();
   }
 
@@ -62,7 +69,7 @@ export class GroupService {
       delete updateData.teacher; // удаляем оригинальное поле teacher
     }
     
-    return await Group.findByIdAndUpdate(
+    return await this.groupModel.findByIdAndUpdate(
       id,
       { $set: updateData },
       { new: true }
@@ -70,7 +77,7 @@ export class GroupService {
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await Group.findByIdAndDelete(id);
+    const result = await this.groupModel.findByIdAndDelete(id);
     return !!result;
   }
 }

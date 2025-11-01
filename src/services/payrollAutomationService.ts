@@ -1,7 +1,6 @@
 import Payroll from '.././entities/payroll/model';
-import Shift, { ISimpleShift } from '.././entities/staffShifts/model';
+import Shift, { IShift } from '.././entities/staffShifts/model';
 import User, { IUser } from '.././entities/users/model';
-import Fine from '.././entities/fine/model';
 import EmailService from './emailService';
 import { SettingsService } from '../entities/settings/service';
 
@@ -23,7 +22,7 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   
   // Получаем посещаемость сотрудника за указанный месяц
-  const attendanceRecords: ISimpleShift[] = await Shift.find({
+  const attendanceRecords: IShift[] = await Shift().find({
     staffId,
     date: {
       $gte: startDate.toISOString().split('T')[0],
@@ -153,7 +152,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     console.log(`Начинаем автоматический расчет зарплат за ${month}`);
     
     // Получаем всех активных сотрудников (кроме админов)
-    const staff = await User.find({ 
+    const staff = await User().find({ 
       role: { $ne: 'admin' },
       isActive: true
     });
@@ -176,7 +175,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
       
       // Получаем посещаемость сотрудника за указанный месяц
-      const attendanceRecords: ISimpleShift[] = await Shift.find({
+      const attendanceRecords: IShift[] = await Shift().find({
         staffId: (employee as any)._id,
         date: {
           $gte: startDate.toISOString().split('T')[0],
@@ -217,24 +216,22 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       
       console.log(`💰 Начисления для ${employee.fullName}: ${accruals} (${baseSalaryType}: ${baseSalary})`);
       
-      // Получаем штрафы сотрудника за текущий месяц из коллекции Fine
-      const monthStartDate = new Date(`${month}-01`);
-      const monthEndDate = new Date(monthStartDate.getFullYear(), monthStartDate.getMonth() + 1, 0);
-
-      const monthlyFines = await Fine.find({
-        user: (employee as any)._id,
-        date: { $gte: monthStartDate, $lte: monthEndDate }
+      // Получаем штрафы сотрудника за текущий месяц из коллекции Payroll
+      // В новой архитектуре штрафы хранятся в записи зарплаты
+      const payrollRecord = await Payroll().findOne({
+        staffId: (employee as any)._id,
+        period: month
       });
 
-      const userFinesTotal = monthlyFines.reduce((sum, f) => sum + (f.amount || 0), 0);
-      console.log(`📋 Штрафов из коллекции Fine за месяц для ${employee.fullName}: ${monthlyFines.length}, сумма: ${userFinesTotal}`);
+      const userFinesTotal = payrollRecord?.userFines || 0;
+      console.log(`📋 Штрафов из коллекции Payroll за месяц для ${employee.fullName}: ${userFinesTotal}`);
       
       // Общий итог штрафов: штрафы из посещаемости + штрафы из профиля сотрудника
       const totalPenalties = attendancePenalties.totalPenalty + userFinesTotal;
       console.log(`💰 Общие штрафы для ${employee.fullName}: ${totalPenalties} (посещаемость: ${attendancePenalties.totalPenalty} + профиль: ${userFinesTotal})`);
       
       // Создаем или обновляем запись о зарплате
-      let payroll = await Payroll.findOne({
+      let payroll = await Payroll().findOne({
         staffId: employee._id,
         period: month
       });
@@ -264,7 +261,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         await payroll.save();
       } else {
         // Создаем новую запись
-        payroll = new Payroll({
+        payroll = new (Payroll())({
           staffId: employee._id,
           period: month,
           accruals: accruals,
@@ -335,7 +332,7 @@ const clearAttendancePenalties = async (month: string) => {
     // и обновим статус расчетных листов
     
     // Обновляем статус расчетных листов
-    await Payroll.updateMany(
+    await Payroll().updateMany(
       { period: month },
       {
         $set: {
@@ -353,7 +350,7 @@ const clearAttendancePenalties = async (month: string) => {
     
     // Помечаем записи посещаемости как обработанные
     // В реальной системе здесь может быть архивирование или удаление записей
-    await Shift.updateMany(
+    await Shift().updateMany(
       {
         date: {
           $gte: new Date(`${month}-01`).toISOString().split('T')[0],
@@ -383,7 +380,7 @@ export const sendPayrollReports = async (month: string, recipients: string) => {
     console.log(`Отправка отчетов о зарплате за ${month} на ${recipients}`);
     
     // Получаем все расчетные листы за указанный месяц
-    const payrolls = await Payroll.find({ period: month })
+    const payrolls = await Payroll().find({ period: month })
       .populate('staffId', 'fullName email');
     
     // Формируем данные отчета

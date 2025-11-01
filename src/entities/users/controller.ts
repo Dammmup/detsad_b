@@ -3,7 +3,7 @@ import { UserService } from './service';
 import { AuthUser } from '../../middlewares/authMiddleware';
 import { hashPassword } from '../../utils/hash';
 import Payroll from '../payroll/model';
-import Fine from '../fine/model';
+import { sendTelegramNotification } from '../../utils/telegramNotify';
 
 // Расширяем интерфейс Request для добавления свойства user
 interface AuthenticatedRequest extends Request {
@@ -11,6 +11,11 @@ interface AuthenticatedRequest extends Request {
 }
 
 const userService = new UserService();
+
+// Генерация уникального кода для привязки Telegram
+function generateTelegramLinkCode(): string {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
 
 export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -218,9 +223,9 @@ export const createUser = async (req: Request, res: Response) => {
     if (user.role !== 'admin' && user.role !== 'child') {
       try {
         const month = new Date().toISOString().slice(0, 7);
-        const exists = await Payroll.findOne({ staffId: user._id, period: month });
+        const exists = await Payroll().findOne({ staffId: user._id, period: month });
         if (!exists) {
-          await Payroll.create({
+          await Payroll().create({
             staffId: user._id,
             period: month,
             baseSalary: Number((user as any).salary || 0),
@@ -297,6 +302,8 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       if (req.body.active !== undefined && req.user.role === 'admin') user.active = req.body.active;
       if (req.body.iin !== undefined) user.iin = req.body.iin;
       if (req.body.groupId !== undefined) user.groupId = req.body.groupId;
+      // Обновление признака арендатора
+      if (req.body.tenant !== undefined) user.tenant = req.body.tenant;
       // Обновление начального пароля
       if (req.body.initialPassword !== undefined) {
         // Пользователь может изменять свой initialPassword, но не может изменить его для другого пользователя
@@ -335,6 +342,53 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
     }
   } catch (error) {
     res.status(400).json({ error: 'Ошибка при обновлении данных пользователя', details: error });
+  }
+};
+
+// Generate Telegram link code for a user
+export const generateTelegramCode = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const user = await userService.getById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+    
+    // Проверяем права доступа
+    // Пользователь может обновлять только свои данные или если он администратор
+    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update this user' });
+    }
+    
+    // Генерируем уникальный код для привязки Telegram
+    const telegramLinkCode = generateTelegramLinkCode();
+    
+    // Обновляем пользователя с новым кодом
+    const updatedUser = await userService.update(req.params.id, { telegramLinkCode });
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Пользователь не найден после обновления' });
+    }
+    
+    // исключаем passwordHash, но оставляем initialPassword для владельца аккаунта
+    const userObj = updatedUser.toObject();
+    if (userObj.passwordHash) delete userObj.passwordHash;
+    // Проверяем, является ли пользователь владельцем аккаунта или администратором
+    if (req.user.role === 'admin' || req.user.id === req.params.id) {
+      res.json({
+        ...userObj,
+        telegramLinkCode // Возвращаем код для привязки Telegram
+      });
+    } else {
+      // Для обычных пользователей убираем initialPassword
+      const { initialPassword, ...filteredUser } = userObj;
+      res.json({
+        ...filteredUser,
+        telegramLinkCode // Возвращаем код для привязки Telegram
+      });
+    }
+  } catch (error) {
+    res.status(400).json({ error: 'Ошибка при генерации кода для привязки Telegram', details: error });
   }
 };
 
@@ -459,7 +513,7 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add fines' });
     }
     
-    const { amount, reason, type = 'other', notes } = req.body;
+    const { amount, reason, type = 'other', notes, period } = req.body;
     const userId = req.params.id;
     const createdBy = req.user.id; // Now we know user is defined
 
@@ -467,51 +521,108 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(400).json({ error: 'Amount and reason are required' });
     }
 
-    const user = await userService.getById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    // Определяем период, если не указан
+    const finePeriod = period || new Date().toISOString().slice(0, 7);
+
+    // Получаем или создаем запись зарплаты для указанного периода
+    let payroll = await Payroll().findOne({
+      staffId: userId,
+      period: finePeriod
+    });
+
+    if (!payroll) {
+      // Создаем новую запись зарплаты, если она не существует
+      payroll = new (Payroll())({
+        staffId: userId,
+        period: finePeriod,
+        baseSalary: 0,
+        bonuses: 0,
+        deductions: 0,
+        accruals: 0,
+        penalties: 0,
+        userFines: 0,
+        total: 0,
+        status: 'draft'
+      });
     }
 
-    const fineDoc = await Fine.create({
-      user: user._id,
+    // Добавляем штраф к записи зарплаты
+    const fine = {
       amount: Number(amount),
       reason,
       type,
       notes,
-      date: new Date()
-    });
+      date: new Date(),
+      createdAt: new Date()
+    };
 
-    // В новой архитектуре штрафы могут храниться в отдельной коллекции
-    // или в связанной записи зарплаты
-    await userService.update(userId, user.toObject());
+    if (!payroll.fines) {
+      payroll.fines = [];
+    }
+    payroll.fines.push(fine);
 
-    res.status(201).json(fineDoc);
+    // Обновляем общую сумму штрафов
+    const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
+    payroll.userFines = totalFines;
+    payroll.penalties = (payroll.penalties || 0) + fine.amount;
+    payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+
+    await payroll.save();
+
+    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
+    // Уведомление в Telegram
+    if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
+      let msg = `Вам добавлен штраф за период ${populatedPayroll.period}:\n` +
+        `Сумма: ${fine.amount} тг\n` +
+        `Причина: ${fine.reason}\n` +
+        `Тип: ${fine.type}\n` +
+        `Итого штрафов за период: ${populatedPayroll.userFines} тг`;
+      await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
+    }
+
+    res.status(201).json(populatedPayroll);
   } catch (error) {
     console.error('Error adding fine:', error);
     res.status(500).json({ error: 'Error adding fine' });
   }
 };
 
-// Get all fines for a user (from Fine collection)
+// Get all fines for a user (from Payroll collection)
 export const getUserFines = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const user = await userService.getById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const userId = req.params.id;
     
     // Проверяем права доступа
     // Пользователь может получить штрафы только для себя или если он администратор
-    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s fines' });
     }
  
-    const fines = await Fine.find({ user: req.params.id }).sort({ date: -1 });
-    res.json({ fines, totalFines: 0 }); // Временно возвращаем 0, пока не реализована новая логика
+    // Получаем все записи зарплаты для пользователя
+    const payrolls = await Payroll().find({ staffId: userId }).sort({ period: -1 });
+    
+    // Собираем все штрафы из записей зарплаты
+    const allFines = [];
+    for (const payroll of payrolls) {
+      if (payroll.fines && payroll.fines.length > 0) {
+        for (const fine of payroll.fines) {
+          allFines.push({
+            ...fine,
+            period: payroll.period,
+            payrollId: payroll._id
+          });
+        }
+      }
+    }
+    
+    // Сортируем по дате (новые первыми)
+    allFines.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    res.json({ fines: allFines, totalFines: allFines.length });
   } catch (error) {
     console.error('Error getting fines:', error);
     res.status(500).json({ error: 'Error getting fines' });
@@ -530,18 +641,43 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to remove fines' });
     }
     
-    const { userId, fineId } = req.params;
-    const fine = await Fine.findByIdAndDelete(fineId);
-    if (!fine) {
+    const { payrollId, fineIndex } = req.params;
+    
+    // Получаем запись зарплаты
+    const payroll = await Payroll().findById(payrollId);
+    if (!payroll) {
+      return res.status(404).json({ error: 'Payroll record not found' });
+    }
+    
+    // Проверяем, что индекс штрафа корректный
+    const fineIndexNum = Number(fineIndex);
+    if (!payroll.fines || fineIndexNum < 0 || fineIndexNum >= payroll.fines.length) {
       return res.status(404).json({ error: 'Fine not found' });
     }
-    const user = await userService.getById(userId);
-    if (user) {
-      // В новой архитектуре штрафы могут храниться в отдельной коллекции
-      // или в связанной записи зарплаты
-      await userService.update(userId, user.toObject());
+    
+    // Удаляем штраф
+    const removedFine = payroll.fines.splice(fineIndexNum, 1)[0];
+    const fineAmount = removedFine.amount;
+    
+    // Обновляем общую сумму штрафов
+    const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
+    payroll.userFines = totalFines;
+    payroll.penalties = Math.max(0, (payroll.penalties || 0) - fineAmount);
+    payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+    
+    await payroll.save();
+    
+    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
+    // Уведомление в Telegram
+    if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
+      let msg = `С вас снят штраф за период ${populatedPayroll.period}:\n` +
+        `Сумма: ${fineAmount} тг\n` +
+        `Причина: ${removedFine.reason}\n` +
+        `Итого штрафов за период: ${populatedPayroll.userFines} тг`;
+      await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
     }
-    res.json({ message: 'Fine removed successfully' });
+    
+    res.json({ message: 'Fine removed successfully', updatedPayroll: populatedPayroll });
   } catch (error) {
     console.error('Error removing fine:', error);
     res.status(500).json({ error: 'Error removing fine' });
@@ -555,18 +691,26 @@ export const getUserTotalFines = async (req: AuthenticatedRequest, res: Response
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const user = await userService.getById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const userId = req.params.id;
     
     // Проверяем права доступа
     // Пользователь может получить информацию о штрафах только для себя или если он администратор
-    if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s fines' });
     }
     
-    res.json({ totalFines: 0 }); // Временно возвращаем 0, пока не реализована новая логика
+    // Получаем все записи зарплаты для пользователя
+    const payrolls = await Payroll().find({ staffId: userId });
+    
+    // Суммируем все штрафы
+    let totalFines = 0;
+    for (const payroll of payrolls) {
+      if (payroll.userFines) {
+        totalFines += payroll.userFines;
+      }
+    }
+    
+    res.json({ totalFines });
   } catch (error) {
     console.error('Error calculating total fines:', error);
     res.status(500).json({ error: 'Error calculating total fines' });

@@ -16,8 +16,8 @@ class DataCleanupService {
   // Получение данных для отчетов
   private async getChildrenListData(): Promise<ExcelReportData> {
     try {
-  const children = await Child.find({});
-      const groups = await Group.find({});
+  const children = await Child().find({});
+      const groups = await Group().find({});
       
       const data = children.map(child => {
         const group = groups.find(g => (g as any)?._id?.toString() === child.groupId?.toString());
@@ -57,8 +57,8 @@ class DataCleanupService {
 
   private async getStaffListData(): Promise<ExcelReportData> {
     try {
-      const staff = await User.find({ type: 'adult' });
-      const groups = await Group.find({});
+      const staff = await User().find({ type: 'adult' });
+      const groups = await Group().find({});
       
       const data = staff.map(member => {
         const group = groups.find(g => (g as any)?._id?.toString() === member.groupId?.toString());
@@ -104,15 +104,15 @@ class DataCleanupService {
       const startOfMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
       const endOfMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
       
-      const attendance = await ChildAttendance.find({
+      const attendance = await ChildAttendance().find({
         date: {
           $gte: startOfMonth,
           $lte: endOfMonth
         }
       });
 
-  const children = await Child.find({});
-      const groups = await Group.find({});
+  const children = await Child().find({});
+      const groups = await Group().find({});
       
       const data = attendance.map(record => {
         const child = children.find(c => (c as any)?._id?.toString() === record.childId.toString());
@@ -170,15 +170,15 @@ class DataCleanupService {
       const startOfMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
       const endOfMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0);
       
-      const attendance = await StaffAttendance.find({
+      const attendance = await StaffAttendance().find({
         date: {
           $gte: startOfMonth,
           $lte: endOfMonth
         }
       }).populate('staffId', 'fullName').populate('groupId', 'name');
 
-      const staff = await User.find({ type: 'adult' });
-      const groups = await Group.find({});
+      const staff = await User().find({ type: 'adult' });
+      const groups = await Group().find({});
       
       const data = attendance.map(record => {
         const staffMember = staff.find(s => (s as any)?._id?.toString() === record.staffId.toString());
@@ -204,10 +204,8 @@ class DataCleanupService {
           record.penalties?.late?.amount || 0,
           record.overtimeDuration || 0,
           record.status === 'completed' ? 'Завершено' :
-          record.status === 'checked_in' ? 'Отметился' :
-          record.status === 'checked_out' ? 'Ушел' :
+          record.status === 'in_progress' ? 'В прогрессе' :
           record.status === 'absent' ? 'Отсутствовал' :
-          record.status === 'missed' ? 'Пропущено' :
           record.status === 'pending_approval' ? 'Ожидает одобрения' : record.status || '',
           group?.name || '',
           record.notes || ''
@@ -252,12 +250,12 @@ class DataCleanupService {
       console.log(`🧹 Starting cleanup of records older than ${oneMonthAgo.toLocaleDateString('ru-RU')}`);
 
       // Удаляем старые записи посещаемости детей
-      const deletedChildAttendance = await ChildAttendance.deleteMany({
+      const deletedChildAttendance = await ChildAttendance().deleteMany({
         date: { $lt: oneMonthAgo }
       });
 
       // Удаляем старые записи посещаемости сотрудников
-      const deletedStaffAttendance = await StaffAttendance.deleteMany({
+      const deletedStaffAttendance = await StaffAttendance().deleteMany({
         date: { $lt: oneMonthAgo }
       });
 
@@ -297,7 +295,7 @@ class DataCleanupService {
       ];
 
       // Получаем список администраторов для отправки отчетов
-      const admins = await User.find({ role: 'admin' });
+      const admins = await User().find({ role: 'admin' });
       const adminEmails = admins
         .filter(admin => (admin as any).email)
         .map(admin => (admin as any).email!);

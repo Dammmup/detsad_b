@@ -150,13 +150,13 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
     let tenants;
     if (tenantIds && Array.isArray(tenantIds) && tenantIds.length > 0) {
       // Если передан список ID арендаторов, генерируем только для них
-      tenants = await User.find({
+      tenants = await User().find({
         _id: { $in: tenantIds },
         role: { $ne: 'admin' } // Убедимся, что это не администраторы
       });
     } else {
       // В противном случае, генерируем для всех пользователей (кроме администраторов)
-      tenants = await User.find({ role: { $ne: 'admin' } });
+      tenants = await User().find({ role: { $ne: 'admin' } });
     }
     
     // Генерируем арендные листы для каждого арендатора

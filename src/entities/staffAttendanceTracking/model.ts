@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface ILocation {
   name: string;
@@ -19,7 +20,7 @@ export interface IStaffAttendanceTracking extends Document {
   workDuration?: number; // minutes
   breakDuration?: number; // minutes
   overtimeDuration?: number; // minutes
-  status: 'present' | 'absent' | 'scheduled' | 'active' | 'completed' | 'on_break' | 'overtime' | 'checked_in' | 'checked_out' | 'missed' | 'pending_approval';
+  status: 'absent' | 'scheduled' | 'in_progress' | 'completed' | 'pending_approval';
   penalties: {
     late: {
       minutes: number;
@@ -111,7 +112,7 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   },
   status: {
     type: String,
-    enum: ['present', 'absent', 'scheduled', 'active', 'completed', 'on_break', 'overtime', 'checked_in', 'checked_out', 'missed', 'pending_approval'],
+    enum: ['absent', 'scheduled', 'in_progress', 'completed', 'pending_approval', 'active', 'on_break', 'overtime', 'checked_in', 'checked_out', 'missed', 'present'],
     default: 'scheduled',
     index: true
   },
@@ -214,7 +215,7 @@ StaffAttendanceTrackingSchema.pre('save', function(this: IStaffAttendanceTrackin
     const finalStatuses = ['completed', 'missed', 'pending_approval'];
     if (this.actualEnd && !finalStatuses.includes(this.status)) {
       // Only update status if it's one of the in-progress statuses
-      if (this.status === 'active' || this.status === 'checked_in' || this.status === 'on_break') {
+      if (this.status === 'in_progress') {
         this.status = 'completed';
       }
     }
@@ -224,4 +225,13 @@ StaffAttendanceTrackingSchema.pre('save', function(this: IStaffAttendanceTrackin
 
 
 
-export default mongoose.model<IStaffAttendanceTracking>('StaffAttendanceTracking', StaffAttendanceTrackingSchema, 'staff_attendance_tracking');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createStaffAttendanceTrackingModel = createModelFactory<IStaffAttendanceTracking>(
+  'StaffAttendanceTracking',
+  StaffAttendanceTrackingSchema,
+  'staff_attendance_tracking',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createStaffAttendanceTrackingModel;

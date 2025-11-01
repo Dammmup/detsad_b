@@ -5,6 +5,9 @@ import bcrypt from 'bcrypt';
 import { hashPassword, comparePassword } from '../../utils/hash';
 
 export class AuthService {
+  private get userModel() {
+    return User();
+  }
   private createJwtToken(user: any) {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
@@ -25,7 +28,7 @@ export class AuthService {
  }
 
   async login(phone: string, password: string) {
-    const user = await User.findOne({ phone: phone || '' }).select('+initialPassword');
+    const user = await this.userModel.findOne({ phone: phone || '' }).select('+initialPassword');
     if (!user) {
       throw new Error('No account with this data');
     }
@@ -75,7 +78,7 @@ export class AuthService {
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
-      const user = await User.findById(decoded.id);
+      const user = await this.userModel.findById(decoded.id);
       
       if (!user || !user.active) {
         throw new Error('Пользователь не найден или неактивен');

@@ -33,7 +33,7 @@ export class Qwen3ChatService {
         try {
           const lastUIState = await UIStateService.getLastUIState(request.sessionId);
           if (lastUIState) {
-            uiContext = `\n\nКонтекст текущего интерфейса:\n- Текущая страница: ${lastUIState.route}\n- URL: ${lastUIState.url}\n- Видимый текст (частично): ${lastUIState.visibleText?.substring(0, 200)}...\n- Обнаруженные ошибки: ${lastUIState.errors.length > 0 ? lastUIState.errors.join(', ') : 'нет'}\n- Количество элементов DOM: ${lastUIState.domSnapshot ? (lastUIState.domSnapshot as any).elementCount : 'неизвестно'}`;
+            uiContext = `\n\nКонтекст текущего интерфейса:\n- Текущая страница: ${lastUIState.route}\n- URL: ${lastUIState.url}\n- Видимый текст (частично): ${lastUIState.visibleText?.substring(0, 200)}...\n- Обнаруженные ошибки: ${lastUIState.uiErrors.length > 0 ? lastUIState.uiErrors.join(', ') : 'нет'}\n- Количество элементов DOM: ${lastUIState.domSnapshot ? (lastUIState.domSnapshot as any).elementCount : 'неизвестно'}`;
           }
         } catch (error) {
           console.warn('Не удалось получить состояние UI:', error);

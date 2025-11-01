@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../entities/users/model'; // Импортируем модель User для проверки существования пользователя
-
+import { getModel } from '../config/modelRegistry';
 
 export interface AuthUser {
   id: string;
@@ -34,6 +33,7 @@ function verifyToken(token: string, req: Request, res: Response, next: NextFunct
     const decoded = jwt.verify(token, secret) as AuthUser;
     
     // Проверяем, что пользователь все еще существует в базе данных
+    const User = getModel<any>('User');
     User.findById(decoded.id).then(user => {
       if (!user || !user.active) {
         return res.status(401).json({ error: 'Пользователь не найден или неактивен' });

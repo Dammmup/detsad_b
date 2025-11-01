@@ -31,7 +31,7 @@ export const getAllShifts = async (req: Request, res: Response) => {
   }
 };
 
-export const createSimpleShift = async (req: Request, res: Response) => {
+export const createShift = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -69,7 +69,7 @@ export const createSimpleShift = async (req: Request, res: Response) => {
 };
 
 
-export const updateSimpleShift = async (req: Request, res: Response) => {
+export const updateShift = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -88,7 +88,7 @@ export const updateSimpleShift = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteSimpleShift = async (req: Request, res: Response) => {
+export const deleteShift = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -108,36 +108,44 @@ export const deleteSimpleShift = async (req: Request, res: Response) => {
 };
 
 export const checkInSimple = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const { shiftId } = req.params;
-    
-    const result = await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string);
-    res.json(result);
-  } catch (err) {
-    console.error('Error checking in:', err);
-    res.status(500).json({ error: 'Ошибка отметки прихода' });
-  }
-};
+   try {
+     if (!req.user) {
+       return res.status(401).json({ error: 'Authentication required' });
+     }
+     
+     const { shiftId } = req.params;
+     const { latitude, longitude } = req.body;
+     
+     // Передаем координаты в сервис, если они предоставлены
+     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
+     
+     const result = await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData);
+     res.json(result);
+   } catch (err) {
+     console.error('Error checking in:', err);
+     res.status(500).json({ error: 'Ошибка отметки прихода' });
+   }
+ };
 
 export const checkOutSimple = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const { shiftId } = req.params;
-    
-    const result = await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string);
-    res.json(result);
-  } catch (err) {
-    console.error('Error checking out:', err);
-    res.status(500).json({ error: 'Ошибка отметки ухода' });
-  }
-};
+   try {
+     if (!req.user) {
+       return res.status(401).json({ error: 'Authentication required' });
+     }
+     
+     const { shiftId } = req.params;
+     const { latitude, longitude } = req.body;
+     
+     // Передаем координаты в сервис, если они предоставлены
+     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
+     
+     const result = await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData);
+     res.json(result);
+   } catch (err) {
+     console.error('Error checking out:', err);
+     res.status(500).json({ error: 'Ошибка отметки ухода' });
+   }
+ };
 
 export const getTimeTrackingSimple = async (req: Request, res: Response) => {
   try {

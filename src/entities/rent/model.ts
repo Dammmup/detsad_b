@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 import { IUser } from '../users/model';
 
 export interface IRent extends Document {
@@ -53,4 +54,13 @@ const RentSchema = new Schema<IRent>({
   timestamps: true
 });
 
-export default mongoose.model<IRent>('Rent', RentSchema, 'rents');
+// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+const createRentModel = createModelFactory<IRent>(
+  'Rent',
+  RentSchema,
+  'rents',
+  'default'
+);
+
+// Экспортируем фабрику, которая будет создавать модель после подключения
+export default createRentModel;
