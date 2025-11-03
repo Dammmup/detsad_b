@@ -1,6 +1,16 @@
-import Report from './model';
+import createReportModel from './model';
 import { IReport } from './model';
 import { PayrollService } from '../payroll/service';
+
+// Отложенное создание модели
+let ReportModel: any = null;
+
+const getReportModel = () => {
+  if (!ReportModel) {
+    ReportModel = createReportModel();
+  }
+  return ReportModel;
+};
 
 export class ReportsService {
   async getAll(filters: { type?: string, status?: string, generatedById?: string }) {
@@ -10,15 +20,15 @@ export class ReportsService {
     if (filters.status) filter.status = filters.status;
     if (filters.generatedById) filter.generatedBy = filters.generatedById;
     
-    const reports = await Report.find(filter)
+    const reports = await getReportModel().find(filter)
       .populate('generatedBy', 'fullName role')
       .sort({ generatedAt: -1 });
-    
+
     return reports;
-  }
+ }
 
   async getById(id: string) {
-    const report = await Report.findById(id)
+    const report = await getReportModel().findById(id)
       .populate('generatedBy', 'fullName role');
     
     if (!report) {
@@ -40,17 +50,17 @@ export class ReportsService {
       throw new Error('Не указан автор отчета');
     }
     
-    const report = new Report(reportData);
+    const report = new (getReportModel())(reportData);
     await report.save();
-    
-    const populatedReport = await Report.findById(report._id)
+
+    const populatedReport = await getReportModel().findById(report._id)
       .populate('generatedBy', 'fullName role');
     
     return populatedReport;
   }
 
   async update(id: string, data: Partial<IReport>) {
-    const updatedReport = await Report.findByIdAndUpdate(
+    const updatedReport = await getReportModel().findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -64,7 +74,7 @@ export class ReportsService {
   }
 
   async delete(id: string) {
-    const result = await Report.findByIdAndDelete(id);
+    const result = await getReportModel().findByIdAndDelete(id);
     
     if (!result) {
       throw new Error('Отчет не найден');
@@ -74,7 +84,7 @@ export class ReportsService {
   }
 
   async generateReport(id: string, data: any, filters: any) {
-    const report = await Report.findById(id);
+    const report = await getReportModel().findById(id);
     
     if (!report) {
       throw new Error('Отчет не найден');
@@ -88,14 +98,14 @@ export class ReportsService {
     
     await report.save();
     
-    const populatedReport = await Report.findById(report._id)
+    const populatedReport = await getReportModel().findById(report._id)
       .populate('generatedBy', 'fullName role');
     
     return populatedReport;
   }
 
   async sendReport(id: string, recipients: string[]) {
-    const report = await Report.findById(id);
+    const report = await getReportModel().findById(id);
     
     if (!report) {
       throw new Error('Отчет не найден');
@@ -108,7 +118,7 @@ export class ReportsService {
     
     await report.save();
     
-    const populatedReport = await Report.findById(report._id)
+    const populatedReport = await getReportModel().findById(report._id)
       .populate('generatedBy', 'fullName role');
     
     return populatedReport;
@@ -121,7 +131,7 @@ export class ReportsService {
       filter.generatedBy = generatedById;
     }
     
-    const reports = await Report.find(filter)
+    const reports = await getReportModel().find(filter)
       .populate('generatedBy', 'fullName role')
       .sort({ generatedAt: -1 });
     
@@ -129,13 +139,15 @@ export class ReportsService {
   }
 
   async getRecentReports(limit: number = 10) {
-    const reports = await Report.find({})
+    const reports = await getReportModel().find({})
       .populate('generatedBy', 'fullName role')
       .sort({ generatedAt: -1 })
       .limit(limit);
     
     return reports;
- }
+  }
+  
+
   
   // Метод для получения сводки по зарплатам
   async getSalarySummary(month: string, userId?: string) {

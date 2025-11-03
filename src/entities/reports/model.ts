@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IReport extends Document {
   title: string;
@@ -60,4 +61,12 @@ const ReportSchema = new Schema<IReport>({
 
 
 
-export default mongoose.model<IReport>('Report', ReportSchema, 'reports');
+// Создаем фабрику модели для отложенного создания после подключения к базе данных
+const createReportModel = createModelFactory<IReport>(
+  'Report',
+  ReportSchema,
+  'reports',
+  'default'
+);
+
+export default createReportModel;

@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IMainEvent extends Document {
   name: string;
@@ -49,4 +50,12 @@ const MainEventSchema: Schema = new Schema({
   timestamps: true
 });
 
-export default mongoose.model<IMainEvent>('MainEvent', MainEventSchema);
+// Создаем фабрику модели для отложенного создания после подключения к базе данных
+const createMainEventModel = createModelFactory<IMainEvent>(
+  'MainEvent',
+  MainEventSchema,
+  'mainEvents',
+  'default'
+);
+
+export default createMainEventModel;

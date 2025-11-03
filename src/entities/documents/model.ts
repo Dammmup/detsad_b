@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 export interface IDocument extends Document {
   title: string;
@@ -56,4 +57,12 @@ const DocumentSchema = new Schema<IDocument>({
 });
 
 
-export default mongoose.model<IDocument>('Document', DocumentSchema, 'documents');
+// Создаем фабрику модели для отложенного создания после подключения к базе данных
+const createDocumentModel = createModelFactory<IDocument>(
+  'Document',
+  DocumentSchema,
+  'documents',
+  'default'
+);
+
+export default createDocumentModel;

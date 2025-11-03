@@ -1,27 +1,61 @@
-import { 
-  KindergartenSettings, 
-  NotificationSettings, 
-  SecuritySettings, 
-  GeolocationSettings,
+import {
+  createKindergartenSettingsModel,
+  createNotificationSettingsModel,
+  createSecuritySettingsModel,
+ createGeolocationSettingsModel,
   IKindergartenSettings,
   INotificationSettings,
   ISecuritySettings,
   IGeolocationSettings
 } from './model';
 
+// Отложенное создание моделей
+let KindergartenSettingsModel: any = null;
+let NotificationSettingsModel: any = null;
+let SecuritySettingsModel: any = null;
+let GeolocationSettingsModel: any = null;
+
+const getKindergartenSettingsModel = () => {
+  if (!KindergartenSettingsModel) {
+    KindergartenSettingsModel = createKindergartenSettingsModel();
+  }
+  return KindergartenSettingsModel;
+};
+
+const getNotificationSettingsModel = () => {
+  if (!NotificationSettingsModel) {
+    NotificationSettingsModel = createNotificationSettingsModel();
+  }
+  return NotificationSettingsModel;
+};
+
+const getSecuritySettingsModel = () => {
+  if (!SecuritySettingsModel) {
+    SecuritySettingsModel = createSecuritySettingsModel();
+  }
+  return SecuritySettingsModel;
+};
+
+const getGeolocationSettingsModel = () => {
+  if (!GeolocationSettingsModel) {
+    GeolocationSettingsModel = createGeolocationSettingsModel();
+  }
+  return GeolocationSettingsModel;
+};
+
 export class SettingsService {
   // Методы для настроек детского сада
   async getKindergartenSettings() {
-    const settings = await KindergartenSettings.findOne();
+    const settings = await getKindergartenSettingsModel().findOne();
     return settings;
   }
   
   async updateKindergartenSettings(settingsData: Partial<IKindergartenSettings>) {
-    let settings = await KindergartenSettings.findOne();
+    let settings = await getKindergartenSettingsModel().findOne();
     
     if (!settings) {
       // Создаем новые настройки, если они еще не существуют
-      settings = new KindergartenSettings(settingsData);
+      settings = new (getKindergartenSettingsModel())(settingsData);
     } else {
       // Обновляем существующие настройки
       Object.assign(settings, settingsData);
@@ -33,37 +67,37 @@ export class SettingsService {
 
   // Методы для настроек уведомлений
  async getNotificationSettings() {
-    const settings = await NotificationSettings.findOne();
-    return settings;
-  }
-  
-  async updateNotificationSettings(settingsData: Partial<INotificationSettings>) {
-    let settings = await NotificationSettings.findOne();
-    
-    if (!settings) {
-      // Создаем новые настройки, если они еще не существуют
-      settings = new NotificationSettings(settingsData);
-    } else {
-      // Обновляем существующие настройки
-      Object.assign(settings, settingsData);
-    }
-    
-    await settings.save();
-    return settings;
-  }
+   const settings = await getNotificationSettingsModel().findOne();
+   return settings;
+ }
+ 
+ async updateNotificationSettings(settingsData: Partial<INotificationSettings>) {
+   let settings = await getNotificationSettingsModel().findOne();
+   
+   if (!settings) {
+     // Создаем новые настройки, если они еще не существуют
+     settings = new (getNotificationSettingsModel())(settingsData);
+   } else {
+     // Обновляем существующие настройки
+     Object.assign(settings, settingsData);
+   }
+   
+   await settings.save();
+   return settings;
+ }
 
   // Методы для настроек безопасности
   async getSecuritySettings() {
-    const settings = await SecuritySettings.findOne();
+    const settings = await getSecuritySettingsModel().findOne();
     return settings;
   }
   
   async updateSecuritySettings(settingsData: Partial<ISecuritySettings>) {
-    let settings = await SecuritySettings.findOne();
+    let settings = await getSecuritySettingsModel().findOne();
     
     if (!settings) {
       // Создаем новые настройки, если они еще не существуют
-      settings = new SecuritySettings(settingsData);
+      settings = new (getSecuritySettingsModel())(settingsData);
     } else {
       // Обновляем существующие настройки
       Object.assign(settings, settingsData);
@@ -75,16 +109,16 @@ export class SettingsService {
 
   // Методы для настроек геолокации
   async getGeolocationSettings() {
-    const settings = await GeolocationSettings.findOne();
+    const settings = await getGeolocationSettingsModel().findOne();
     return settings;
  }
   
   async updateGeolocationSettings(settingsData: Partial<IGeolocationSettings>) {
-    let settings = await GeolocationSettings.findOne();
+    let settings = await getGeolocationSettingsModel().findOne();
     
     if (!settings) {
       // Создаем новые настройки, если они еще не существуют
-      settings = new GeolocationSettings(settingsData);
+      settings = new (getGeolocationSettingsModel())(settingsData);
     } else {
       // Обновляем существующие настройки
       Object.assign(settings, settingsData);
@@ -95,11 +129,11 @@ export class SettingsService {
   }
 
   async updateCoordinates(latitude: number, longitude: number) {
-    let settings = await GeolocationSettings.findOne();
+    let settings = await GeolocationSettingsModel().findOne();
     
     if (!settings) {
       // Создаем новые настройки с переданными координатами
-      settings = new GeolocationSettings({
+      settings = new (getGeolocationSettingsModel())({
         coordinates: { latitude, longitude },
         radius: 100 // значение по умолчанию
       });
@@ -113,11 +147,11 @@ export class SettingsService {
   }
 
   async updateRadius(radius: number) {
-    let settings = await GeolocationSettings.findOne();
+    let settings = await GeolocationSettingsModel().findOne();
     
     if (!settings) {
       // Создаем новые настройки с переданным радиусом
-      settings = new GeolocationSettings({
+      settings = new (getGeolocationSettingsModel())({
         coordinates: {
           latitude: 43.222, // значение по умолчанию
           longitude: 76.851  // значение по умолчанию

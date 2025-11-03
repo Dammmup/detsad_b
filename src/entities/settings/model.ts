@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 // Интерфейс для настроек детского сада
 export interface IKindergartenSettings extends Document {
@@ -130,7 +131,31 @@ const GeolocationSettingsSchema = new Schema<IGeolocationSettings>({
   timestamps: true
 });
 
-export const KindergartenSettings = mongoose.model<IKindergartenSettings>('KindergartenSettings', KindergartenSettingsSchema, 'kindergarten_settings');
-export const NotificationSettings = mongoose.model<INotificationSettings>('NotificationSettings', NotificationSettingsSchema, 'notification_settings');
-export const SecuritySettings = mongoose.model<ISecuritySettings>('SecuritySettings', SecuritySettingsSchema, 'security_settings');
-export const GeolocationSettings = mongoose.model<IGeolocationSettings>('GeolocationSettings', GeolocationSettingsSchema, 'geolocation_settings');
+// Создаем фабрики моделей для отложенного создания после подключения к базе данных
+export const createKindergartenSettingsModel = createModelFactory<IKindergartenSettings>(
+  'KindergartenSettings',
+  KindergartenSettingsSchema,
+  'kindergarten_settings',
+  'default'
+);
+
+export const createNotificationSettingsModel = createModelFactory<INotificationSettings>(
+  'NotificationSettings',
+  NotificationSettingsSchema,
+  'notification_settings',
+  'default'
+);
+
+export const createSecuritySettingsModel = createModelFactory<ISecuritySettings>(
+  'SecuritySettings',
+  SecuritySettingsSchema,
+  'security_settings',
+  'default'
+);
+
+export const createGeolocationSettingsModel = createModelFactory<IGeolocationSettings>(
+  'GeolocationSettings',
+  GeolocationSettingsSchema,
+  'geolocation_settings',
+  'default'
+);

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../../config/database';
 
 export interface IHealthPassport extends Document {
   childId: mongoose.Types.ObjectId;
@@ -103,4 +104,12 @@ const HealthPassportSchema = new Schema<IHealthPassport>({
 });
 
 
-export default mongoose.model<IHealthPassport>('HealthPassport', HealthPassportSchema, 'health_passports');
+// Создаем фабрику модели для отложенного создания после подключения к базе данных
+const createHealthPassportModel = createModelFactory<IHealthPassport>(
+  'HealthPassport',
+  HealthPassportSchema,
+  'health_passports',
+  'medical'
+);
+
+export default createHealthPassportModel;

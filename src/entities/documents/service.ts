@@ -1,5 +1,15 @@
-import Document from './model';
+import createDocumentModel from './model';
 import { IDocument } from './model';
+
+// Отложенное создание модели
+let DocumentModel: any = null;
+
+const getDocumentModel = () => {
+  if (!DocumentModel) {
+    DocumentModel = createDocumentModel();
+  }
+  return DocumentModel;
+};
 
 export class DocumentsService {
   async getAll(filters: { ownerId?: string, category?: string, isPublic?: boolean, tags?: string[] }) {
@@ -12,15 +22,15 @@ export class DocumentsService {
       filter.tags = { $in: filters.tags };
     }
     
-    const documents = await Document.find(filter)
+    const documents = await getDocumentModel().find(filter)
       .populate('owner', 'fullName role')
       .sort({ createdAt: -1 });
-    
+
     return documents;
-  }
+ }
 
   async getById(id: string) {
-    const document = await Document.findById(id)
+    const document = await getDocumentModel().findById(id)
       .populate('owner', 'fullName role');
     
     if (!document) {
@@ -54,17 +64,17 @@ export class DocumentsService {
       throw new Error('Не указана категория документа');
     }
     
-    const document = new Document(documentData);
+    const document = new (getDocumentModel())(documentData);
     await document.save();
-    
-    const populatedDocument = await Document.findById(document._id)
+
+    const populatedDocument = await getDocumentModel().findById(document._id)
       .populate('owner', 'fullName role');
     
     return populatedDocument;
   }
 
   async update(id: string, data: Partial<IDocument>) {
-    const updatedDocument = await Document.findByIdAndUpdate(
+    const updatedDocument = await getDocumentModel().findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -78,7 +88,7 @@ export class DocumentsService {
   }
 
   async delete(id: string) {
-    const result = await Document.findByIdAndDelete(id);
+    const result = await getDocumentModel().findByIdAndDelete(id);
     
     if (!result) {
       throw new Error('Документ не найден');
@@ -100,7 +110,7 @@ export class DocumentsService {
     if (filters.ownerId) searchFilter.owner = filters.ownerId;
     if (filters.category) searchFilter.category = filters.category;
     
-    const documents = await Document.find(searchFilter)
+    const documents = await getDocumentModel().find(searchFilter)
       .populate('owner', 'fullName role')
       .sort({ createdAt: -1 });
     
@@ -117,7 +127,7 @@ export class DocumentsService {
       filter.isPublic = true;
     }
     
-    const documents = await Document.find(filter)
+    const documents = await getDocumentModel().find(filter)
       .populate('owner', 'fullName role')
       .sort({ createdAt: -1 });
     

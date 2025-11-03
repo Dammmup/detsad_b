@@ -1,4 +1,4 @@
-import MainEvent, { IMainEvent } from './model';
+import createMainEventModel, { IMainEvent } from './model';
 import EmailService from '../../services/emailService';
 import { IChildAttendance } from '../childAttendance/model';
 import { IChildPayment } from '../childPayment/model';
@@ -9,6 +9,16 @@ import { IReport } from '../reports/model';
 
 // Создаем экземпляры сервисов внутри методов, чтобы избежать проблем с импортами
 
+// Отложенное создание модели
+let MainEventModel: any = null;
+
+const getMainEventModel = () => {
+  if (!MainEventModel) {
+    MainEventModel = createMainEventModel();
+  }
+  return MainEventModel;
+};
+
 export class MainEventsService {
   async getAll(filters: { enabled?: boolean } = {}) {
     const filter: any = {};
@@ -17,12 +27,12 @@ export class MainEventsService {
       filter.enabled = filters.enabled;
     }
     
-    return await MainEvent.find(filter)
+    return await getMainEventModel().find(filter)
       .sort({ createdAt: -1 });
   }
 
   async getById(id: string) {
-    const mainEvent = await MainEvent.findById(id);
+    const mainEvent = await getMainEventModel().findById(id);
     
     if (!mainEvent) {
       throw new Error('Событие не найдено');
@@ -32,14 +42,14 @@ export class MainEventsService {
   }
 
   async create(mainEventData: Partial<IMainEvent>) {
-    const mainEvent = new MainEvent(mainEventData);
+    const mainEvent = new (getMainEventModel())(mainEventData);
     await mainEvent.save();
     
     return mainEvent;
   }
 
   async update(id: string, data: Partial<IMainEvent>) {
-    const updatedMainEvent = await MainEvent.findByIdAndUpdate(
+    const updatedMainEvent = await getMainEventModel().findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -53,7 +63,7 @@ export class MainEventsService {
   }
 
   async delete(id: string) {
-    const result = await MainEvent.findByIdAndDelete(id);
+    const result = await getMainEventModel().findByIdAndDelete(id);
     
     if (!result) {
       throw new Error('Событие не найдено');
@@ -63,7 +73,7 @@ export class MainEventsService {
   }
 
   async toggleEnabled(id: string, enabled: boolean) {
-    const mainEvent = await MainEvent.findByIdAndUpdate(
+    const mainEvent = await getMainEventModel().findByIdAndUpdate(
       id,
       { enabled },
       { new: true }
@@ -78,7 +88,7 @@ export class MainEventsService {
 
   // Метод для выполнения автоматического экспорта
  async executeScheduledExport(mainEventId: string) {
-   const mainEvent = await MainEvent.findById(mainEventId);
+   const mainEvent = await getMainEventModel().findById(mainEventId);
    
    if (!mainEvent) {
      throw new Error('Событие не найдено');
@@ -146,7 +156,7 @@ export class MainEventsService {
     const dayOfMonth = now.getDate(); // День месяца (1-31)
     
     // Находим все активные события, которые должны выполняться в этот день месяца
-    const eventsToExecute = await MainEvent.find({
+    const eventsToExecute = await getMainEventModel().find({
       enabled: true,
       dayOfMonth: dayOfMonth
     });
@@ -180,7 +190,7 @@ export class MainEventsService {
     const dayOfMonth = now.getDate(); // День месяца (1-31)
     
     // Находим все активные события
-    const eventsToExecute = await MainEvent.find({
+    const eventsToExecute = await getMainEventModel().find({
       enabled: true
     });
     

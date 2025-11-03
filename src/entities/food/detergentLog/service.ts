@@ -1,7 +1,7 @@
 import DetergentLog from './model';
 import { IDetergentLog } from './model';
 import User from '../../users/model'; // Using the user model
-import Product from '../products/model'; // Assuming products model exists
+import createProductModel from '../products/model'; // Assuming products model exists
 
 // Отложенное создание моделей
 let DetergentLogModel: any = null;
@@ -21,7 +21,15 @@ const getUserModel = () => {
   return UserModel;
 };
 
-const getProductModel = () => Product;
+// Отложенное создание модели Product
+let ProductModel: any = null;
+
+const getProductModel = () => {
+  if (!ProductModel) {
+    ProductModel = createProductModel();
+  }
+  return ProductModel;
+};
 
 export class DetergentLogService {
   async getAll(filters: { productId?: string, batchNumber?: string, supplier?: string, status?: string, startDate?: string, endDate?: string, expirationStartDate?: string, expirationEndDate?: string, productName?: string, supplierContact?: string }) {

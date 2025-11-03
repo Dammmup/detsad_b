@@ -1,31 +1,48 @@
 import { UIState, UIStateRequest } from './model';
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import { createModelFactory } from '../../config/database';
 
 // Определяем схему для UIState
-const uiStateSchema = new mongoose.Schema({
+const uiStateSchema = new Schema({
   userId: { type: String, index: true },
   sessionId: { type: String, required: true, index: true },
   timestamp: { type: Date, default: Date.now, index: true },
   url: { type: String, required: true },
   route: { type: String, required: true },
   visibleText: { type: String },
-  componentsState: { type: mongoose.Schema.Types.Mixed },
+  componentsState: { type: Schema.Types.Mixed },
   uiErrors: [String], // Переименовываем поле
-  localStorageData: { type: mongoose.Schema.Types.Mixed },
-  sessionStorageData: { type: mongoose.Schema.Types.Mixed },
-  domSnapshot: { type: mongoose.Schema.Types.Mixed }
-}, { suppressReservedKeysWarning: true });
+ localStorageData: { type: Schema.Types.Mixed },
+  sessionStorageData: { type: Schema.Types.Mixed },
+  domSnapshot: { type: Schema.Types.Mixed }
+}, {
+  suppressReservedKeysWarning: true,
+  timestamps: true
+});
 
-// Создаем индекс для автоматической очистки устаревших записей
+// Создаем фабрику модели для отложенного создания после подключения к базе данных
+const createUIStateModel = createModelFactory<any>(
+  'UIState',
+  uiStateSchema,
+  'uiStates',
+  'default'
+);
 
-// Модель для UIState
-const UIStateModel = mongoose.model('UIState', uiStateSchema, 'uiStates');
+// Отложенное создание модели
+let UIStateModel: any = null;
+
+const getUIStateModel = () => {
+  if (!UIStateModel) {
+    UIStateModel = createUIStateModel();
+  }
+  return UIStateModel;
+};
 
 export class UIStateService {
   // Сохранить состояние UI
   static async saveUIState(uiStateData: UIStateRequest): Promise<UIState> {
     try {
-      const uiState = new UIStateModel({
+      const uiState = new (getUIStateModel())({
         ...uiStateData,
         uiErrors: uiStateData.uiErrors, // Поле уже называется uiErrors
         timestamp: new Date()
@@ -45,9 +62,9 @@ export class UIStateService {
   }
 
   // Получить последнее состояние UI для сессии
-  static async getLastUIState(sessionId: string): Promise<UIState | null> {
+ static async getLastUIState(sessionId: string): Promise<UIState | null> {
     try {
-      const uiState = await UIStateModel
+      const uiState = await getUIStateModel()
         .findOne({ sessionId })
         .sort({ timestamp: -1 })
         .lean(); // Используем lean() для получения простого объекта
@@ -56,12 +73,18 @@ export class UIStateService {
       
       // Преобразуем поля, которые могут быть null в mongoose, в соответствующие типы
       return {
-        ...uiState,
-        id: uiState._id.toString(),
-        userId: uiState.userId || undefined,
-        visibleText: uiState.visibleText || undefined,
-        domSnapshot: uiState.domSnapshot || undefined,
-        uiErrors: uiState.uiErrors || [] // Поле уже называется uiErrors
+        id: (uiState as any)._id.toString(),
+        userId: (uiState as any).userId || null,
+        sessionId: (uiState as any).sessionId,
+        timestamp: (uiState as any).timestamp,
+        url: (uiState as any).url,
+        route: (uiState as any).route,
+        visibleText: (uiState as any).visibleText || null,
+        componentsState: (uiState as any).componentsState,
+        uiErrors: (uiState as any).uiErrors || [],
+        localStorageData: (uiState as any).localStorageData,
+        sessionStorageData: (uiState as any).sessionStorageData,
+        domSnapshot: (uiState as any).domSnapshot || null
       };
     } catch (error) {
       console.error('Ошибка при получении последнего состояния UI:', error);
@@ -72,19 +95,25 @@ export class UIStateService {
   // Получить состояние UI по ID
  static async getUIStateById(id: string): Promise<UIState | null> {
     try {
-      const uiState = await UIStateModel
+      const uiState = await getUIStateModel()
         .findById(id)
         .lean(); // Используем lean() для получения простого объекта
       
       if (!uiState) return null;
       
       return {
-        ...uiState,
-        id: uiState._id.toString(),
-        userId: uiState.userId || undefined,
-        visibleText: uiState.visibleText || undefined,
-        domSnapshot: uiState.domSnapshot || undefined,
-        uiErrors: uiState.uiErrors || [] // Поле уже называется uiErrors
+        id: (uiState as any)._id.toString(),
+        userId: (uiState as any).userId || null,
+        sessionId: (uiState as any).sessionId,
+        timestamp: (uiState as any).timestamp,
+        url: (uiState as any).url,
+        route: (uiState as any).route,
+        visibleText: (uiState as any).visibleText || null,
+        componentsState: (uiState as any).componentsState,
+        uiErrors: (uiState as any).uiErrors || [],
+        localStorageData: (uiState as any).localStorageData,
+        sessionStorageData: (uiState as any).sessionStorageData,
+        domSnapshot: (uiState as any).domSnapshot || null
       };
     } catch (error) {
       console.error('Ошибка при получении состояния UI по ID:', error);
@@ -104,3 +133,6 @@ export class UIStateService {
     }
   }
 }
+
+// Экспортируем функцию для использования в реестре моделей
+export { getUIStateModel };

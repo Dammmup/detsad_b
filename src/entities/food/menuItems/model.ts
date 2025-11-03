@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { createModelFactory } from '../../../config/database';
 
 export interface IMenuItem extends Document {
   name: string;
@@ -84,4 +85,12 @@ const MenuItemSchema = new Schema<IMenuItem>({
 
 
 
-export default mongoose.model<IMenuItem>('MenuItem', MenuItemSchema, 'menu_items');
+// Создаем фабрику модели для отложенного создания после подключения к базе данных
+const createMenuItemModel = createModelFactory<IMenuItem>(
+  'MenuItem',
+  MenuItemSchema,
+  'menu_items',
+  'food'
+);
+
+export default createMenuItemModel;
