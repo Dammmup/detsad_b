@@ -1,5 +1,5 @@
 import Payroll from '.././entities/payroll/model';
-import Shift, { IShift } from '.././entities/staffShifts/model';
+import StaffAttendanceTracking from '.././entities/staffAttendanceTracking/model';
 import User, { IUser } from '.././entities/users/model';
 import EmailService from './emailService';
 import { SettingsService } from '../entities/settings/service';
@@ -22,11 +22,11 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   
   // Получаем посещаемость сотрудника за указанный месяц
-  const attendanceRecords: IShift[] = await Shift().find({
+  const attendanceRecords = await StaffAttendanceTracking().find({
     staffId,
     date: {
-      $gte: startDate.toISOString().split('T')[0],
-      $lte: endDate.toISOString().split('T')[0]
+      $gte: startDate,
+      $lte: endDate
     }
   });
   
@@ -41,25 +41,25 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
   
   // В новой архитектуре "1 смена - 1 запись", attendanceRecords уже содержит все смены
   // для указанного сотрудника в заданном диапазоне дат
-  const allShifts = attendanceRecords;
+  const allRecords = attendanceRecords;
   
   // Штрафы за опоздания: рассчитываем в зависимости от типа штрафа
-  const lateShifts = allShifts.filter((shift: any) => shift.lateMinutes && shift.lateMinutes > 0);
+ const lateRecords = allRecords.filter((record: any) => record.lateMinutes && record.lateMinutes > 0);
   
-  for (const shift of lateShifts) {
-    if (shift.lateMinutes) {
+  for (const record of lateRecords) {
+    if (record.lateMinutes) {
       switch (penaltyType) {
         case 'per_minute':
           // Штраф за каждую минуту опоздания
-          latePenalties += shift.lateMinutes * penaltyAmount;
+          latePenalties += record.lateMinutes * penaltyAmount;
           break;
         case 'per_5_minutes':
           // Штраф за каждые 5 минут опоздания
-          latePenalties += Math.ceil(shift.lateMinutes / 5) * penaltyAmount;
+          latePenalties += Math.ceil(record.lateMinutes / 5) * penaltyAmount;
           break;
         case 'per_10_minutes':
           // Штраф за каждые 10 минут опоздания
-          latePenalties += Math.ceil(shift.lateMinutes / 10) * penaltyAmount;
+          latePenalties += Math.ceil(record.lateMinutes / 10) * penaltyAmount;
           break;
         case 'fixed':
           // Фиксированная сумма за опоздание
@@ -73,14 +73,14 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
           break;
         default:
           // По умолчанию - штраф за каждые 5 минут
-          latePenalties += Math.ceil(shift.lateMinutes / 5) * penaltyAmount;
+          latePenalties += Math.ceil(record.lateMinutes / 5) * penaltyAmount;
       }
     }
  }
   
   // Штрафы за неявки: 630 тг за каждый случай (60*10,5 минут как в задании)
-  const absenceShifts = allShifts.filter((shift: any) => shift.status === 'no_show');
-  absencePenalties = absenceShifts.length * 630;
+  const absenceRecords = allRecords.filter((record: any) => record.status === 'absent');
+  absencePenalties = absenceRecords.length * 630;
   
   totalPenalty = latePenalties + absencePenalties;
   
@@ -135,13 +135,12 @@ const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
   return workdays;
 };
 
-// Смена засчитывается, если завершена и checkout не позже расписания
-const shouldCountShift = (shift: any): boolean => {
-  if (shift.status !== 'completed') return false;
-  if (!shift.actualEnd || !shift.endTime) return false;
-  const actualEndTime = new Date(`${shift.date} ${shift.actualEnd}`);
-  const scheduledEndTime = new Date(`${shift.date} ${shift.endTime}`);
-  return actualEndTime.getTime() <= scheduledEndTime.getTime();
+// Запись посещаемости засчитывается, если завершена и checkout не позже расписания
+const shouldCountAttendance = (record: any): boolean => {
+  if (record.status !== 'completed') return false;
+ if (!record.actualEnd) return false;
+  // Для учета посещаемости проверяем, что время завершения не раньше начала
+  return record.actualEnd.getTime() > record.actualStart?.getTime();
 };
 
 /**
@@ -175,11 +174,11 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
       
       // Получаем посещаемость сотрудника за указанный месяц
-      const attendanceRecords: IShift[] = await Shift().find({
+      const attendanceRecords = await StaffAttendanceTracking().find({
         staffId: (employee as any)._id,
         date: {
-          $gte: startDate.toISOString().split('T')[0],
-          $lte: endDate.toISOString().split('T')[0]
+          $gte: startDate,
+          $lte: endDate
         }
       });
       
@@ -194,20 +193,20 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       
       // Рассчитываем начисления в зависимости от типа оплаты
       let accruals = 0;
-      const countedShifts = attendanceRecords.filter(s => shouldCountShift(s));
+      const countedRecords = attendanceRecords.filter(s => shouldCountAttendance(s));
       switch (baseSalaryType) {
         case 'month': {
           const workDaysInMonth = await getWorkingDaysInMonth(startDate);
-          accruals = workDaysInMonth > 0 ? (baseSalary / workDaysInMonth) * countedShifts.length : 0;
+          accruals = workDaysInMonth > 0 ? (baseSalary / workDaysInMonth) * countedRecords.length : 0;
           break;
         }
         case 'day': {
           // Оплата за день * количество дней, когда смена засчитана
-          accruals = baseSalary * countedShifts.length;
+          accruals = baseSalary * countedRecords.length;
           break;
         }
         case 'shift': {
-          accruals = shiftRate * countedShifts.length;
+          accruals = shiftRate * countedRecords.length;
           break;
         }
         default:
@@ -350,11 +349,11 @@ const clearAttendancePenalties = async (month: string) => {
     
     // Помечаем записи посещаемости как обработанные
     // В реальной системе здесь может быть архивирование или удаление записей
-    await Shift().updateMany(
+    await StaffAttendanceTracking().updateMany(
       {
         date: {
-          $gte: new Date(`${month}-01`).toISOString().split('T')[0],
-          $lte: new Date(new Date(`${month}-01`).getFullYear(), new Date(`${month}-01`).getMonth() + 1, 0).toISOString().split('T')[0]
+          $gte: new Date(`${month}-01`),
+          $lte: new Date(new Date(`${month}-01`).getFullYear(), new Date(`${month}-01`).getMonth() + 1, 0)
         }
       },
       {

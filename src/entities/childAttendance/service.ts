@@ -4,6 +4,9 @@ import Group from '../groups/model'; // Using the group model
 import Shift from '../staffShifts/model'; // Import the shift model to check permissions
 import User from '../users/model'; // Import the user model
 import mongoose from 'mongoose';
+import Child from '../children/model';
+import { SettingsService } from '../settings/service';
+import { sendTelegramNotification } from '../../utils/telegramNotify';
 
 // Используем модели как функции для получения экземпляров моделей
 
@@ -96,6 +99,28 @@ export class ChildAttendanceService {
       await attendance.save();
     }
     
+    try {
+      const settingsService = new SettingsService();
+      const notificationSettings = await settingsService.getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id;
+
+      if (adminChatId) {
+        const child = await Child().findById(childId);
+        const group = await Group().findById(groupId);
+        const statusMap: any = {
+          present: 'присутствует',
+          absent: 'отсутствует',
+          sick: 'болеет',
+          vacation: 'в отпуске'
+        }
+        const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        const message = `Ребенок ${child?.fullName} из группы "${group?.name}" отмечен как ${statusMap[status] || status} в ${timeStr}`;
+        await sendTelegramNotification(adminChatId, message);
+      }
+    } catch (e) {
+      console.error('Telegram notify error:', e);
+    }
+    
     return attendance;
   }
 
@@ -156,6 +181,37 @@ export class ChildAttendanceService {
       } catch (err: any) {
         errors.push({ record, error: err.message });
       }
+    }
+    
+    try {
+      const settingsService = new SettingsService();
+      const notificationSettings = await settingsService.getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id;
+
+      if (adminChatId && results.length > 0) {
+        const group = await Group().findById(groupId);
+        const statusMap: any = {
+          present: 'присутствует',
+          absent: 'отсутствует',
+          sick: 'болеет',
+          vacation: 'в отпуске'
+        }
+        const childNames = await Child().find({_id: {$in: results.map(r => r.childId)}}).select('fullName');
+        const childNameMap = childNames.reduce((acc: any, child: any) => {
+          acc[child._id.toString()] = child.fullName;
+          return acc;
+        }, {});
+
+        const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        const messages = results.map(r => {
+          return `Ребенок ${childNameMap[r.childId.toString()]} отмечен как ${statusMap[r.status] || r.status}`;
+        });
+
+        const message = `Массовое обновление посещаемости для группы "${group?.name}" в ${timeStr}:\n- ${messages.join('\n- ')}`;
+        await sendTelegramNotification(adminChatId, message);
+      }
+    } catch (e) {
+      console.error('Telegram notify error:', e);
     }
     
     return {

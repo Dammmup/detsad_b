@@ -175,7 +175,7 @@ class DataCleanupService {
           $gte: startOfMonth,
           $lte: endOfMonth
         }
-      }).populate('staffId', 'fullName').populate('groupId', 'name');
+      }).populate('staffId', 'fullName').populate('groupId', 'name').populate('shiftId', 'status');
 
       const staff = await User().find({ type: 'adult' });
       const groups = await Group().find({});
@@ -196,6 +196,16 @@ class DataCleanupService {
         // Рассчитываем фактическое время из workDuration
         const workDurationStr = record.workDuration ? `${Math.floor(record.workDuration / 60)}:${(record.workDuration % 60).toString().padStart(2, '0')}` : '0:00';
         
+        // Получаем статус из связанной смены, если она существует
+        let statusText = group?.name || '';
+        if (record.shiftId) {
+          statusText =
+            (record.shiftId as any).status === 'completed' ? 'Завершено' :
+            (record.shiftId as any).status === 'in_progress' ? 'В прогрессе' :
+            (record.shiftId as any).status === 'absent' ? 'Отсутствовал' :
+            group?.name || '';
+        }
+        
         return [
           staffMember?.fullName || '',
           formattedDate,
@@ -203,11 +213,7 @@ class DataCleanupService {
           workDurationStr,
           record.penalties?.late?.amount || 0,
           record.overtimeDuration || 0,
-          record.status === 'completed' ? 'Завершено' :
-          record.status === 'in_progress' ? 'В прогрессе' :
-          record.status === 'absent' ? 'Отсутствовал' :
-          record.status === 'pending_approval' ? 'Ожидает одобрения' : record.status || '',
-          group?.name || '',
+          statusText,
           record.notes || ''
         ];
       });

@@ -23,6 +23,7 @@ export interface IKindergartenSettings extends Document {
 
 // Интерфейс для настроек уведомлений
 export interface INotificationSettings extends Document {
+  telegram_chat_id: string;
   emailNotifications: boolean;
  smsNotifications: boolean;
   pushNotifications: boolean;
@@ -30,8 +31,8 @@ export interface INotificationSettings extends Document {
   absenceAlert: boolean;
   overtimeAlert: boolean;
   reportReminders: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+ createdAt: Date;
+ updatedAt: Date;
 }
 
 // Интерфейс для настроек безопасности
@@ -45,10 +46,10 @@ export interface ISecuritySettings extends Document {
   };
   sessionTimeout: number;
   twoFactorAuth: boolean;
-  ipWhitelist: string[];
+ ipWhitelist: string[];
   maxLoginAttempts: number;
-  createdAt: Date;
-  updatedAt: Date;
+ createdAt: Date;
+ updatedAt: Date;
 }
 
 // Интерфейс для настроек геолокации
@@ -60,10 +61,10 @@ export interface IGeolocationSettings extends Document {
   };
   radius: number; // in meters
   yandexApiKey?: string;
-  strictMode: boolean;
+ strictMode: boolean;
   allowedDevices: string[];
   createdAt: Date;
-  updatedAt: Date;
+ updatedAt: Date;
 }
 
 // Схема для настроек детского сада
@@ -88,6 +89,7 @@ const KindergartenSettingsSchema = new Schema<IKindergartenSettings>({
 
 // Схема для настроек уведомлений
 const NotificationSettingsSchema = new Schema<INotificationSettings>({
+  telegram_chat_id: { type: String, default: null },
   emailNotifications: { type: Boolean, default: true },
   smsNotifications: { type: Boolean, default: false },
   pushNotifications: { type: Boolean, default: true },

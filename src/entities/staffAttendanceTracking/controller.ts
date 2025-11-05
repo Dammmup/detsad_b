@@ -60,13 +60,28 @@ export const getEntries = async (req: Request, res: Response) => {
     const userId = req.user.id as string;
     const { page, limit, startDate, endDate, status } = req.query;
     
-    const result = await staffAttendanceTrackingService.getEntries(userId, {
+    // Build filters
+    const filters: any = {
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
       startDate: startDate as string,
-      endDate: endDate as string,
-      status: status as string
-    });
+      endDate: endDate as string
+    };
+    
+    // Add status-based filtering
+    if (status) {
+      if (status === 'absent') {
+        filters.actualStart = { $exists: false };
+      } else if (status === 'completed') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: true, $ne: null };
+      } else if (status === 'in_progress') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: false };
+      }
+    }
+    
+    const result = await staffAttendanceTrackingService.getEntries(userId, filters);
     
     res.json(result);
   } catch (error) {
@@ -108,16 +123,31 @@ export const getAllStaffAttendanceRecords = async (req: Request, res: Response) 
     
     const { staffId, date, status, inZone, startDate, endDate, approvedBy, approvedAt } = req.query;
     
-    const records = await staffAttendanceTrackingService.getAll({
+    // Build filters
+    const filters: any = {
       staffId: staffId as string,
       date: date as string,
-      status: status as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
       startDate: startDate as string,
       endDate: endDate as string,
       approvedBy: approvedBy as string,
       approvedAt: approvedAt as string
-    });
+    };
+    
+    // Add status-based filtering based on other fields
+    if (status) {
+      if (status === 'absent') {
+        filters.actualStart = { $exists: false };
+      } else if (status === 'completed') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: true, $ne: null };
+      } else if (status === 'in_progress') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: false };
+      }
+    }
+    
+    const records = await staffAttendanceTrackingService.getAll(filters);
     
     res.json(records);
   } catch (err) {
@@ -146,9 +176,20 @@ export const createStaffAttendanceRecord = async (req: Request, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const record = await staffAttendanceTrackingService.create(req.body, req.user.id as string);
+    // Извлекаем поля, которые теперь относятся к модели StaffAttendanceTracking
+    const { lateMinutes, earlyLeaveMinutes, ...recordData } = req.body;
+    
+    // Добавляем эти поля к объекту recordData
+    if (lateMinutes !== undefined) {
+      recordData.lateMinutes = lateMinutes;
+    }
+    if (earlyLeaveMinutes !== undefined) {
+      recordData.earlyLeaveMinutes = earlyLeaveMinutes;
+    }
+    
+    const record = await staffAttendanceTrackingService.create(recordData, req.user.id as string);
     res.status(201).json(record);
-  } catch (err: any) {
+ } catch (err: any) {
     console.error('Error creating staff attendance record:', err);
     res.status(400).json({ error: err.message || 'Ошибка создания записи посещаемости сотрудника' });
   }
@@ -160,7 +201,18 @@ export const updateStaffAttendanceRecord = async (req: Request, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const record = await staffAttendanceTrackingService.update(req.params.id, req.body);
+    // Извлекаем поля, которые теперь относятся к модели StaffAttendanceTracking
+    const { lateMinutes, earlyLeaveMinutes, ...recordData } = req.body;
+    
+    // Добавляем эти поля к объекту recordData
+    if (lateMinutes !== undefined) {
+      recordData.lateMinutes = lateMinutes;
+    }
+    if (earlyLeaveMinutes !== undefined) {
+      recordData.earlyLeaveMinutes = earlyLeaveMinutes;
+    }
+    
+    const record = await staffAttendanceTrackingService.update(req.params.id, recordData);
     res.json(record);
   } catch (err: any) {
     console.error('Error updating staff attendance record:', err);
@@ -191,15 +243,30 @@ export const getStaffAttendanceRecordsByStaffId = async (req: Request, res: Resp
     const { staffId } = req.params;
     const { date, status, inZone, startDate, endDate, approvedBy, approvedAt } = req.query;
     
-    const records = await staffAttendanceTrackingService.getByStaffId(staffId, {
+    // Build filters
+    const filters: any = {
       date: date as string,
-      status: status as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
       startDate: startDate as string,
       endDate: endDate as string,
       approvedBy: approvedBy as string,
       approvedAt: approvedAt as string
-    });
+    };
+    
+    // Add status-based filtering
+    if (status) {
+      if (status === 'absent') {
+        filters.actualStart = { $exists: false };
+      } else if (status === 'completed') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: true, $ne: null };
+      } else if (status === 'in_progress') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: false };
+      }
+    }
+    
+    const records = await staffAttendanceTrackingService.getByStaffId(staffId, filters);
     
     res.json(records);
   } catch (err: any) {
@@ -222,13 +289,28 @@ export const getStaffAttendanceRecordsByDateRange = async (req: Request, res: Re
     
     const { staffId, status, inZone, approvedBy, approvedAt } = req.query;
     
-    const records = await staffAttendanceTrackingService.getByDateRange(startDate as string, endDate as string, {
+    // Build filters
+    const filters: any = {
       staffId: staffId as string,
-      status: status as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
       approvedBy: approvedBy as string,
       approvedAt: approvedAt as string
-    });
+    };
+    
+    // Add status-based filtering
+    if (status) {
+      if (status === 'absent') {
+        filters.actualStart = { $exists: false };
+      } else if (status === 'completed') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: true, $ne: null };
+      } else if (status === 'in_progress') {
+        filters.actualStart = { $exists: true, $ne: null };
+        filters.actualEnd = { $exists: false };
+      }
+    }
+    
+    const records = await staffAttendanceTrackingService.getByDateRange(startDate as string, endDate as string, filters);
     
     res.json(records);
   } catch (err: any) {

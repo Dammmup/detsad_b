@@ -10,6 +10,7 @@
     "script": "ts-node scripts/create-admin-user.ts",
     "populate-documents": "ts-node src/scripts/populate-documents.ts",
     "migrate": "ts-node migrate.ts",
+    "migrate-staff-attendance": "ts-node src/migrations/migrateStaffAttendance.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

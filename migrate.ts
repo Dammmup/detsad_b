@@ -1,19 +1,20 @@
 import mongoose from 'mongoose';
 import { up as convertChildPaymentPeriodsUp } from './migrations/convert-child-payment-periods-direct';
+import { up as updateShiftStatusesUp } from './migrations/update-shift-statuses';
+import { connectDatabases } from './src/config/database';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function runMigrations() {
   try {
     // Подключаемся к базе данных
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://damir:damir@cluster0.ku60i6n.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
-      bufferCommands: false,
-    });
+    await connectDatabases();
     console.log('Подключено к MongoDB');
 
     // Выполняем миграции
     console.log('Запускаем миграции...');
     await convertChildPaymentPeriodsUp();
+    await updateShiftStatusesUp();
     console.log('Миграции завершены');
   } catch (error) {
     console.error('Ошибка при выполнении миграций:', error);

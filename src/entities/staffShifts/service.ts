@@ -62,24 +62,27 @@ export class ShiftsService {
  
     // Проверяем, нет ли уже смены для этого сотрудника в этот день
    async create(shiftData: any, userId: string) {
-  // Validate shift data before creating
-  // Проверяем, что передано корректное поле ID сотрудника
-  const staffId = shiftData.staffId || shiftData.userId;
-  if (!staffId) {
-    throw new Error('Не указан ID сотрудника');
-  }
-  if (!shiftData.date) {
-    throw new Error('Не указана дата смены');
-  }
-  if (!shiftData.startTime) {
-    throw new Error('Не указано время начала');
-  }
-  if (!shiftData.endTime) {
-    throw new Error('Не указано время окончания');
-  }
-  if (!shiftData.status) {
-    throw new Error('Не указан статус смены');
-  }
+ // Validate shift data before creating
+ // Проверяем, что передано корректное поле ID сотрудника
+ const staffId = shiftData.staffId || shiftData.userId;
+ if (!staffId) {
+   throw new Error('Не указан ID сотрудника');
+ }
+ if (!shiftData.date) {
+   throw new Error('Не указана дата смены');
+ }
+ if (!shiftData.startTime) {
+   throw new Error('Не указано время начала');
+ }
+ if (!shiftData.endTime) {
+   throw new Error('Не указано время окончания');
+ }
+ 
+ // Если статус не указан, устанавливаем его в 'pending_approval' для новых смен,
+ // если смена создается не администратором или не указана необходимость подтверждения
+ if (!shiftData.status) {
+   shiftData.status = 'pending_approval';
+ }
   
   const newShiftData = {
     ...shiftData,
@@ -211,7 +214,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
           throw new Error('Не указано время окончания');
         }
         if (!newShiftData.status) {
-          throw new Error('Не указан статус смены');
+          newShiftData.status = 'pending_approval';
         }
         
         const shift = new (Shift())(newShiftData);
@@ -307,6 +310,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       }
     }
     
+    // Если статус изменяется с 'pending_approval' на 'scheduled', это означает одобрение смены
+    if (shift.status === 'pending_approval' && data.status === 'scheduled') {
+      // При одобрении смены обновляем createdBy на текущего пользователя
+      // Это позволяет отследить, кто одобрил смену
+      data.createdBy = data.createdBy || shift.createdBy; // Сохраняем оригинального создателя, если не указан новый
+    }
+    
     // Обновляем только указанные поля, избегая перезаписи служебных полей
     const allowedFields = [
       'date', 'startTime', 'endTime', 'status', 'breakTime', 'overtimeMinutes',
@@ -381,47 +391,44 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
      const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
      const actualStartTime = new Date(`${shift.date} ${currentTime}`);
      
-     // If trying to check in after shift end, mark as in_progress since they did come
-     if (actualStartTime.getTime() > shiftEndTime.getTime()) {
-       shift.set('status', 'in_progress');
-       await shift.save();
-       
-       let timeTracking = await StaffAttendanceTracking().findOne({
-         staffId: userId,
-         date: shift.date
-       });
-       
-       if (!timeTracking) {
-         timeTracking = new (StaffAttendanceTracking())({
+     // Calculate lateness based on shift start time (15 minutes threshold)
+     const lateMinutes = Math.max(0, Math.floor((actualStartTime.getTime() - shiftStartTime.getTime()) / (1000 * 60)));
+     
+     // If employee is late by 15 minutes or more, mark shift as 'late'
+     if (lateMinutes >= 15) {
+       shift.set('status', 'late');
+     } else {
+       // If trying to check in after shift end, mark as in_progress since they did come
+       if (actualStartTime.getTime() > shiftEndTime.getTime()) {
+         shift.set('status', 'in_progress');
+         await shift.save();
+         
+         let timeTracking = await StaffAttendanceTracking().findOne({
            staffId: userId,
            date: shift.date
          });
+         
+         if (!timeTracking) {
+           timeTracking = new (StaffAttendanceTracking())({
+             staffId: userId,
+             date: shift.date
+           });
+         }
+         timeTracking.actualStart = now;
+         // Optionally annotate reason
+         timeTracking.notes = timeTracking.notes
+           ? `${timeTracking.notes}\nОтметка после окончания смены`
+           : 'Отметка после окончания смены';
+         await timeTracking.save();
+         
+         return { shift, timeTracking, message: 'Отметка после окончания смены. Смена помечена как начатая.' };
        }
-       timeTracking.actualStart = now;
-       timeTracking.status = 'absent';
-       // Optionally annotate reason
-       timeTracking.notes = timeTracking.notes
-         ? `${timeTracking.notes}\nОтметка после окончания смены`
-         : 'Отметка после окончания смены';
-       await timeTracking.save();
-       
-       return { shift, timeTracking, message: 'Отметка после окончания смены. Смена помечена как начатая.' };
+      
+      // Update shift as in-progress
+      shift.set('status', 'in_progress');
      }
     
-    // Update shift as in-progress
-    shift.set('actualStart', currentTime);
-    shift.set('status', 'in_progress');
-    
     // Обновляем статус в базе данных
-    await shift.save();
-    
-    // Calculate lateness based on shift start time
-    const lateMinutes = Math.max(0, Math.floor((actualStartTime.getTime() - shiftStartTime.getTime()) / (1000 * 60)));
-    
-    if (lateMinutes > 0) {
-      shift.set('lateMinutes', lateMinutes);
-    }
-    
     await shift.save();
     
     // Create or update time tracking record
@@ -440,13 +447,12 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     // Сохраняем время с учетом часового пояса Астаны
     const astanaTime = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
     timeTracking.actualStart = astanaTime;
-    timeTracking.status = 'in_progress';
     
     // Calculate late penalty based on payroll settings
     if (lateMinutes > 0) {
       // Получаем настройки зарплаты сотрудника
       const payroll = await Payroll().findOne({ staffId: userId });
-      const penaltyRate = payroll?.penaltyDetails?.amount || 50; // По умолчанию 500 тенге за минуту
+      const penaltyRate = payroll?.penaltyDetails?.amount || 50; // По умолчанию 50 тенге за минуту
       
       const penaltyAmount = lateMinutes * penaltyRate;
       timeTracking.penalties.late = {
@@ -454,11 +460,12 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
         amount: penaltyAmount,
         reason: `Опоздание на ${lateMinutes} минут`
       };
+      timeTracking.lateMinutes = lateMinutes;
     }
     
     await timeTracking.save();
     
-    return { shift, timeTracking, message: 'Успешно отмечен приход' };
+    return { shift, timeTracking, message: lateMinutes >= 15 ? 'Опоздание на смену' : 'Успешно отмечен приход' };
   }
 
   async checkOut(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
@@ -482,17 +489,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
     
     // Update shift
-    shift.set('actualEnd', currentTime);
     shift.set('status', 'completed');
-    
-    // Calculate early leave based on shift end time
-    const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
-    const actualEndTime = new Date(`${shift.date} ${currentTime}`);
-    const earlyMinutes = Math.max(0, Math.floor((shiftEndTime.getTime() - actualEndTime.getTime()) / (1000 * 60)));
-    
-    if (earlyMinutes > 0) {
-      shift.set('earlyLeaveMinutes', earlyMinutes);
-    }
     
     await shift.save();
     
@@ -506,12 +503,23 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
       // Сохраняем время ухода с учетом часового пояса Астаны
       const astanaTime = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
       timeTracking.actualEnd = astanaTime;
-      timeTracking.status = 'completed';
       // Calculate work duration manually
       if (timeTracking.actualStart) {
         const duration = astanaTime.getTime() - timeTracking.actualStart.getTime();
         timeTracking.workDuration = Math.floor(duration / (1000 * 60)) - (timeTracking.breakDuration || 0);
       }
+      
+      // Calculate schedule boundaries for penalties
+      const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
+      const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
+      const actualStartTime = new Date(`${shift.date} ${timeTracking.actualStart?.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5) || currentTime}`);
+      const actualEndTime = new Date(`${shift.date} ${currentTime}`);
+      
+      // Calculate early leave based on shift end time
+      const earlyMinutes = Math.max(0, Math.floor((shiftEndTime.getTime() - actualEndTime.getTime()) / (1000 * 60)));
+      
+      // Calculate late arrival based on shift start time
+      const lateMinutes = Math.max(0, Math.floor((actualStartTime.getTime() - shiftStartTime.getTime()) / (1000 * 60)));
       
       // Calculate early leave penalty based on payroll settings
       if (earlyMinutes > 0) {
@@ -525,6 +533,22 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
           amount: penaltyAmount,
           reason: `Ранний уход на ${earlyMinutes} минут`
         };
+        timeTracking.earlyLeaveMinutes = earlyMinutes;
+      }
+      
+      // Calculate late arrival penalty based on payroll settings
+      if (lateMinutes > 0) {
+        // Получаем настройки зарплаты сотрудника
+        const payroll = await Payroll().findOne({ staffId: userId });
+        const penaltyRate = payroll?.penaltyDetails?.amount || 50; // По умолчанию 50 тенге за минуту
+        
+        const penaltyAmount = lateMinutes * penaltyRate;
+        timeTracking.penalties.late = {
+          minutes: lateMinutes,
+          amount: penaltyAmount,
+          reason: `Опоздание на ${lateMinutes} минут`
+        };
+        timeTracking.lateMinutes = lateMinutes;
       }
       
       // Penalty for late checkout (after scheduled end) - does not count for payroll
@@ -538,7 +562,6 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
           reason: `Уход после окончания смены на ${lateCheckoutMinutes} минут`
         };
       }
-      
       
       await timeTracking.save();
     }
@@ -562,7 +585,7 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
     }
     
     return { shift, message: 'Успешно отмечен уход' }; // timeTracking as any,
-  }
+ }
 
   async getTimeTrackingRecords(filters: { staffId?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
     const filter: any = {};
@@ -611,8 +634,60 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   /**
    * Проверить, является ли дата смены праздничной
    */
-  async isShiftDateHoliday(shiftDate: string): Promise<boolean> {
+ async isShiftDateHoliday(shiftDate: string): Promise<boolean> {
     const date = new Date(shiftDate);
     return await holidaysService.isHoliday(date);
+  }
+  
+  /**
+   * Автоматически обновить статус смены на 'late', если сотрудник опоздал более чем на 15 минут
+   */
+ async updateLateShifts() {
+    try {
+      // Получаем все смены за сегодня со статусом 'scheduled' или 'in_progress'
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      const shifts = await Shift().find({
+        date: todayStr,
+        status: { $in: ['scheduled', 'in_progress'] }
+      });
+      
+      const results = [];
+      
+      for (const shift of shifts) {
+        // Получаем время начала смены
+        const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
+        
+        // Проверяем, прошло ли 15 и более минут после начала смены
+        const timeSinceShiftStart = (today.getTime() - shiftStartTime.getTime()) / (1000 * 60); // в минутах
+        
+        // Если прошло 15 и более минут после начала смены, и сотрудник еще не пришел (не отметил check-in)
+        if (timeSinceShiftStart >= 15) {
+          // Проверяем, есть ли уже запись о приходе
+          const timeTracking = await StaffAttendanceTracking().findOne({
+            staffId: shift.staffId,
+            date: new Date(shift.date) // Преобразуем строку даты в объект Date
+          });
+          
+          if (!timeTracking || !timeTracking.actualStart) {
+            // Если нет отметки о приходе, и прошло 15+ минут после начала смены,
+            // меняем статус смены на 'late'
+            shift.set('status', 'late');
+            await shift.save();
+            results.push({
+              shiftId: shift._id,
+              staffId: shift.staffId,
+              message: 'Статус смены обновлен на "late" из-за опоздания'
+            });
+          }
+        }
+      }
+      
+      return results;
+    } catch (error) {
+      console.error('Ошибка при обновлении статусов опоздавших смен:', error);
+      throw error;
+    }
   }
 }

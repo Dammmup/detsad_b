@@ -43,18 +43,17 @@ export const createShift = async (req: Request, res: Response) => {
     }
     
     // Преобразуем данные для корректного формата перед передачей в сервис
-    const shiftData = {
-      ...req.body,
-      staffId: req.body.userId || req.body.staffId, // Поддерживаем оба варианта
+    const { actualStart, actualEnd, breakTime, overtimeMinutes, lateMinutes, earlyLeaveMinutes, userId, ...shiftData } = req.body;
+    
+    const processedShiftData = {
+      ...shiftData,
+      staffId: userId || shiftData.staffId, // Поддерживаем оба варианта
       createdBy: req.user.id
     };
     
-    // Удаляем поля, которые не должны быть переданы в модель
-    delete shiftData.userId; // Удаляем userId, так как в модели используется staffId
-    
-    const result = await shiftsService.create(shiftData, req.user.id as string);
+    const result = await shiftsService.create(processedShiftData, req.user.id as string);
     res.status(201).json(result);
-  } catch (err: any) {
+ } catch (err: any) {
     console.error('Error creating shift:', err);
     if (err.name === 'ValidationError') {
       // Return specific validation error details
@@ -65,6 +64,41 @@ export const createShift = async (req: Request, res: Response) => {
       });
     }
     res.status(400).json({ error: err.message || 'Ошибка создания смены' });
+  }
+};
+
+// Метод для создания смены сотрудником с последующим одобрением
+export const requestShift = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Любой сотрудник может запросить дополнительную смену
+    // Преобразуем данные для корректного формата перед передачей в сервис
+    const { actualStart, actualEnd, breakTime, overtimeMinutes, lateMinutes, earlyLeaveMinutes, userId, ...shiftData } = req.body;
+    
+    // Убедимся, что сотрудник создает смену для себя
+    const processedShiftData = {
+      ...shiftData,
+      staffId: req.user.id, // Сотрудник может создать смену только для себя
+      status: 'pending_approval', // Всегда устанавливаем статус запроса
+      createdBy: req.user.id
+    };
+    
+    const result = await shiftsService.create(processedShiftData, req.user.id as string);
+    res.status(201).json(result);
+ } catch (err: any) {
+    console.error('Error requesting shift:', err);
+    if (err.name === 'ValidationError') {
+      // Return specific validation error details
+      const errors = Object.values(err.errors).map((e: any) => e.message);
+      return res.status(400).json({
+        error: 'Ошибка валидации данных смены',
+        details: errors
+      });
+    }
+    res.status(400).json({ error: err.message || 'Ошибка запроса смены' });
   }
 };
 
@@ -80,12 +114,15 @@ export const updateShift = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update shifts' });
     }
     
-    const result = await shiftsService.update(req.params.id, req.body);
+    // Удаляем поля, которые больше не существуют в модели смены
+    const { actualStart, actualEnd, breakTime, overtimeMinutes, lateMinutes, earlyLeaveMinutes, ...shiftData } = req.body;
+    
+    const result = await shiftsService.update(req.params.id, shiftData);
     res.json(result);
   } catch (err) {
     console.error('Error updating shift:', err);
     res.status(400).json({ error: 'Ошибка обновления смены' });
-  }
+ }
 };
 
 export const deleteShift = async (req: Request, res: Response) => {
@@ -172,6 +209,30 @@ export const getTimeTrackingSimple = async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Error fetching time tracking:', err);
     res.status(500).json({ error: 'Ошибка получения учета времени' });
+  }
+};
+
+export const updateLateShifts = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Только администраторы могут запускать процесс обновления статусов
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update late shifts' });
+    }
+    
+    const shiftsService = new ShiftsService();
+    const results = await shiftsService.updateLateShifts();
+    
+    res.json({
+      message: `Обновлено ${results.length} смен с опоздавшими сотрудниками`,
+      results
+    });
+  } catch (err) {
+    console.error('Error updating late shifts:', err);
+    res.status(500).json({ error: 'Ошибка обновления статусов опоздавших смен' });
   }
 };
 

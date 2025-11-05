@@ -2,12 +2,14 @@ import express from 'express';
 import {
   getAllShifts,
   createShift,
+  requestShift,
   updateShift,
   deleteShift,
   checkInSimple,
   checkOutSimple,
   getTimeTrackingSimple,
-  updateAdjustmentsSimple
+  updateAdjustmentsSimple,
+  updateLateShifts
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -21,6 +23,9 @@ router.get('/', authMiddleware, getAllShifts);
 
 // Create new shift
 router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createShift);
+
+// Request a shift (for staff to request additional shifts)
+router.post('/request', authMiddleware, requestShift);
 
 // Bulk create shifts
 router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
@@ -54,5 +59,8 @@ router.get('/timetracking', authMiddleware, getTimeTrackingSimple);
 
 // Update penalties/bonuses (admin only)
 router.put('/timetracking/:id/adjustments', authMiddleware, authorizeRole(['admin', 'manager']), updateAdjustmentsSimple);
+
+// Update late shifts status (admin only)
+router.post('/update-late', authMiddleware, authorizeRole(['admin', 'manager']), updateLateShifts);
 
 export default router;

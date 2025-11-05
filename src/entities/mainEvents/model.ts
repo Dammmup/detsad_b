@@ -10,6 +10,8 @@ export interface IMainEvent extends Document {
   emailRecipients: string[]; // Email адреса получателей
   lastExecutedAt?: Date;
   nextExecutionAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const MainEventSchema: Schema = new Schema({

@@ -115,8 +115,8 @@ router.get('/range', authMiddleware, authorizeRole(['admin', 'manager', 'doctor'
 // Get upcoming absences
 router.get('/absences', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getUpcomingAbsences);
 
-// Update staff attendance record status
-router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateStaffAttendanceRecordStatus);
+// Update staff attendance record status - теперь использует другой подход, так как поле status больше не существует
+// router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateStaffAttendanceRecordStatus);
 
 // Add notes to staff attendance record
 router.patch('/:id/notes', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), addStaffAttendanceRecordNotes);

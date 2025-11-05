@@ -95,8 +95,7 @@ export class StaffAttendanceTrackingService {
     
     const existingEntry = await getStaffAttendanceTrackingModel().findOne({
       staffId: new mongoose.Types.ObjectId(userId),
-      date: { $gte: today, $lt: tomorrow },
-      status: { $in: ['active', 'checked_in', 'on_break'] }
+      date: { $gte: today, $lt: tomorrow }
     });
     
     if (existingEntry) {
@@ -124,7 +123,6 @@ export class StaffAttendanceTrackingService {
       staffId: userId,
       date: new Date(),
       actualStart: new Date(),
-      status: 'active',
       clockInLocation: {
         name: 'Current Location',
         coordinates: {
@@ -213,8 +211,7 @@ export class StaffAttendanceTrackingService {
     
     const attendanceRecord = await StaffAttendanceTrackingModel.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
-      date: { $gte: today, $lt: tomorrow },
-      status: { $in: ['checked_in', 'on_break', 'active'] }
+      date: { $gte: today, $lt: tomorrow }
     });
     
     if (!attendanceRecord) {
@@ -254,10 +251,15 @@ export class StaffAttendanceTrackingService {
           amount: penaltyAmount,
           reason: `Ранний уход за ${earlyLeaveMinutes} минут до окончания смены`
         };
+        attendanceRecord.earlyLeaveMinutes = earlyLeaveMinutes;
+      }
+      
+      // Link the shift to the attendance record
+      if (!attendanceRecord.shiftId) {
+        attendanceRecord.shiftId = scheduledShift._id;
       }
     }
     
-    attendanceRecord.status = 'completed';
     attendanceRecord.clockOutLocation = {
       name: 'Current Location',
       coordinates: {
@@ -357,9 +359,6 @@ export class StaffAttendanceTrackingService {
     }
     if (!recordData.date) {
       throw new Error('Не указана дата');
-    }
-    if (!recordData.status) {
-      throw new Error('Не указан статус');
     }
     
     // Проверяем существование сотрудника
@@ -508,8 +507,7 @@ export class StaffAttendanceTrackingService {
     
     const records = await StaffAttendanceTrackingModel.find({
       staffId: userId,
-      date: { $gte: start, $lte: end },
-      status: 'completed'
+      date: { $gte: start, $lte: end }
     });
     
     const summary = {
@@ -538,8 +536,7 @@ export class StaffAttendanceTrackingService {
       date: {
         $gte: today,
         $lte: futureDate
-      },
-      status: 'absent'
+      }
     })
     .populate('staffId', 'fullName role')
     .populate('approvedBy', 'fullName role')
@@ -548,16 +545,19 @@ export class StaffAttendanceTrackingService {
     return records;
   }
 
-  async updateStatus(id: string, status: 'checked_in' | 'checked_out' | 'on_break' | 'overtime' | 'absent' | 'active' | 'completed' | 'missed' | 'pending_approval') {
-    const record = await StaffAttendanceTrackingModel.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    ).populate('staffId', 'fullName role')
-     .populate('approvedBy', 'fullName role');
-    
+  async updateStatus(id: string, status: 'on_break' | 'overtime' | 'absent' | 'active' | 'completed' | 'missed' | 'pending_approval' | 'late') {
+    // Since we removed the status field, we'll update the linked shift's status instead
+    const record = await StaffAttendanceTrackingModel.findById(id);
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
+    }
+    
+    if (record.shiftId) {
+      const shift = await getShiftModel().findByIdAndUpdate(
+        record.shiftId,
+        { status },
+        { new: true }
+      );
     }
     
     return record;
@@ -620,7 +620,6 @@ export class StaffAttendanceTrackingService {
     const record = await StaffAttendanceTrackingModel.findByIdAndUpdate(
       id,
       {
-        status: 'completed',
         approvedByTimeTracking: userId,
         approvedAtTimeTracking: new Date()
       },
@@ -643,7 +642,6 @@ export class StaffAttendanceTrackingService {
     const record = await StaffAttendanceTrackingModel.findByIdAndUpdate(
       id,
       {
-        status: 'pending_approval',
         approvedByTimeTracking: userId,
         approvedAtTimeTracking: new Date(),
         notes: reason ? `${existingRecord.notes || ''}\nRejection reason: ${reason}` : existingRecord.notes
@@ -659,7 +657,10 @@ export class StaffAttendanceTrackingService {
  }
 
   async getPendingApprovals() {
-    const records = await StaffAttendanceTrackingModel.find({ status: 'pending_approval' })
+    const records = await StaffAttendanceTrackingModel.find({
+      approvedAtTimeTracking: { $exists: false },
+      approvedByTimeTracking: { $exists: false }
+    })
       .populate('staffId', 'fullName role')
       .sort({ date: -1 });
     
@@ -667,7 +668,10 @@ export class StaffAttendanceTrackingService {
   }
 
   async getApprovedRecords() {
-    const records = await StaffAttendanceTrackingModel.find({ status: 'completed' })
+    const records = await StaffAttendanceTrackingModel.find({
+      approvedAtTimeTracking: { $exists: true },
+      approvedByTimeTracking: { $exists: true }
+    })
       .populate('staffId', 'fullName role')
       .sort({ date: -1 });
     
@@ -675,7 +679,12 @@ export class StaffAttendanceTrackingService {
   }
 
   async getRejectedRecords() {
-    const records = await StaffAttendanceTrackingModel.find({ status: 'missed' })
+    const records = await StaffAttendanceTrackingModel.find({
+      approvedAtTimeTracking: { $exists: true },
+      approvedByTimeTracking: { $exists: true }
+      // Note: Without status field, we can't determine "rejected" records
+      // This functionality needs to be rethought
+    })
       .populate('staffId', 'fullName role')
       .sort({ date: -1 });
     
@@ -713,7 +722,10 @@ export class StaffAttendanceTrackingService {
   }
 
   async getAbsenteeismRecords() {
-    const records = await StaffAttendanceTrackingModel.find({ status: 'absent' })
+    // Find records without actual start time or with specific criteria indicating absence
+    const records = await StaffAttendanceTrackingModel.find({
+      actualStart: { $exists: false }
+    })
       .populate('staffId', 'fullName role')
       .sort({ date: -1 });
     
@@ -829,7 +841,7 @@ export class StaffAttendanceTrackingService {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       },
-      status: { $in: ['checked_in', 'checked_out', 'on_break', 'active', 'completed'] }
+      actualStart: { $exists: true, $ne: null }
     });
     
     const absentRecords = await StaffAttendanceTrackingModel.countDocuments({
@@ -837,7 +849,7 @@ export class StaffAttendanceTrackingService {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       },
-      status: 'absent'
+      actualStart: { $exists: false }
     });
     
     return {
@@ -944,7 +956,13 @@ export class StaffAttendanceTrackingService {
     const stats = await StaffAttendanceTrackingModel.aggregate([
       {
         $group: {
-          _id: '$status',
+          _id: {
+            $cond: {
+              if: { $ne: ["$actualStart", null] },
+              then: "present",
+              else: "absent"
+            }
+          },
           count: { $sum: 1 }
         }
       },

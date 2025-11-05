@@ -13,14 +13,16 @@ export interface ILocation {
 
 export interface IStaffAttendanceTracking extends Document {
   staffId: mongoose.Types.ObjectId;
+  shiftId?: mongoose.Types.ObjectId; // Ссылка на смену
   date: Date;
  actualStart?: Date;
   groupId?: mongoose.Types.ObjectId;
   actualEnd?: Date;
-  workDuration?: number; // minutes
+ workDuration?: number; // minutes
   breakDuration?: number; // minutes
   overtimeDuration?: number; // minutes
-  status: 'absent' | 'scheduled' | 'in_progress' | 'completed' | 'pending_approval';
+  lateMinutes?: number;
+ earlyLeaveMinutes?: number;
   penalties: {
     late: {
       minutes: number;
@@ -56,9 +58,7 @@ export interface IStaffAttendanceTracking extends Document {
   clockInLocation?: ILocation;
   clockOutLocation?: ILocation;
   photoClockIn?: string; // URL to photo taken during clock-in
-  photoClockOut?: string; // URL to photo taken during clock-out
-  breakStart?: Date;
-  breakEnd?: Date;
+ photoClockOut?: string; // URL to photo taken during clock-out
   totalHours: number;
   regularHours: number;
   overtimeHours: number;
@@ -110,11 +110,13 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
     type: Number,
     default: 0
   },
-  status: {
-    type: String,
-    enum: ['absent', 'scheduled', 'in_progress', 'completed', 'pending_approval', 'active', 'on_break', 'overtime', 'checked_in', 'checked_out', 'missed', 'present'],
-    default: 'scheduled',
-    index: true
+  lateMinutes: {
+    type: Number,
+    default: 0
+  },
+  earlyLeaveMinutes: {
+    type: Number,
+    default: 0
   },
   penalties: {
     late: {
@@ -162,8 +164,6 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   clockOutLocation: LocationSchema,
   photoClockIn: String,
  photoClockOut: String,
-  breakStart: Date,
-  breakEnd: Date,
   totalHours: {
     type: Number,
     default: 0,
@@ -210,17 +210,8 @@ StaffAttendanceTrackingSchema.pre('save', function(this: IStaffAttendanceTrackin
     const standardHours = 8;
     this.regularHours = Math.min(this.totalHours, standardHours);
     this.overtimeHours = Math.max(0, this.totalHours - standardHours);
-    
-    // Update status if completed, but only if it's not already set to a final status
-    const finalStatuses = ['completed', 'missed', 'pending_approval'];
-    if (this.actualEnd && !finalStatuses.includes(this.status)) {
-      // Only update status if it's one of the in-progress statuses
-      if (this.status === 'in_progress') {
-        this.status = 'completed';
-      }
-    }
   }
-  next();
+ next();
 });
 
 

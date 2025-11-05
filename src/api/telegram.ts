@@ -34,7 +34,7 @@ router.post('/webhook', async (req, res) => {
         }
       } else {
         console.log(`Message does not match /start <code> pattern. Received: "${text}"`); // Логируем, если не подходит
-        await sendTelegramNotification(chatId, 'Для активации уведомлений отправьте мне команду \u0022/start <ваш_код>\u0022. Код берите из вашего профиля в системе.');
+        await sendTelegramNotification(chatId, 'Для активации уведомлений отправьте мне команду "/start <ваш_код>". Код берите из вашего профиля в системе.');
       }
     } else {
       console.log('Received update does not contain a valid message object'); // Логируем, если нет сообщения
