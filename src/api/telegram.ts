@@ -1,6 +1,6 @@
 import express from 'express';
 import User from '../entities/users/model';
-import { sendTelegramNotification } from '../utils/telegramNotify';
+import { sendLogToTelegram } from '../utils/telegramLogger';
 
 const router = express.Router();
 
@@ -27,14 +27,14 @@ router.post('/webhook', async (req, res) => {
           (user as any).telegramChatId = chatId;
           (user as any).telegramLinkCode = undefined; // Очистить поле после привязки
           await user.save();
-          await sendTelegramNotification(chatId, 'Вы подписаны на уведомления о сменах!');
+          await sendLogToTelegram('Вы подписаны на уведомления о сменах!');
         } else {
           console.log(`Invalid or expired code: "${code}". User not found.`); // Логируем ошибку
-          await sendTelegramNotification(chatId, 'Код неверный или пользователь не найден. Скопируйте код из вашего профиля в системе.');
+          await sendLogToTelegram('Код неверный или пользователь не найден. Скопируйте код из вашего профиля в системе.');
         }
       } else {
         console.log(`Message does not match /start <code> pattern. Received: "${text}"`); // Логируем, если не подходит
-        await sendTelegramNotification(chatId, 'Для активации уведомлений отправьте мне команду "/start <ваш_код>". Код берите из вашего профиля в системе.');
+        await sendLogToTelegram('Для активации уведомлений отправьте мне команду "/start <ваш_код>". Код берите из вашего профиля в системе.');
       }
     } else {
       console.log('Received update does not contain a valid message object'); // Логируем, если нет сообщения

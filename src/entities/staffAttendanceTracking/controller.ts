@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { StaffAttendanceTrackingService } from './service';
 
-const staffAttendanceTrackingService = new StaffAttendanceTrackingService();
+export const staffAttendanceTrackingService = new StaffAttendanceTrackingService();
 
 export const clockIn = async (req: Request, res: Response) => {
   try {

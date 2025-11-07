@@ -3,7 +3,7 @@ import { UserService } from './service';
 import { AuthUser } from '../../middlewares/authMiddleware';
 import { hashPassword } from '../../utils/hash';
 import Payroll from '../payroll/model';
-import { sendTelegramNotification } from '../../utils/telegramNotify';
+import { sendLogToTelegram } from '../../utils/telegramLogger';
 
 // Расширяем интерфейс Request для добавления свойства user
 interface AuthenticatedRequest extends Request {
@@ -302,8 +302,8 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       if (req.body.active !== undefined && req.user.role === 'admin') user.active = req.body.active;
       if (req.body.iin !== undefined) user.iin = req.body.iin;
       if (req.body.groupId !== undefined) user.groupId = req.body.groupId;
-      // Обновление признака арендатора
-      if (req.body.tenant !== undefined) user.tenant = req.body.tenant;
+      // Обновление признака арендатора - теперь это роль, поэтому поле больше не используется
+      // if (req.body.tenant !== undefined) user.tenant = req.body.tenant;
       // Обновление начального пароля
       if (req.body.initialPassword !== undefined) {
         // Пользователь может изменять свой initialPassword, но не может изменить его для другого пользователя
@@ -467,12 +467,13 @@ export const getUserRoles = (req: Request, res: Response) => {
       { id: 'psychologist', name: 'Психолог' },
       { id: 'music_teacher', name: 'Музыкальный руководитель' },
       { id: 'physical_teacher', name: 'Инструктор по физкультуре' },
-      { id: 'staff', name: 'Персонал' }
+      { id: 'staff', name: 'Персонал' },
+      { id: 'rent', name: 'Аренда' }
     ];
     res.json(roles);
  } catch (err) {
-    res.status(500).json({ error: 'Ошибка при получении списка ролей' });
-  }
+    res.status(50).json({ error: 'Ошибка при получении списка ролей' });
+ }
 };
 
 // Update user salary
@@ -577,7 +578,7 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
         `Причина: ${fine.reason}\n` +
         `Тип: ${fine.type}\n` +
         `Итого штрафов за период: ${populatedPayroll.userFines} тг`;
-      await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
+      await sendLogToTelegram(msg);
     }
 
     res.status(201).json(populatedPayroll);
@@ -674,7 +675,7 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
         `Сумма: ${fineAmount} тг\n` +
         `Причина: ${removedFine.reason}\n` +
         `Итого штрафов за период: ${populatedPayroll.userFines} тг`;
-      await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
+      await sendLogToTelegram(msg);
     }
     
     res.json({ message: 'Fine removed successfully', updatedPayroll: populatedPayroll });

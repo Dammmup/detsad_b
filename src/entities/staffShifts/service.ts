@@ -26,7 +26,7 @@ export class ShiftsService {
 
     return R * c; // Distance in meters
  }
-  async getAll(filters: { staffId?: string, date?: string, status?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
+   async getAll(filters: { staffId?: string, date?: string, status?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
     const filter: any = {};
     
     // Role-based filtering

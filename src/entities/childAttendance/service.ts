@@ -6,11 +6,13 @@ import User from '../users/model'; // Import the user model
 import mongoose from 'mongoose';
 import Child from '../children/model';
 import { SettingsService } from '../settings/service';
-import { sendTelegramNotification } from '../../utils/telegramNotify';
+import { sendLogToTelegram } from '../../utils/telegramLogger';
 
 // Используем модели как функции для получения экземпляров моделей
 
 export class ChildAttendanceService {
+ adminChatId = process.env.TELEGRAM_CHAT_ID;
+
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
     const filter: any = {};
     
@@ -100,11 +102,9 @@ export class ChildAttendanceService {
     }
     
     try {
-      const settingsService = new SettingsService();
-      const notificationSettings = await settingsService.getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id;
 
-      if (adminChatId) {
+
+      if (this.adminChatId) {
         const child = await Child().findById(childId);
         const group = await Group().findById(groupId);
         const statusMap: any = {
@@ -115,7 +115,26 @@ export class ChildAttendanceService {
         }
         const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
         const message = `Ребенок ${child?.fullName} из группы "${group?.name}" отмечен как ${statusMap[status] || status} в ${timeStr}`;
-        await sendTelegramNotification(adminChatId, message);
+        await sendLogToTelegram(message);
+      }
+    } catch (e) {
+      console.error('Telegram notify error:', e);
+    }
+    
+    try {
+
+
+      if (this.adminChatId) {
+        const child = await Child().findById(childId);
+        const group = await Group().findById(groupId);
+        const statusMap: any = {
+          present: 'присутствует',
+          absent: 'отсутствует',
+          sick: 'болеет',
+          vacation: 'в отпуске'
+        }
+        const message = `Ребенок ${child?.fullName} из группы "${group?.name}" отмечен как ${statusMap[status] || status}`;
+        await sendLogToTelegram(message);
       }
     } catch (e) {
       console.error('Telegram notify error:', e);
@@ -184,11 +203,36 @@ export class ChildAttendanceService {
     }
     
     try {
-      const settingsService = new SettingsService();
-      const notificationSettings = await settingsService.getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id;
 
-      if (adminChatId && results.length > 0) {
+      if (this.adminChatId && results.length > 0) {
+        const group = await Group().findById(groupId);
+        const statusMap: any = {
+          present: 'присутствует',
+          absent: 'отсутствует',
+          sick: 'болеет',
+          vacation: 'в отпуске'
+        }
+        const childNames = await Child().find({_id: {$in: results.map(r => r.childId)}}).select('fullName');
+        const childNameMap = childNames.reduce((acc: any, child: any) => {
+          acc[child._id.toString()] = child.fullName;
+          return acc;
+        }, {});
+
+        const messages = results.map(r => {
+          return `Ребенок ${childNameMap[r.childId.toString()]} отмечен как ${statusMap[r.status] || r.status}`;
+        });
+
+        const message = `Массовое обновление посещаемости для группы "${group?.name}":\n- ${messages.join('\n- ')}`;
+        await sendLogToTelegram(message);
+      }
+    } catch (e) {
+      console.error('Telegram notify error:', e);
+    }
+    
+    try {
+   
+
+      if (this.adminChatId && results.length > 0) {
         const group = await Group().findById(groupId);
         const statusMap: any = {
           present: 'присутствует',
@@ -208,7 +252,7 @@ export class ChildAttendanceService {
         });
 
         const message = `Массовое обновление посещаемости для группы "${group?.name}" в ${timeStr}:\n- ${messages.join('\n- ')}`;
-        await sendTelegramNotification(adminChatId, message);
+        await sendLogToTelegram(message);
       }
     } catch (e) {
       console.error('Telegram notify error:', e);
@@ -320,3 +364,7 @@ export class ChildAttendanceService {
     return false;
   }
 }
+export const getChildAttendance = async (filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) => {
+  const service = new ChildAttendanceService();
+  return service.getAll(filters, userId, role);
+};

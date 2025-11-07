@@ -235,12 +235,3 @@ export const validateIIN = (iin: string): boolean => {
 
   return controlDigit === digits[11];
 };
-
-export default {
-  validateDocument,
-  validateDocumentTemplate,
-  validateEmail,
-  validatePhone,
-  validatePassword,
-  validateIIN
-};

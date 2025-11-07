@@ -76,18 +76,3 @@ export const createModelFactory = <T>(
     return connection.model<T>(modelName, schema, collectionName);
   };
 };
-
-/**
- * Закрытие всех подключений к базам данных
- */
-export const disconnectDatabases = async (): Promise<void> => {
-  if (connections) {
-    await Promise.all([
-      connections.default.close(),
-      connections.medical.close(),
-      connections.food.close(),
-    ]);
-    connections = null;
-    console.log('🔒 Все подключения к базам данных закрыты');
-  }
-};

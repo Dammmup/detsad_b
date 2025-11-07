@@ -4,6 +4,7 @@ import tubPositiveJournalRoutes from './entities/medician/tubPositiveJournal/rou
 import infectiousDiseasesJournalRoutes from './entities/medician/infectiousDiseasesJournal/route';
 import contactInfectionJournalRoutes from './entities/medician/contactInfectionJournal/route';
 import riskGroupChildrenRoutes from './entities/medician/riskGroupChildren/route';
+import childHealthPassportRoutes from './entities/medician/childHealthPassport/route';
 import rentRoutes from './entities/rent/route'; // Добавляем маршрут для аренды
 import express from 'express';
 import cors from 'cors';
@@ -40,6 +41,7 @@ import uiStateRoutes from './entities/uiState/route';
 import mainEventsRoutes from './entities/mainEvents/route';
 import holidayRoutes from './entities/holidays/route';
 import telegramRoutes from './api/telegram';
+import exportRoutes from './api/export';
 
 const app = express();
 
@@ -86,6 +88,7 @@ app.use('/tub-positive-journal', tubPositiveJournalRoutes);
 app.use('/infectious-diseases-journal', infectiousDiseasesJournalRoutes);
 app.use('/contact-infection-journal', contactInfectionJournalRoutes);
 app.use('/risk-group-children', riskGroupChildrenRoutes);
+app.use('/child-health-passport', childHealthPassportRoutes);
 app.use('/organoleptic-journal', organolepticJournalRoutes);
 app.use('/perishable-brak', perishableBrakRoutes);
 app.use('/product-certificates', productCertificateRoutes);
@@ -98,6 +101,7 @@ app.use('/api/auth', authRoutes);
 app.use('/main-events', mainEventsRoutes);
 app.use('/holidays', holidayRoutes);
 app.use('/telegram', telegramRoutes);
+app.use('/export', exportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

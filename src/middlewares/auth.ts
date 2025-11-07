@@ -20,6 +20,3 @@ export const requireRole = (roles: string[]) => {
   };
 };
 
-export const requireAdmin = requireRole(['admin']);
-export const requireTeacher = requireRole(['admin', 'teacher']);
-export const requireStaff = requireRole(['admin', 'teacher', 'assistant', 'cook', 'cleaner', 'security', 'nurse']);

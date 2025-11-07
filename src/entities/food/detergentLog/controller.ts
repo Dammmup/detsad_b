@@ -181,51 +181,6 @@ export const updateDetergentLogStatus = async (req: Request, res: Response) => {
   }
 };
 
-export const markDetergentLogAsUsed = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const { usageDate, usagePerson } = req.body;
-    
-    if (!usageDate) {
-      return res.status(400).json({ error: 'Не указана дата использования' });
-    }
-    if (!usagePerson) {
-      return res.status(400).json({ error: 'Не указан пользователь' });
-    }
-    
-    const log = await detergentLogService.markAsUsed(req.params.id, new Date(usageDate), usagePerson);
-    res.json(log);
-  } catch (err: any) {
-    console.error('Error marking detergent log as used:', err);
-    res.status(404).json({ error: err.message || 'Ошибка отметки использования записи моющего средства' });
-  }
-};
-
-export const markDetergentLogAsDisposed = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const { disposalDate, disposalMethod } = req.body;
-    
-    if (!disposalDate) {
-      return res.status(400).json({ error: 'Не указана дата утилизации' });
-    }
-    if (!disposalMethod) {
-      return res.status(400).json({ error: 'Не указан метод утилизации' });
-    }
-    
-    const log = await detergentLogService.markAsDisposed(req.params.id, new Date(disposalDate), disposalMethod);
-    res.json(log);
-  } catch (err: any) {
-    console.error('Error marking detergent log as disposed:', err);
-    res.status(404).json({ error: err.message || 'Ошибка отметки утилизации записи моющего средства' });
-  }
-};
 
 export const addDetergentLogNotes = async (req: Request, res: Response) => {
   try {

@@ -6,6 +6,7 @@ import { IShift } from '../staffShifts/model';
 import { IPayroll } from '../payroll/model';
 import { IRent } from '../rent/model';
 import { IReport } from '../reports/model';
+import { sendLogToTelegram } from '../../utils/telegramLogger';
 
 // Создаем экземпляры сервисов внутри методов, чтобы избежать проблем с импортами
 
@@ -151,38 +152,44 @@ export class MainEventsService {
  }
   
   // Метод для автоматической проверки и выполнения событий
-  async checkAndExecuteScheduledEvents() {
-    const now = new Date();
-    const dayOfMonth = now.getDate(); // День месяца (1-31)
-    
-    // Находим все активные события, которые должны выполняться в этот день месяца
-    const eventsToExecute = await getMainEventModel().find({
-      enabled: true,
-      dayOfMonth: dayOfMonth
-    });
-    
-    const results = [];
-    
-    for (const event of eventsToExecute) {
-      try {
-        const result = await this.executeScheduledExport(event._id.toString());
-        results.push({
-          eventId: event._id.toString(),
-          eventName: event.name,
-          result
-        });
-      } catch (error: any) {
-        console.error(`Ошибка при выполнении события ${event.name}:`, error);
-        results.push({
-          eventId: event._id.toString(),
-          eventName: event.name,
-          error: error.message
-        });
-      }
-    }
-    
-    return results;
-  }
+   async checkAndExecuteScheduledEvents() {
+     const now = new Date();
+     const dayOfMonth = now.getDate(); // День месяца (1-31)
+     
+     // Находим все активные события, которые должны выполняться в этот день месяца
+     const eventsToExecute = await getMainEventModel().find({
+       enabled: true,
+       dayOfMonth: dayOfMonth
+     });
+     
+     const results = [];
+     
+     for (const event of eventsToExecute) {
+       try {
+         const result = await this.executeScheduledExport(event._id.toString());
+         results.push({
+           eventId: event._id.toString(),
+           eventName: event.name,
+           result
+         });
+       } catch (error: any) {
+         console.error(`Ошибка при выполнении события ${event.name}:`, error);
+         results.push({
+           eventId: event._id.toString(),
+           eventName: event.name,
+           error: error.message
+         });
+       }
+     }
+     
+     // Отправляем уведомление в Telegram
+     const timeInAstana = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Almaty"}));
+     if (timeInAstana.getHours() === 10 && timeInAstana.getMinutes() === 0) {
+       await sendLogToTelegram(`В 10:0 по времени Астаны: ${results.length} событий выполнено`);
+     }
+     
+     return results;
+   }
   
   // Метод для ручного запуска проверки и выполнения всех активных событий
   async executeAllScheduledEvents() {

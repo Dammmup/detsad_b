@@ -1,9 +1,17 @@
 import { Request, Response } from 'express';
 import { ShiftsService } from './service';
+import { sendLogToTelegram } from '../../utils/telegramLogger';
+import User from '../users/model';
+import Shift from './model';
+import { AuthUser } from '../../middlewares/authMiddleware';
+
+interface AuthenticatedRequest extends Request {
+  user?: AuthUser;
+}
 
 const shiftsService = new ShiftsService();
 
-export const getAllShifts = async (req: Request, res: Response) => {
+export const getAllShifts = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -31,7 +39,7 @@ export const getAllShifts = async (req: Request, res: Response) => {
   }
 };
 
-export const createShift = async (req: Request, res: Response) => {
+export const createShift = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -68,7 +76,7 @@ export const createShift = async (req: Request, res: Response) => {
 };
 
 // Метод для создания смены сотрудником с последующим одобрением
-export const requestShift = async (req: Request, res: Response) => {
+export const requestShift = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -103,7 +111,7 @@ export const requestShift = async (req: Request, res: Response) => {
 };
 
 
-export const updateShift = async (req: Request, res: Response) => {
+export const updateShift = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -125,7 +133,7 @@ export const updateShift = async (req: Request, res: Response) => {
  }
 };
 
-export const deleteShift = async (req: Request, res: Response) => {
+export const deleteShift = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -144,19 +152,28 @@ export const deleteShift = async (req: Request, res: Response) => {
   }
 };
 
-export const checkInSimple = async (req: Request, res: Response) => {
+export const checkInSimple = async (req: AuthenticatedRequest, res: Response) => {
    try {
      if (!req.user) {
        return res.status(401).json({ error: 'Authentication required' });
      }
      
-     const { shiftId } = req.params;
+     const {shiftId} = req.params;
      const { latitude, longitude } = req.body;
      
      // Передаем координаты в сервис, если они предоставлены
      const locationData = latitude && longitude ? { latitude, longitude } : undefined;
      
      const result = await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData);
+     const shift = await Shift().findById(shiftId);
+     const user = await User().findById(req.user.id);
+     if (user && shift) {
+       await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену за ${shift.date}`);
+     } else if (user) {
+       await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену ${shiftId}`);
+     } else {
+       await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил приход на смену ${shiftId}`);
+     }
      res.json(result);
    } catch (err) {
      console.error('Error checking in:', err);
@@ -164,12 +181,13 @@ export const checkInSimple = async (req: Request, res: Response) => {
    }
  };
 
-export const checkOutSimple = async (req: Request, res: Response) => {
+export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) => {
    try {
      if (!req.user) {
        return res.status(401).json({ error: 'Authentication required' });
      }
-     
+     const { date } = req.params;
+ 
      const { shiftId } = req.params;
      const { latitude, longitude } = req.body;
      
@@ -177,6 +195,15 @@ export const checkOutSimple = async (req: Request, res: Response) => {
      const locationData = latitude && longitude ? { latitude, longitude } : undefined;
      
      const result = await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData);
+     const shift = await Shift().findById(shiftId);
+     const user = await User().findById(req.user.id);
+     if (user && shift) {
+       await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены за ${shift.date}`);
+     } else if (user) {
+       await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены ${shiftId}`);
+     } else {
+       await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил уход со смены ${shiftId}`);
+     }
      res.json(result);
    } catch (err) {
      console.error('Error checking out:', err);
@@ -184,7 +211,7 @@ export const checkOutSimple = async (req: Request, res: Response) => {
    }
  };
 
-export const getTimeTrackingSimple = async (req: Request, res: Response) => {
+export const getTimeTrackingSimple = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -212,7 +239,7 @@ export const getTimeTrackingSimple = async (req: Request, res: Response) => {
   }
 };
 
-export const updateLateShifts = async (req: Request, res: Response) => {
+export const updateLateShifts = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -236,7 +263,7 @@ export const updateLateShifts = async (req: Request, res: Response) => {
   }
 };
 
-export const updateAdjustmentsSimple = async (req: Request, res: Response) => {
+export const updateAdjustmentsSimple = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

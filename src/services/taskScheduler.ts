@@ -1,6 +1,10 @@
 import cron from 'node-cron';
 import { runPayrollAutomation } from './payrollAutomationService';
 import { MainEventsService } from '../entities/mainEvents/service';
+import { sendLogToTelegram } from '../utils/telegramLogger';
+import Shift from '../entities/staffShifts/model';
+import StaffAttendanceTracking from '../entities/staffAttendanceTracking/model';
+import User from '../entities/users/model';
 
 /**
  * Инициализирует планировщик задач для автоматического расчета зарплат
@@ -30,19 +34,52 @@ export const initializeTaskScheduler = () => {
     } catch (error) {
       console.error('Ошибка при выполнении задач mainEvents:', error);
     }
+ });
+  
+  // Отправляем уведомление о приходе сотрудников в 10:00 по времени Астаны
+  cron.schedule('0 10 * * *', async () => {
+    try {
+      const now = new Date();
+      const timeInAstana = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Almaty"}));
+      if (timeInAstana.getHours() === 10) {
+        const shifts = await Shift().find({ date: now.toISOString().split('T')[0] });
+        const attendanceRecords = await StaffAttendanceTracking().find({
+          date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 59, 999)) },
+          actualStart: { $ne: null } // Учитываем только тех, кто отметил приход
+        });
+        const users = await User().find({
+          _id: { $in: shifts.map(shift => shift.staffId) }
+        });
+        await sendLogToTelegram(`В 10:00 по времени Астаны: отмечен приход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке уведомления о приходе сотрудников:', error);
+    }
   });
+  
+  // Отправляем уведомление об уходе сотрудников в 18:00 по времени Астаны
+ cron.schedule('0 18 * * *', async () => {
+    try {
+      const now = new Date();
+      const timeInAstana = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Almaty"}));
+      if (timeInAstana.getHours() === 18) {
+        const shifts = await Shift().find({ date: now.toISOString().split('T')[0] });
+        const attendanceRecords = await StaffAttendanceTracking().find({
+          date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 999)) },
+          actualEnd: { $ne: null } // Учитываем только тех, кто отметил уход
+        });
+        const users = await User().find({
+          _id: { $in: shifts.map(shift => shift.staffId) }
+        });
+        await sendLogToTelegram(`В 18:00 по времени Астаны: отмечен уход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке уведомления об уходе сотрудников:', error);
+    }
+ });
   
 
   
   console.log('Планировщик задач инициализирован. Автоматический расчет зарплат будет выполняться ежедневно в 01:00');
   console.log('Проверка событий mainEvents будет выполняться ежедневно в 00:00');
-};
-
-/**
- * Функция для немедленного запуска всех запланированных задач (для тестирования)
- */
-export const runAllScheduledTasks = async () => {
-  console.log('Немедленный запуск всех запланированных задач...');
-  await runPayrollAutomation();
-  console.log('Все запланированные задачи выполнены');
 };
