@@ -7,6 +7,7 @@ import {
   deleteChildPayment,
   getChildPaymentByPeriod
 } from './service';
+import { generateMonthlyChildPayments } from '../../services/childPaymentGenerator';
 
 export const create = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -14,6 +15,20 @@ export const create = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json(payment);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const generate = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { date } = req.body;
+    if (!date) {
+      res.status(400).json({ error: 'Date is required' });
+      return;
+    }
+    await generateMonthlyChildPayments(new Date(date));
+    res.status(200).json({ message: 'Payment generation started successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 };
 

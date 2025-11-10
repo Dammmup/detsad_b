@@ -24,6 +24,7 @@
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "csv-writer": "^1.6.0",
+    "date-fns": "^4.1.0",
     "docxtemplater": "^3.66.3",
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",

@@ -73,6 +73,12 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
       query.period = filters.period;
     }
   }
+  if (filters['period.start']) {
+    query['period.start'] = filters['period.start'];
+  }
+  if (filters['period.end']) {
+    query['period.end'] = filters['period.end'];
+  }
   if (filters.status) {
     query.status = filters.status;
   }

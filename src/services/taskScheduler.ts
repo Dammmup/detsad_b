@@ -5,6 +5,7 @@ import { sendLogToTelegram } from '../utils/telegramLogger';
 import Shift from '../entities/staffShifts/model';
 import StaffAttendanceTracking from '../entities/staffAttendanceTracking/model';
 import User from '../entities/users/model';
+import { generateMonthlyChildPayments } from './childPaymentGenerator';
 
 /**
  * Инициализирует планировщик задач для автоматического расчета зарплат
@@ -21,6 +22,17 @@ export const initializeTaskScheduler = () => {
       console.log('Запланированная задача выполнена успешно');
     } catch (error) {
       console.error('Ошибка при выполнении запланированной задачи:', error);
+    }
+  });
+
+  // Запускаем генерацию оплат за детей 1-го числа каждого месяца в 02:00
+  cron.schedule('0 2 1 * *', async () => {
+    console.log('Запуск запланированной задачи: генерация ежемесячных оплат за детей');
+    try {
+      await generateMonthlyChildPayments();
+      console.log('Генерация ежемесячных оплат за детей выполнена успешно');
+    } catch (error) {
+      console.error('Ошибка при выполнении генерации ежемесячных оплат:', error);
     }
   });
   
