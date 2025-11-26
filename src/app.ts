@@ -48,8 +48,17 @@ const app = express();
 
 
 // ✅ Добавляем CORS до всех роутов
+const allowedOriginsFromEnv = process.env.CORS_ALLOWED_ORIGINS;
+const allowedOrigins = allowedOriginsFromEnv ? allowedOriginsFromEnv.split(',') : ['http://localhost:3000', 'http://localhost:3001', 'https://aldamiram.vercel.app'];
+
 app.use(cors({
-  origin: 'https://aldamiram.vercel.app', // используем переменную окружения или все источники
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false,
