@@ -49,22 +49,11 @@ const app = express();
 
 // ✅ Добавляем CORS до всех роутов
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*', // используем переменную окружения или все источники
+  origin: 'https://aldamiram.vercel.app', // используем переменную окружения или все источники
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false, // т.к. cookies ты отключил
+  credentials: false,
 }));
-
-// Middleware для логирования OPTIONS запросов
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    console.log('!OPTIONS request received:');
-    console.log('  Origin:', req.headers.origin);
-    console.log('  Access-Control-Request-Method:', req.headers['access-control-request-method']);
-    console.log('  Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
-  }
-  next();
-});
 
 // app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
 app.use(express.json({ limit: '10mb' }));
