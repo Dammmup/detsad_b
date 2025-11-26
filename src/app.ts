@@ -55,6 +55,17 @@ app.use(cors({
   credentials: false, // т.к. cookies ты отключил
 }));
 
+// Middleware для логирования OPTIONS запросов
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    console.log('!OPTIONS request received:');
+    console.log('  Origin:', req.headers.origin);
+    console.log('  Access-Control-Request-Method:', req.headers['access-control-request-method']);
+    console.log('  Access-Control-Request-Headers:', req.headers['access-control-request-headers']);
+  }
+  next();
+});
+
 // app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
