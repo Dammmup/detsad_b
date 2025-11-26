@@ -47,22 +47,10 @@ import path from 'path';
 const app = express();
 
 
-// ✅ Добавляем CORS до всех роутов
-const allowedOriginsFromEnv = process.env.CORS_ALLOWED_ORIGINS;
-const allowedOrigins = allowedOriginsFromEnv ? allowedOriginsFromEnv.split(',') : ['http://localhost:3000', 'http://localhost:3001', 'https://aldamiram.vercel.app'];
+// const allowedOriginsFromEnv = process.env.CORS_ALLOWED_ORIGINS;
+// const allowedOrigins = allowedOriginsFromEnv ? allowedOriginsFromEnv.split(',') : ['http://localhost:3000', 'http://localhost:3001', 'https://aldamiram.vercel.app'];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
-}));
+app.use(cors());
 
 // app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
 app.use(express.json({ limit: '10mb' }));
