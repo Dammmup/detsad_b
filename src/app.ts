@@ -48,14 +48,12 @@ const app = express();
 
 
 // ✅ Добавляем CORS до всех роутов
-const corsOptions = {
+app.use(cors({
   origin: process.env.CORS_ORIGIN || '*', // используем переменную окружения или все источники
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false, // т.к. cookies ты отключил
-};
-
-app.use(cors(corsOptions));
+}));
 
 // app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
 app.use(express.json({ limit: '10mb' }));
