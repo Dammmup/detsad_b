@@ -178,7 +178,9 @@ export const createUser = async (req: Request, res: Response) => {
     const userData: any = {
       ...req.body,
       uniqNumber: req.body.iin || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ИИН или временный уникальный ID
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Убедимся, что _id не передается при создании нового пользователя
+      _id: undefined
     };
 
     // Add groupId if provided
@@ -188,19 +190,9 @@ export const createUser = async (req: Request, res: Response) => {
 
     // Для staff/adult, если не указан passwordHash, генерируем его
     if (!userData.passwordHash) {
-      // Генерируем случайный пароль
-      const generateRandomPassword = (length: number = 8): string => {
-        const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let password = '';
-        for (let i = 0; i < length; i++) {
-          const randomIndex = Math.floor(Math.random() * charset.length);
-          password += charset[randomIndex];
-        }
-        return password;
-      };
-
-      const plainPassword = generateRandomPassword();
-      console.log(`🔄 Сгенерирован пароль для нового сотрудника ${userData.fullName}: ${plainPassword}`);
+      // Используем стандартный пароль "password123"
+      const plainPassword = "password123";
+      console.log(`🔄 Установлен стандартный пароль для нового сотрудника ${userData.fullName}: ${plainPassword}`);
 
       // Хэшируем пароль
       userData.passwordHash = await hashPassword(plainPassword);
