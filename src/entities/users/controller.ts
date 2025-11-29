@@ -194,7 +194,8 @@ export const createUser = async (req: Request, res: Response) => {
       const plainPassword = "password123";
       console.log(`🔄 Установлен стандартный пароль для нового сотрудника ${userData.fullName}: ${plainPassword}`);
 
-      // Хэшируем пароль
+      // Устанавливаем пароль для валидации и хэшируем его
+      userData.password = plainPassword;
       userData.passwordHash = await hashPassword(plainPassword);
       // Сохраняем оригинальный пароль для отображения в интерфейсе
       userData.initialPassword = plainPassword;
