@@ -170,6 +170,7 @@ export class ChildAttendanceService {
         // Check if record exists
         const existingRecord = await ChildAttendance().findOne({
           childId,
+          groupId,
           date: new Date(date)
         });
         

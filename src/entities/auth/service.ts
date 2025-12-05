@@ -19,11 +19,10 @@ export class AuthService {
         id: user._id,
         fullName: user.fullName,
         role: user.role,
-        phone: user.phone,
-        iat: Math.floor(Date.now() / 1000)
+        phone: user.phone
       },
       secret,
-      { expiresIn: '24h' }
+      { expiresIn: '30d' }
     );
  }
 

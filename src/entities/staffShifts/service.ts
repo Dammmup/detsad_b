@@ -349,10 +349,13 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   }
 
   async checkIn(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
-     const shift = await Shift().findById(shiftId);
-     if (!shift) {
-       throw new Error('Смена не найдена');
-     }
+    const shift = await Shift().findOne({
+      staffId: new mongoose.Types.ObjectId(userId),
+      date: new Date().toISOString().split('T')[0]
+    });
+    if (!shift) {
+      throw new Error('Смена не найдена');
+    }
      // Check if user can check in to this shift
      if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
          (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new Types.ObjectId(userId))) &&
@@ -469,7 +472,10 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   }
 
   async checkOut(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
-    const shift = await Shift().findById(shiftId);
+    const shift = await Shift().findOne({
+      staffId: new mongoose.Types.ObjectId(userId),
+      date: new Date().toISOString().split('T')[0]
+    });
     if (!shift) {
       throw new Error('Смена не найдена');
     }
