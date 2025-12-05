@@ -349,12 +349,38 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   }
 
   async checkIn(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
-    const shift = await Shift().findOne({
-      staffId: new mongoose.Types.ObjectId(userId),
-      date: new Date().toISOString().split('T')[0]
-    });
+    // First try to find shift by shiftId if provided
+    let shift = null;
+    
+    if (shiftId) {
+      try {
+        shift = await Shift().findById(shiftId);
+        // Verify that this shift belongs to the user (security check)
+        if (shift && !shift.staffId.equals(new mongoose.Types.ObjectId(userId)) &&
+            (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new mongoose.Types.ObjectId(userId))) &&
+            role !== 'admin' && role !== 'teacher') {
+          shift = null; // Reset if user doesn't have permission
+        }
+      } catch (e) {
+        // If shiftId is invalid, continue to search by date
+        console.error('Error finding shift by ID:', e);
+      }
+    }
+    
+    // If not found by ID, search by userId and date (fallback)
     if (!shift) {
-      throw new Error('Смена не найдена');
+      const today = new Date().toISOString().split('T')[0];
+      shift = await Shift().findOne({
+        date: today,
+        $or: [
+          { staffId: new mongoose.Types.ObjectId(userId) },
+          { alternativeStaffId: new mongoose.Types.ObjectId(userId) }
+        ]
+      });
+    }
+    
+    if (!shift) {
+      throw new Error('Смена не найдена на сегодня. Убедитесь, что смена запланирована.');
     }
      // Check if user can check in to this shift
      if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
@@ -472,12 +498,38 @@ if (typeof newShiftData.alternativeStaffId === 'string' && newShiftData.alternat
   }
 
   async checkOut(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
-    const shift = await Shift().findOne({
-      staffId: new mongoose.Types.ObjectId(userId),
-      date: new Date().toISOString().split('T')[0]
-    });
+    // First try to find shift by shiftId if provided
+    let shift = null;
+    
+    if (shiftId) {
+      try {
+        shift = await Shift().findById(shiftId);
+        // Verify that this shift belongs to the user (security check)
+        if (shift && !shift.staffId.equals(new mongoose.Types.ObjectId(userId)) &&
+            (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new mongoose.Types.ObjectId(userId))) &&
+            role !== 'admin' && role !== 'manager') {
+          shift = null; // Reset if user doesn't have permission
+        }
+      } catch (e) {
+        // If shiftId is invalid, continue to search by date
+        console.error('Error finding shift by ID:', e);
+      }
+    }
+    
+    // If not found by ID, search by userId and date (fallback)
     if (!shift) {
-      throw new Error('Смена не найдена');
+      const today = new Date().toISOString().split('T')[0];
+      shift = await Shift().findOne({
+        date: today,
+        $or: [
+          { staffId: new mongoose.Types.ObjectId(userId) },
+          { alternativeStaffId: new mongoose.Types.ObjectId(userId) }
+        ]
+      });
+    }
+    
+    if (!shift) {
+      throw new Error('Смена не найдена на сегодня. Убедитесь, что смена запланирована.');
     }
     
     if (!shift.staffId.equals(new Types.ObjectId(userId)) &&
