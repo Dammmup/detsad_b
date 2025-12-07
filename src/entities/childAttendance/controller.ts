@@ -67,11 +67,25 @@ export const bulkCreateOrUpdateAttendance = async (req: AuthenticatedRequest, re
     
     const { records, groupId } = req.body;
     
+    if (!records || !Array.isArray(records)) {
+      return res.status(400).json({ error: 'Требуется массив records' });
+    }
+    
+    if (!groupId) {
+      return res.status(400).json({ error: 'Требуется groupId' });
+    }
+    
     const result = await childAttendanceService.bulkCreateOrUpdate(records, groupId, req.user.id as string);
+    
+    // If there are errors and no successful results, return error status
+    if (result.errorCount > 0 && result.success === 0) {
+      return res.status(400).json(result);
+    }
+    
     res.json(result);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error bulk saving attendance:', err);
-    res.status(500).json({ error: 'Ошибка массового сохранения' });
+    res.status(500).json({ error: err.message || 'Ошибка массового сохранения' });
   }
 };
 

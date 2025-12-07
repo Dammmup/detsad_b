@@ -35,15 +35,22 @@ export class ChildAttendanceService {
     }
     
     if (filters.date) {
-      const targetDate = new Date(filters.date as string);
+      // Parse the date filter as UTC midnight to match how dates are stored
+      const targetDateStr = filters.date as string;
+      const targetDate = new Date(`${targetDateStr}T00:00:00.000Z`);
       filter.date = {
-        $gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(targetDate.setHours(23, 59, 59, 999))
+        $gte: targetDate,
+        $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000) // Add one day in milliseconds
       };
     } else if (filters.startDate && filters.endDate) {
+      // For date ranges, also parse as UTC midnight
+      const startDate = new Date(`${filters.startDate as string}T00:00:00.000Z`);
+      const endDate = new Date(`${filters.endDate as string}T00:00:00.000Z`);
+      // Add one day to endDate to include the entire day
+      endDate.setDate(endDate.getDate() + 1);
       filter.date = {
-        $gte: new Date(filters.startDate as string),
-        $lte: new Date(filters.endDate as string)
+        $gte: startDate,
+        $lte: endDate
       };
     }
     
@@ -70,16 +77,17 @@ export class ChildAttendanceService {
       throw new Error('Нет прав для отметки посещаемости в этой группе');
     }
     
-    // Check if record already exists for this child and date
+    // Check if record already exists for this child and date - parse date string as UTC midnight
+    const dateObj = new Date(`${date}T0:00:00.000Z`);
     const existingRecord = await ChildAttendance().findOne({
       childId,
-      date: new Date(date)
+      date: dateObj
     });
     
     const newAttendanceData = {
       childId,
       groupId,
-      date: new Date(date),
+      date: dateObj, // Use the consistently parsed UTC date
       status,
       actualStart: actualStart ? new Date(actualStart) : undefined,
       actualEnd: actualEnd ? new Date(actualEnd) : undefined,
@@ -91,7 +99,7 @@ export class ChildAttendanceService {
     if (existingRecord) {
       // Update existing record
       attendance = await ChildAttendance().findOneAndUpdate(
-        { childId, date: new Date(date) },
+        { childId, date: dateObj }, // Use the consistently parsed UTC date
         newAttendanceData,
         { new: true }
       );
@@ -156,7 +164,7 @@ export class ChildAttendanceService {
         const { childId, date, status, notes } = record;
         
         if (!childId || !date || !status) {
-          errors.push({ record, error: 'Отсутствуют обязательные поля' });
+          errors.push({ record, error: `Отсутствуют обязательные поля: childId=${!!childId}, date=${!!date}, status=${!!status}` });
           continue;
         }
         
@@ -167,22 +175,41 @@ export class ChildAttendanceService {
           continue;
         }
         
-        // Check if record exists
+        // Ensure childId and groupId are ObjectIds
+        let childObjectId: mongoose.Types.ObjectId;
+        let groupObjectId: mongoose.Types.ObjectId;
+        
+        try {
+          childObjectId = typeof childId === 'string' ? new mongoose.Types.ObjectId(childId) : childId;
+        } catch (e) {
+          errors.push({ record, error: `Неверный формат childId: ${childId}` });
+          continue;
+        }
+        
+        try {
+          groupObjectId = typeof groupId === 'string' ? new mongoose.Types.ObjectId(groupId) : groupId;
+        } catch (e) {
+          errors.push({ record, error: `Неверный формат groupId: ${groupId}` });
+          continue;
+        }
+        
+        // Check if record exists - parse date string as UTC midnight to avoid timezone issues
+        const dateObj = new Date(`${date}T00:00:00.000Z`);
         const existingRecord = await ChildAttendance().findOne({
-          childId,
-          groupId,
-          date: new Date(date)
+          childId: childObjectId,
+          groupId: groupObjectId,
+          date: dateObj
         });
         
         const attendanceData = {
-          childId,
-          groupId,
-          date: new Date(date),
+          childId: childObjectId,
+          groupId: groupObjectId,
+          date: dateObj, // Use the consistently parsed UTC date
           status,
           actualStart: record.actualStart ? new Date(record.actualStart) : undefined,
           actualEnd: record.actualEnd ? new Date(record.actualEnd) : undefined,
           notes,
-          markedBy: userId
+          markedBy: typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId
         };
         
         let attendance;
@@ -195,6 +222,11 @@ export class ChildAttendanceService {
         } else {
           attendance = new (ChildAttendance())(attendanceData);
           await attendance.save();
+        }
+        
+        if (!attendance) {
+          errors.push({ record, error: 'Не удалось создать или обновить запись посещаемости' });
+          continue;
         }
         
         results.push(attendance);
