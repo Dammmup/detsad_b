@@ -12,6 +12,12 @@ export interface IUser extends Document {
   lastLogin?: Date;
   createdAt: Date;
  updatedAt: Date;
+  baseSalary?: number;
+  salary?: number;
+  salaryType?: 'month' | 'day' | 'shift';
+  shiftRate?: number;
+  penaltyType?: string;
+  penaltyAmount?: number;
  // Дополнительные поля из старой модели
  uniqNumber?: string;
   notes?: string;
@@ -58,6 +64,31 @@ const UserSchema: Schema = new Schema({
     enum: ['admin', 'teacher', 'assistant', 'nurse', 'cook', 'cleaner', 'security', 'psychologist', 'music_teacher', 'physical_teacher', 'staff', 'parent', 'child', 'rent'],
     default: 'staff',
     index: true
+  },
+  baseSalary: {
+    type: Number,
+    default: 0
+  },
+  salary: {
+    type: Number,
+    default: 0
+  },
+  salaryType: {
+    type: String,
+    enum: ['month', 'day', 'shift'],
+    default: 'month'
+  },
+  shiftRate: {
+    type: Number,
+    default: 0
+  },
+  penaltyType: {
+    type: String,
+    default: 'per_5_minutes'
+  },
+  penaltyAmount: {
+    type: Number,
+    default: 500
   },
   active: {
     type: Boolean,

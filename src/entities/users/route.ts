@@ -12,7 +12,8 @@ import {
   getUserFines,
   removeUserFine,
   getUserTotalFines,
-  generateTelegramCode
+  generateTelegramCode,
+  changePassword
 } from './controller';
 import { authorizeRole } from '../../middlewares/authRole';
 import { authMiddleware } from '../../middlewares/authMiddleware';
@@ -57,5 +58,8 @@ router.delete('/:id', authMiddleware, authorizeRole(['admin']), deleteUser);
 
 // Генерация кода для привязки Telegram
 router.post('/:id/generate-telegram-code', authMiddleware, generateTelegramCode);
+
+// Смена пароля пользователя
+router.post('/:id/change-password', authMiddleware, changePassword);
 
 export default router;

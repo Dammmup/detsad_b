@@ -3,13 +3,16 @@ import { IPayroll } from './model';
 import User from '../users/model';
 import { IUser } from '../users/model';
 import { sendTelegramNotification } from '../../utils/telegramNotify';
+import StaffAttendanceTracking from '../staffAttendanceTracking/model';
+import { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } from '../../services/payrollAutomationService';
 
 export class PayrollService {
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
     
     if (filters.staffId) filter.staffId = filters.staffId;
-    if (filters.period) filter.period = filters.period;
+    const targetPeriod = filters.period || new Date().toISOString().slice(0, 7);
+    if (targetPeriod) filter.period = targetPeriod;
     if (filters.status) filter.status = filters.status;
     
     const payrolls = await Payroll().find(filter)
@@ -25,14 +28,15 @@ export class PayrollService {
     // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll()
     // Вместо этого мы получаем всех пользователей и затем фильтруем по наличию записей в Payroll()
     if (filters.status) filter.status = filters.status;
+    const period = filters.period || new Date().toISOString().slice(0, 7);
     
     // Получаем всех пользователей, подходящих под фильтр
-    const users = await User().find(filter).select('_id fullName role iin uniqNumber payroll').sort({ fullName: 1 });
+    const users = await User().find(filter).select('_id fullName role iin uniqNumber payroll salary baseSalary salaryType shiftRate penaltyType penaltyAmount').sort({ fullName: 1 });
     
     // Получаем все записи зарплат для указанного периода, если он задан
     let payrollRecords: any[] = [];
-    if (filters.period) {
-      payrollRecords = await Payroll().find({ period: filters.period })
+    if (period) {
+      payrollRecords = await Payroll().find({ period })
         .populate('staffId', 'fullName role')
         .sort({ createdAt: -1 });
     }
@@ -46,7 +50,7 @@ export class PayrollService {
     });
     
     // Объединяем данные пользователей с данными зарплат
-    const result = users.map(user => {
+    const result = await Promise.all(users.map(async (user) => {
       const payroll = user._id ? payrollMap.get((user._id as any).toString()) : null;
       
       if (payroll) {
@@ -54,29 +58,39 @@ export class PayrollService {
         return payroll;
       } else {
         // Если нет записи в коллекции зарплат, создаем виртуальную запись на основе данных пользователя
-        // Рассчитываем итоговую сумму в зависимости от данных в зарплате
-        // Если у пользователя есть связь с зарплатой, можно получить дополнительные данные
-        let calculatedBaseSalary = 0;
-        let calculatedTotal = calculatedBaseSalary;
-        
-        // Определяем количество рабочих дней в месяце (по умолчанию 22)
-        const workingDaysInPeriod = 22; // Стандартное количество рабочих дней в месяце
-        let workedDays = 0; // Количество отработанных дней (в реальном приложении нужно получать из системы посещаемости)
-        let workedShifts = 0; // Количество отработанных смен (в реальном приложении нужно получать из системы посещаемости)
-        
-        // Если указан период, можем рассчитать зарплату более точно
-        if (filters.period) {
-          // В реальном приложении здесь должен быть вызов сервиса посещаемости для получения отработанных дней/смен
-          // Пока используем заглушку, в реальном приложении нужно будет получить данные из соответствующих коллекций
-          
-          // В новой архитектуре информация о типе оплаты и ставках должна быть в записи зарплаты
-          // или в отдельной коллекции настроек зарплаты для пользователя
-          workedDays = 2; // Временно устанавливаем 2 отработанных дня
+        const baseSalary = Number((user as any).baseSalary ?? (user as any).salary ?? 0);
+        let workedDays = 0;
+        let workedShifts = 0;
+        let accruals = 0;
+        let penalties = 0;
+        let latePenalties = 0;
+        let absencePenalties = 0;
+
+        if (period) {
+          const startDate = new Date(`${period}-01`);
+          const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+          const attendanceRecords = await StaffAttendanceTracking().find({
+            staffId: user._id,
+            date: { $gte: startDate, $lte: endDate }
+          });
+
+          const countedRecords = attendanceRecords.filter(rec => shouldCountAttendance(rec));
+          workedShifts = countedRecords.length;
+          workedDays = countedRecords.length; // одна смена — один рабочий день
+
+          const workingDaysInPeriod = await getWorkingDaysInMonth(startDate);
+          accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
+
+          const attendancePenalties = await calculatePenalties(user._id.toString(), period, user as any);
+          penalties = attendancePenalties.totalPenalty;
+          latePenalties = attendancePenalties.latePenalties;
+          absencePenalties = attendancePenalties.absencePenalties;
+        } else {
+          accruals = baseSalary;
         }
-        
-        // Рассчитываем итоговую зарплату: начисления - вычеты
-        calculatedTotal = calculatedBaseSalary + (0) /* bonuses */ - (0) /* deductions */;
-        
+
+        const calculatedTotal = accruals - penalties;
+
         return {
           _id: null, // Отсутствие ID указывает на то, что записи в базе нет
           staffId: {
@@ -85,14 +99,17 @@ export class PayrollService {
             role: user.role
           },
           period: filters.period || null,
-          baseSalary: calculatedBaseSalary,
+          baseSalary: baseSalary,
           bonuses: 0,
-          deductions: 0,
+          deductions: penalties,
           total: calculatedTotal,
           status: 'draft',
-          accruals: calculatedBaseSalary,
-          baseSalaryType: '',
-          shiftRate: 0,
+          accruals: accruals,
+          baseSalaryType: (user as any).salaryType || 'month',
+          shiftRate: (user as any).shiftRate || 0,
+          penalties,
+          latePenalties,
+          absencePenalties,
           createdAt: new Date(),
           updatedAt: new Date(),
           // Поля, которые не существуют в виртуальной записи
@@ -103,7 +120,7 @@ export class PayrollService {
           workedShifts: workedShifts
         };
       }
-    });
+    }));
     return result.filter(item => item !== null); // Фильтруем null значения, если они появились
   }
 
@@ -323,5 +340,92 @@ export class PayrollService {
    }
 
    return payroll.userFines || 0;
+ }
+
+ /**
+  * Проверяет наличие расчетных листов для указанного периода и генерирует их, если они отсутствуют
+  */
+ async ensurePayrollRecordsForPeriod(period: string) {
+   try {
+     console.log(`Проверка наличия расчетных листов для периода: ${period}`);
+     
+     // Получаем всех активных сотрудников (кроме админов)
+     const allStaff = await User().find({
+       role: { $ne: 'admin' },
+       isActive: true
+     });
+     
+     // Получаем уже существующие записи для этого периода
+     const existingPayrolls = await Payroll().find({ period });
+     const existingStaffIds = existingPayrolls.map(p => p.staffId?.toString());
+     
+     // Находим сотрудников, для которых нет записей в этом периоде
+     const staffWithoutPayroll = allStaff.filter(staff =>
+       !existingStaffIds.includes(staff._id.toString())
+     );
+     
+     console.log(`Найдено ${staffWithoutPayroll.length} сотрудников без расчетных листов для периода ${period}`);
+     
+     if (staffWithoutPayroll.length === 0) {
+       console.log(`Все сотрудники имеют расчетные листы для периода ${period}`);
+       return {
+         message: `Все сотрудники имеют расчетные листы для периода ${period}`,
+         created: 0,
+         totalStaff: allStaff.length
+       };
+     }
+     
+     // Создаем новые записи для сотрудников, у которых их нет
+     const createdRecords = [];
+     for (const staff of staffWithoutPayroll) {
+       // Рассчитываем базовые параметры для нового расчетного листа
+       const baseSalary = Number((staff as any).baseSalary ?? (staff as any).salary ?? 0);
+       const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
+       const shiftRate = Number((staff as any).shiftRate || 0);
+       
+       // Создаем пустую запись с базовыми параметрами
+       const newPayroll = new (Payroll())({
+         staffId: staff._id,
+         period: period,
+         baseSalary: baseSalary,
+         baseSalaryType: baseSalaryType,
+         shiftRate: shiftRate,
+         bonuses: 0,
+         deductions: 0,
+         accruals: 0, // Будет рассчитано при автоматическом пересчете
+         penalties: 0,
+         latePenalties: 0,
+         absencePenalties: 0,
+         userFines: 0,
+         total: 0, // Будет рассчитано при автоматическом пересчете
+         status: 'draft',
+         createdAt: new Date(),
+         updatedAt: new Date()
+       });
+       
+       await newPayroll.save();
+       createdRecords.push(newPayroll);
+       
+       console.log(`Создан расчетный лист для сотрудника: ${staff.fullName}, ID: ${staff._id}`);
+     }
+     
+     console.log(`Создано ${createdRecords.length} новых расчетных листов для периода ${period}`);
+     
+     return {
+       message: `Создано ${createdRecords.length} новых расчетных листов для периода ${period}`,
+       created: createdRecords.length,
+       totalStaff: allStaff.length,
+       staffWithoutPayroll: staffWithoutPayroll.map(s => ({ id: s._id, name: s.fullName }))
+     };
+   } catch (error) {
+     console.error('Ошибка при проверке и создании расчетных листов:', error);
+     let errorMessage = 'Неизвестная ошибка';
+     if (error instanceof Error) {
+       errorMessage = error.message;
+     } else if (typeof error === 'string') {
+       errorMessage = error;
+     }
+     throw new Error(`Ошибка при проверке и создании расчетных листов: ${errorMessage}`);
+   }
  }
 }

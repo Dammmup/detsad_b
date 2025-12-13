@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PayrollService } from './service';
 import { AuthUser } from '../../middlewares/authMiddleware';
+import { autoCalculatePayroll } from '../../services/payrollAutomationService';
 
 // Расширяем интерфейс Request для добавления свойства user
 interface AuthenticatedRequest extends Request {
@@ -15,11 +16,17 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { userId, period, status } = req.query;
+    const { userId, period, status, month } = req.query;
+    const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
+    
+    // Проверяем и создаем расчетные листы для текущего месяца, если они отсутствуют
+    if (targetPeriod === new Date().toISOString().slice(0, 7)) {
+      await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
+    }
     
     const payrolls = await payrollService.getAll({
       staffId: userId as string,
-      period: period as string,
+      period: targetPeriod,
       status: status as string
     });
     
@@ -36,11 +43,17 @@ export const getAllPayrollsByUsers = async (req: AuthenticatedRequest, res: Resp
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const { userId, period, status } = req.query;
+    const { userId, period, status, month } = req.query;
+    const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
+    
+    // Проверяем и создаем расчетные листы для текущего месяца, если они отсутствуют
+    if (targetPeriod === new Date().toISOString().slice(0, 7)) {
+      await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
+    }
     
     const payrolls = await payrollService.getAllWithUsers({
       staffId: userId as string,
-      period: period as string,
+      period: targetPeriod,
       status: status as string
     });
     
@@ -161,131 +174,29 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
     }
     
-    const { period } = req.body;
+    const { period, month } = req.body;
+    const targetPeriod = period || month;
     
-    if (!period) {
+    if (!targetPeriod) {
       return res.status(400).json({ error: 'Период обязателен. Используйте формат YYYY-MM (например, 2025-01)' });
     }
     
     // Проверяем формат периода
     const periodRegex = /^\d{4}-\d{2}$/;
-    if (!periodRegex.test(period)) {
+    if (!periodRegex.test(targetPeriod)) {
       return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)' });
     }
     
-    // Импортируем необходимые модели
-    const PayrollModel = (await import('../payroll/model')).default;
-    const UserModel = (await import('../users/model')).default;
-    const StaffShiftModel = (await import('../staffShifts/model')).default;
+    // Проверяем и создаем расчетные листы для указанного периода, если они отсутствуют
+    await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
     
-    // Получаем всех сотрудников
-    const staff = await UserModel().find({ role: { $ne: 'admin' } });
-    
-    // Получаем все смены за указанный период
-    const [year, month] = period.split('-').map(Number);
-    const startDate = new Date(year, month - 1, 1); // Первый день месяца
-    const endDate = new Date(year, month, 0); // Последний день месяца
-    
-    const shifts = await StaffShiftModel().find({
-      date: { $gte: startDate, $lte: endDate }
-    }).populate('staffId', '_id');
-    
-    // Группируем смены по сотрудникам
-    const shiftsByStaff: { [key: string]: any[] } = {};
-    shifts.forEach(shift => {
-      const staffId = (shift.staffId as any)._id.toString();
-      if (!shiftsByStaff[staffId]) {
-        shiftsByStaff[staffId] = [];
-      }
-      shiftsByStaff[staffId].push(shift);
+    const results = await autoCalculatePayroll(targetPeriod, {
+      autoCalculationDay: 0,
+      emailRecipients: '',
+      autoClearData: false
     });
     
-    // Определяем интерфейс для информации о зарплате сотрудника
-    interface EmployeePayrollInfo {
-      baseSalary?: number;
-      type?: string;
-      shiftRate?: number;
-      bonuses?: number;
-    }
-
-    // Расширяем интерфейс пользователя, чтобы включить информацию о зарплате
-    interface IUserWithPayroll {
-      _id: string;
-      payroll?: EmployeePayrollInfo;
-      fullName?: string;
-      role: string;
-    }
-    
-    // Генерируем расчетные листы для каждого сотрудника
-    for (const rawEmployee of staff) {
-      // Приводим тип сотрудника к IUserWithPayroll
-      const employeeWithPayroll = rawEmployee as unknown as IUserWithPayroll;
-      
-      const employeeShifts = shiftsByStaff[employeeWithPayroll._id.toString()] || [];
-      
-      // Вычисляем базовые значения
-      const workedDays = employeeShifts.filter(shift => shift.startTime).length;
-      const workedShifts = employeeShifts.length;
-      
-      // Вычисляем итоговую зарплату
-      // В реальном приложении логика начисления зарплаты может быть более сложной
-      let baseSalary = employeeWithPayroll.payroll?.baseSalary || 0;
-      
-      // Если зарплата посменно, вычисляем на основе отработанных смен
-      if (employeeWithPayroll.payroll?.type === 'per_shift' && employeeWithPayroll.payroll?.shiftRate) {
-        baseSalary = workedShifts * employeeWithPayroll.payroll.shiftRate;
-      }
-      // Если зарплата посменно с фиксированной частью
-      else if (employeeWithPayroll.payroll?.type === 'per_shift_with_fixed' && employeeWithPayroll.payroll?.shiftRate) {
-        const fixedPart = employeeWithPayroll.payroll.baseSalary || 0;
-        const shiftPart = workedShifts * employeeWithPayroll.payroll.shiftRate;
-        baseSalary = fixedPart + shiftPart;
-      }
-      
-      // Бонусы (в реальном приложении могут зависеть от KPI, премий и т.д.)
-      const bonuses = employeeWithPayroll.payroll?.bonuses || 0;
-      const deductions = 0; // В упрощенной версии без штрафов
-      
-      // Итоговая сумма
-      const total = baseSalary + bonuses - deductions;
-      
-      // Проверяем, существует ли уже запись для этого сотрудника и периода
-      let payroll = await PayrollModel().findOne({
-        staffId: employeeWithPayroll._id,
-        period: period
-      });
-      
-      if (payroll) {
-        // Обновляем существующую запись
-        payroll.accruals = baseSalary;
-        payroll.bonuses = bonuses;
-        payroll.deductions = deductions;
-        payroll.total = total;
-        payroll.updatedAt = new Date();
-        
-        await payroll.save();
-        console.log(`Обновлена зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
-      } else {
-        // Создаем новую запись
-        payroll = new (PayrollModel())({
-          staffId: employeeWithPayroll._id,
-          period: period,
-          baseSalary: baseSalary,
-          accruals: baseSalary,
-          bonuses: bonuses,
-          deductions: deductions,
-          total: total,
-          status: 'draft',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-        
-        await payroll.save();
-        console.log(`Создана зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
-      }
-    }
-    
-    res.status(200).json({ message: `Расчетные листы успешно сгенерированы для периода: ${period}` });
+    res.status(200).json({ message: `Расчетные листы успешно сгенерированы для периода: ${targetPeriod}`, data: results });
  } catch (err: any) {
     console.error('Error generating payroll sheets:', err);
     res.status(500).json({ error: err.message || 'Ошибка генерации расчетных листов' });
@@ -314,6 +225,9 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
     if (!periodRegex.test(period)) {
       return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)' });
     }
+    
+    // Проверяем и создаем расчетные листы для указанного периода, если они отсутствуют
+    await payrollService.ensurePayrollRecordsForPeriod(period);
     
     // Импортируем необходимые модели
     const Payroll = (await import('../payroll/model')).default;

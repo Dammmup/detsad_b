@@ -16,7 +16,7 @@ interface PayrollAutomationSettings {
 /**
  * Рассчитывает штрафы для сотрудника на основе посещаемости
  */
-const calculatePenalties = async (staffId: string, month: string, employee: IUser) => {
+export const calculatePenalties = async (staffId: string, month: string, employee: IUser) => {
   // Формат month: YYYY-MM
   const startDate = new Date(`${month}-01`);
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
@@ -97,7 +97,7 @@ const calculatePenalties = async (staffId: string, month: string, employee: IUse
  */
 const calculateDailyRate = (employee: IUser): number => {
   const salaryType = ((employee as any).salaryType as string) || 'month';
-  const salary = Number((employee as any).salary || 0);
+  const salary = Number((employee as any).baseSalary ?? (employee as any).salary ?? 0);
   const shiftRate = Number((employee as any).shiftRate || 0);
   switch (salaryType) {
     case 'day':
@@ -112,7 +112,7 @@ const calculateDailyRate = (employee: IUser): number => {
 };
 
 // Рабочие дни в месяце (с учетом выходных и праздников)
-const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
+export const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const lastDay = new Date(year, month + 1, 0).getDate();
@@ -136,7 +136,7 @@ const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
 };
 
 // Запись посещаемости засчитывается, если завершена и checkout не позже расписания
-const shouldCountAttendance = (record: any): boolean => {
+export const shouldCountAttendance = (record: any): boolean => {
   if (record.status !== 'completed') return false;
  if (!record.actualEnd) return false;
   // Для учета посещаемости проверяем, что время завершения не раньше начала
@@ -187,7 +187,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       console.log(`📊 Штрафы из посещаемости для ${employee.fullName}:`, attendancePenalties);
       
       // Берем настройки зарплаты из пользователя
-      const baseSalary = Number((employee as any).salary || 0);
+      const baseSalary = Number((employee as any).baseSalary ?? (employee as any).salary ?? 0);
       let baseSalaryType: string = ((employee as any).salaryType as string) || 'month';
       const shiftRate = Number((employee as any).shiftRate || 0);
       

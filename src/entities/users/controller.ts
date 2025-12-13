@@ -22,22 +22,22 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const includePasswords = req.query.includePasswords === 'true';
     console.log('🔍 User requesting users list:', req.user?.fullName, 'Role:', req.user?.role);
     console.log('🔍 Include passwords requested:', includePasswords);
-    
+
     // Проверяем права доступа
     // Только администраторы могут запрашивать пароли
     if (includePasswords && req.user?.role !== 'admin') {
       console.log('❌ Access denied - user role:', req.user?.role, 'required: admin');
       return res.status(403).json({ error: 'Forbidden' });
     }
-    
+
     // Для обычных пользователей возвращаем только базовую информацию
     const users = await userService.getAll(includePasswords);
     console.log('🔍 Найдено пользователей:', users.length);
-    
+
     // Если пользователь не администратор, возвращаем только базовую информацию
     if (req.user.role !== 'admin') {
       const filteredUsers = users.map(user => {
@@ -70,7 +70,7 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
           staffName: filteredUser.staffName
         };
       });
-      
+
       res.json(filteredUsers);
     } else {
       // Для администраторов - возвращаем полную информацию
@@ -93,10 +93,10 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const user = await userService.getById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-    
+
     // Проверяем права доступа
     // Пользователь может получить информацию только о себе или если он администратор
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
@@ -202,16 +202,16 @@ export const createUser = async (req: Request, res: Response) => {
     }
 
     console.log('userData перед сохранением:', userData);
-    
+
     const user = await userService.create(userData);
-    
+
     // Исключаем passwordHash из ответа
     const userObj = user.toObject();
     if (userObj.passwordHash) delete userObj.passwordHash;
-    
+
     // Логируем успешное создание
     console.log(`✅ Сотрудник создан: ${userData.fullName}`);
-    
+
     // После создания сотрудника — создать payroll на текущий месяц (если не admin и не child)
     if (user.role !== 'admin' && user.role !== 'child') {
       try {
@@ -239,7 +239,7 @@ export const createUser = async (req: Request, res: Response) => {
     res.status(201).json(userObj);
   } catch (error) {
     console.error('Ошибка при создании пользователя:', error);
-    
+
     if (error && typeof error === 'object' && (error as any).code === 11000) {
       // Логируем детали конфликта
       console.error('Конфликт уникального индекса:', {
@@ -248,7 +248,7 @@ export const createUser = async (req: Request, res: Response) => {
         keyValue: (error as any).keyValue,
         message: (error as any).message
       });
-      
+
       // Определяем, какое поле вызывает конфликт
       let conflictField = 'неизвестное поле';
       if ((error as any).keyPattern && (error as any).keyPattern.phone) {
@@ -258,7 +258,7 @@ export const createUser = async (req: Request, res: Response) => {
       } else if ((error as any).keyPattern && (error as any).keyPattern.username) {
         conflictField = 'имя пользователя';
       }
-      
+
       return res.status(409).json({
         error: `Пользователь с таким ${conflictField} уже существует`,
         conflictField: (error as any).keyPattern,
@@ -266,7 +266,7 @@ export const createUser = async (req: Request, res: Response) => {
       });
     }
     res.status(500).json({ error: (error as Error).message || 'Ошибка сервера' });
- }
+  }
 };
 
 export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
@@ -274,16 +274,16 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const user = await userService.getById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-    
+
     // Проверяем права доступа
     // Пользователь может обновлять только свои данные или если он администратор
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update this user' });
     }
- 
+
     // Обновление заметок и других полей
     if (req.body !== undefined && user) {
       if (req.body.notes !== undefined) user.notes = req.body.notes;
@@ -317,7 +317,7 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       // Обновление фото
       if (req.body.photo !== undefined) user.photo = req.body.photo;
     }
- 
+
     const updatedUser = await userService.update(req.params.id, user.toObject());
     if (!updatedUser) {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
@@ -344,25 +344,25 @@ export const generateTelegramCode = async (req: AuthenticatedRequest, res: Respo
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const user = await userService.getById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-    
+
     // Проверяем права доступа
     // Пользователь может обновлять только свои данные или если он администратор
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update this user' });
     }
-    
+
     // Генерируем уникальный код для привязки Telegram
     const telegramLinkCode = generateTelegramLinkCode();
-    
+
     // Обновляем пользователя с новым кодом
     const updatedUser = await userService.update(req.params.id, { telegramLinkCode });
     if (!updatedUser) {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
     }
-    
+
     // исключаем passwordHash, но оставляем initialPassword для владельца аккаунта
     const userObj = updatedUser.toObject();
     if (userObj.passwordHash) delete userObj.passwordHash;
@@ -385,17 +385,78 @@ export const generateTelegramCode = async (req: AuthenticatedRequest, res: Respo
   }
 };
 
+// Change password for a user
+export const changePassword = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userId = req.params.id;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    // Проверяем права доступа - только сам пользователь или админ может менять пароль
+    if (req.user.role !== 'admin' && req.user.id !== userId) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to change password' });
+    }
+
+    // Проверяем, что новый пароль указан
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length === 0) {
+      return res.status(400).json({ error: 'Новый пароль не может быть пустым' });
+    }
+
+    // Проверяем совпадение паролей, если указано подтверждение
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'Пароли не совпадают' });
+    }
+
+    // Получаем пользователя
+    const user = await userService.getById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    // Хешируем новый пароль
+    const newPasswordHash = await hashPassword(newPassword.trim());
+
+    // Обновляем пользователя
+    user.initialPassword = newPassword.trim();
+    (user as any).passwordHash = newPasswordHash;
+
+    const updatedUser = await userService.update(userId, user.toObject());
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Пользователь не найден после обновления' });
+    }
+
+    // Исключаем passwordHash из ответа
+    const userObj = updatedUser.toObject();
+    if (userObj.passwordHash) delete userObj.passwordHash;
+
+    console.log(`✅ Пароль изменён для пользователя ${updatedUser.fullName}`);
+
+    res.json({
+      success: true,
+      message: 'Пароль успешно изменён',
+      user: userObj
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Ошибка при изменении пароля', details: error });
+  }
+};
+
+
 export const deleteUser = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     // Только администратор может удалять пользователей
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete users' });
     }
-    
+
     const result = await userService.delete(req.params.id);
     if (!result) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json({ success: true });
@@ -410,12 +471,12 @@ export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Resp
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     // Только администратор может обновлять настройки зарплаты
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update payroll settings' });
     }
-    
+
     const user = await userService.getById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -464,9 +525,9 @@ export const getUserRoles = (req: Request, res: Response) => {
       { id: 'rent', name: 'Аренда' }
     ];
     res.json(roles);
- } catch (err) {
+  } catch (err) {
     res.status(50).json({ error: 'Ошибка при получении списка ролей' });
- }
+  }
 };
 
 // Update user salary
@@ -475,12 +536,12 @@ export const updateUserSalary = async (req: AuthenticatedRequest, res: Response)
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     // Только администратор может обновлять зарплату
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update user salary' });
     }
-    
+
     const user = await userService.getById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -501,12 +562,12 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     // Только администратор может добавлять штрафы
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add fines' });
     }
-    
+
     const { amount, reason, type = 'other', notes, period } = req.body;
     const userId = req.params.id;
     const createdBy = req.user.id; // Now we know user is defined
@@ -587,18 +648,18 @@ export const getUserFines = async (req: AuthenticatedRequest, res: Response) => 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const userId = req.params.id;
-    
+
     // Проверяем права доступа
     // Пользователь может получить штрафы только для себя или если он администратор
     if (req.user.role !== 'admin' && req.user.id !== userId) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s fines' });
     }
- 
+
     // Получаем все записи зарплаты для пользователя
     const payrolls = await Payroll().find({ staffId: userId }).sort({ period: -1 });
-    
+
     // Собираем все штрафы из записей зарплаты
     const allFines = [];
     for (const payroll of payrolls) {
@@ -612,10 +673,10 @@ export const getUserFines = async (req: AuthenticatedRequest, res: Response) => 
         }
       }
     }
-    
+
     // Сортируем по дате (новые первыми)
     allFines.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
+
     res.json({ fines: allFines, totalFines: allFines.length });
   } catch (error) {
     console.error('Error getting fines:', error);
@@ -629,38 +690,38 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     // Только администратор может удалять штрафы
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to remove fines' });
     }
-    
+
     const { payrollId, fineIndex } = req.params;
-    
+
     // Получаем запись зарплаты
     const payroll = await Payroll().findById(payrollId);
     if (!payroll) {
       return res.status(404).json({ error: 'Payroll record not found' });
     }
-    
+
     // Проверяем, что индекс штрафа корректный
     const fineIndexNum = Number(fineIndex);
     if (!payroll.fines || fineIndexNum < 0 || fineIndexNum >= payroll.fines.length) {
       return res.status(404).json({ error: 'Fine not found' });
     }
-    
+
     // Удаляем штраф
     const removedFine = payroll.fines.splice(fineIndexNum, 1)[0];
     const fineAmount = removedFine.amount;
-    
+
     // Обновляем общую сумму штрафов
     const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
     payroll.userFines = totalFines;
     payroll.penalties = Math.max(0, (payroll.penalties || 0) - fineAmount);
     payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
-    
+
     await payroll.save();
-    
+
     const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
     // Уведомление в Telegram
     if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
@@ -670,7 +731,7 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
         `Итого штрафов за период: ${populatedPayroll.userFines} тг`;
       await sendLogToTelegram(msg);
     }
-    
+
     res.json({ message: 'Fine removed successfully', updatedPayroll: populatedPayroll });
   } catch (error) {
     console.error('Error removing fine:', error);
@@ -684,18 +745,18 @@ export const getUserTotalFines = async (req: AuthenticatedRequest, res: Response
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const userId = req.params.id;
-    
+
     // Проверяем права доступа
     // Пользователь может получить информацию о штрафах только для себя или если он администратор
     if (req.user.role !== 'admin' && req.user.id !== userId) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to access this user\'s fines' });
     }
-    
+
     // Получаем все записи зарплаты для пользователя
     const payrolls = await Payroll().find({ staffId: userId });
-    
+
     // Суммируем все штрафы
     let totalFines = 0;
     for (const payroll of payrolls) {
@@ -703,7 +764,7 @@ export const getUserTotalFines = async (req: AuthenticatedRequest, res: Response
         totalFines += payroll.userFines;
       }
     }
-    
+
     res.json({ totalFines });
   } catch (error) {
     console.error('Error calculating total fines:', error);

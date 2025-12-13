@@ -1,6 +1,6 @@
 import express from 'express';
-import { 
- clockIn,
+import {
+  clockIn,
   clockOut,
   getEntries,
   getSummary,
@@ -21,16 +21,16 @@ import {
   rejectStaffAttendance,
   getPendingApprovals,
   getApprovedRecords,
- getRejectedRecords,
- getLateArrivals,
+  getRejectedRecords,
+  getLateArrivals,
   getEarlyLeaves,
   getOvertimeRecords,
- getAbsenteeismRecords,
+  getAbsenteeismRecords,
   getWorkDurationStats,
   getBreakDurationStats,
   getAttendanceRate,
   getLateArrivalRate,
- getEarlyLeaveRate,
+  getEarlyLeaveRate,
   getOvertimeRate,
   getAbsenteeismRate
 } from './controller';
@@ -64,7 +64,7 @@ router.post('/clock-in', [
 
 // POST /attendance/clock-out - Clock out
 router.post('/clock-out', [
- authMiddleware,
+  authMiddleware,
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
   body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
   body('photo').optional().isString(),
@@ -87,12 +87,12 @@ router.get('/entries', [
 router.get('/summary', [
   authMiddleware,
   query('startDate').isISO8601().withMessage('Invalid start date format'),
- query('endDate').isISO8601().withMessage('Invalid end date format')
+  query('endDate').isISO8601().withMessage('Invalid end date format')
 ], handleValidationErrors, getSummary);
 
 // Staff attendance tracking routes (original)
 // Get all staff attendance records (with filters)
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getAllStaffAttendanceRecords);
+router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse', 'teacher', 'substitute']), getAllStaffAttendanceRecords);
 
 // Get staff attendance record by ID
 router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getStaffAttendanceRecordById);

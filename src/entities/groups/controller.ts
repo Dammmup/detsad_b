@@ -6,17 +6,23 @@ const groupService = new GroupService();
 export const getAllGroups = async (req: Request, res: Response) => {
   try {
     // Admin sees all groups, teachers see only their groups
-    const filter = req.user?.role === 'admin' ? undefined : req.user?.id;
+    // Check if teacherId query parameter is provided, otherwise use logged-in user's ID
+    const teacherId = req.query.teacherId as string;
+    const filter = req.user?.role === 'admin' || req.user?.role === 'director' || req.user?.role === 'owner'
+      ? undefined
+      : (teacherId || req.user?.id);
     const groups = await groupService.getAll(filter, req.user?.role);
     
     // Временно убираем populate teacher, чтобы избежать ошибок с моделью
     console.log('📋 Загружен список групп:', groups.length, 'групп(ы)');
+    console.log('📋 Фильтр: ', filter);
+    console.log('📋 teacherId из query: ', teacherId);
     
     res.json(groups);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     console.error('Error in GET /groups:', errorMessage);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Ошибка при получении списка групп',
       details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
     });

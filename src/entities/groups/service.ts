@@ -13,7 +13,8 @@ export class GroupService {
   }
   async getAll(userId?: string, role?: string): Promise<any[]> {
     // Admin sees all groups, teachers see only their groups
-    const filter = role === 'admin' ? {} : { teacherId: userId };
+    // If userId is provided and not admin, filter by teacherId; otherwise return all groups
+    const filter = role === 'admin' ? {} : (userId ? { teacherId: userId } : {});
     const groups = await this.groupModel.find(filter);
     
     // Для каждой группы получаем детей, которые в ней состоят
