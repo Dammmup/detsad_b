@@ -7,16 +7,16 @@ export interface IPayroll extends Document {
   period: string; // например, '2025-01'
   baseSalary: number;
   bonuses: number;
- deductions: number;
- total: number;
+  deductions: number;
+  total: number;
   status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent'; // Добавляем статусы для аренды
   paymentDate?: Date;
   advance?: number; // Аванс
   advanceDate?: Date; // Дата аванса
   createdAt: Date;
- updatedAt: Date;
- accruals: number;
- baseSalaryType: string;
+  updatedAt: Date;
+  accruals: number;
+  baseSalaryType: string;
   // Дополнительные поля
   shiftRate?: number;
   penaltyDetails?: {
@@ -36,8 +36,8 @@ export interface IPayroll extends Document {
     createdAt: Date;
   }>;
   // Поля для штрафов, добавленные для совместимости с payrollAutomationService
- penalties?: number;
- latePenalties?: number;
+  penalties?: number;
+  latePenalties?: number;
   absencePenalties?: number;
   userFines?: number;
   history?: Array<{
@@ -45,6 +45,8 @@ export interface IPayroll extends Document {
     action: string;
     comment?: string;
   }>;
+  workedDays?: number;
+  workedShifts?: number;
 }
 
 const PayrollSchema = new Schema<IPayroll>({
@@ -90,6 +92,8 @@ const PayrollSchema = new Schema<IPayroll>({
   baseSalaryType: {
     type: String,
   },
+  workedDays: { type: Number, default: 0 },
+  workedShifts: { type: Number, default: 0 },
   // Дополнительные поля
   advance: Number, // Аванс
   advanceDate: Date, // Дата аванса
@@ -137,7 +141,7 @@ const PayrollSchema = new Schema<IPayroll>({
     date: Date,
     action: String,
     comment: String
- }],
+  }],
   paymentDate: Date,
 }, {
   timestamps: true
