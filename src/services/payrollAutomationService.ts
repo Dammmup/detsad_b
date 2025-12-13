@@ -198,7 +198,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     // Пользователь сказал "для всех сотрудников". Лучше не исключать никого, кроме, может быть, совсем системных.
     const staff = await User().find({
       role: { $ne: 'admin' }, // Возможно стоит включить админов если они тоже сотрудники? Оставим пока фильтр.
-      isActive: true
+      active: true
     });
 
     console.log(`Найдено ${staff.length} сотрудников для расчета`);
