@@ -13,12 +13,16 @@ import {
   addFine,
   getFines,
   removeFine,
-  getTotalFines
+  getTotalFines,
+  getMyPayrolls
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
 
 const router = express.Router();
+
+// Получить свою зарплату (для сотрудников)
+router.get('/my', authMiddleware, getMyPayrolls);
 
 // Получить все зарплаты (с фильтрами)
 router.get('/', authMiddleware, authorizeRole(['admin', 'manager']), getAllPayrolls);

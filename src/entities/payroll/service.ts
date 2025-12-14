@@ -392,6 +392,105 @@ export class PayrollService {
   }
 
   /**
+   * Проверяет и генерирует расчетный лист для конкретного сотрудника
+   */
+  async ensurePayrollForUser(staffId: string, period: string) {
+    try {
+      console.log(`Checking payroll for user: ${staffId}, period: ${period}`);
+
+      // Check if exists
+      const existing = await Payroll().findOne({ staffId, period });
+      if (existing) {
+        return { message: 'Payroll exists', created: 0 };
+      }
+
+      const staff = await import('../users/model').then(m => m.default().findById(staffId));
+      if (!staff) {
+        throw new Error('User not found');
+      }
+
+      // Calculation Logic (Reused from ensurePayrollRecordsForPeriod)
+      const baseSalaryRaw = Number((staff as any).baseSalary);
+      const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000;
+
+      const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
+      const shiftRate = Number((staff as any).shiftRate || 0);
+
+      const { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } = await import('../../services/payrollAutomationService');
+
+      const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
+
+      const newFines = attendancePenalties.attendanceRecords
+        .filter((r: any) => r.lateMinutes > 0)
+        .map((r: any) => ({
+          amount: r.lateMinutes * 13,
+          reason: `Опоздание: ${r.lateMinutes} мин`,
+          type: 'late',
+          date: new Date(r.actualStart),
+          createdAt: new Date()
+        }));
+
+      const latePenalties = attendancePenalties.latePenalties;
+      const absencePenalties = attendancePenalties.absencePenalties;
+      const totalPenalties = latePenalties + absencePenalties;
+
+      let accruals = 0;
+      let workedDays = 0;
+      let workedShifts = 0;
+
+      const startDate = new Date(`${period}-01`);
+      const workDaysInMonth = await getWorkingDaysInMonth(startDate);
+      const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
+
+      if (baseSalaryType === 'month') {
+        workedShifts = attendedRecords.length;
+        workedDays = workedShifts;
+        if (workDaysInMonth > 0) {
+          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
+        }
+      } else if (baseSalaryType === 'shift') {
+        workedShifts = attendedRecords.length;
+        accruals = workedShifts * shiftRate;
+      } else {
+        accruals = baseSalary;
+      }
+
+      const total = Math.max(0, accruals - totalPenalties);
+
+      const newPayroll = new (Payroll())({
+        staffId: staff._id,
+        period: period,
+        baseSalary: baseSalary,
+        baseSalaryType: baseSalaryType,
+        shiftRate: shiftRate,
+        bonuses: 0,
+        deductions: 0,
+        accruals: accruals,
+        penalties: totalPenalties,
+        fines: newFines,
+        latePenalties: latePenalties,
+        latePenaltyRate: 13,
+        absencePenalties: absencePenalties,
+        userFines: 0,
+        workedDays: workedDays,
+        workedShifts: workedShifts,
+        total: total,
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      await newPayroll.save();
+      console.log(`Created payroll for user: ${staff.fullName}`);
+      return { message: 'Payroll created', created: 1 };
+
+    } catch (err) {
+      console.error('Error ensuring payroll for user:', err);
+      throw err;
+    }
+  }
+
+  /**
    * Проверяет наличие расчетных листов для указанного периода и генерирует их, если они отсутствуют
    */
   async ensurePayrollRecordsForPeriod(period: string) {
