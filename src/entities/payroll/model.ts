@@ -118,7 +118,7 @@ const PayrollSchema = new Schema<IPayroll>({
       type: String,
       required: true,
       default: 'other',
-      enum: ['late', 'early_leave', 'absence', 'violation', 'other']
+      enum: ['late', 'early_leave', 'absence', 'violation', 'other', 'manual']
     },
     notes: {
       type: String,
