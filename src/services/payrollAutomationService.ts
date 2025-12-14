@@ -17,8 +17,8 @@ interface PayrollAutomationSettings {
 /**
  * Рассчитывает штрафы для сотрудника на основе посещаемости
  */
-export const calculatePenalties = async (staffId: string, month: string, employee: IUser) => {
-  // Формат month: YYYY-MM
+export const calculatePenalties = async (staffId: string, month: string, employee: IUser, rateOverride?: number) => {
+  // Format month: YYYY-MM
   const startDate = new Date(`${month}-01`);
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   endDate.setHours(23, 59, 59, 999);
@@ -37,10 +37,15 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   let absencePenalties = 0;
 
   // Получаем настройки штрафов из сотрудника или используем значения по умолчанию
-  // Если у сотрудника указаны penaltyType и penaltyAmount, используем их
-  // Иначе считаем 0 (или можно задать глобальный дефолт)
+  // Если передан rateOverride, используем его, иначе из профиля сотрудника
   const penaltyType: string = (employee as any).penaltyType || 'per_minute';
-  const penaltyAmount: number = Number((employee as any).penaltyAmount ?? 0);
+  let penaltyAmount: number = 0;
+
+  if (rateOverride !== undefined) {
+    penaltyAmount = rateOverride;
+  } else {
+    penaltyAmount = Number((employee as any).penaltyAmount ?? 0);
+  }
 
   // Получаем все смены сотрудника за месяц для более надежного сопоставления
   const shifts = await Shift().find({
@@ -304,6 +309,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         // existingPayroll.userFines = userFinesTotal; 
 
         existingPayroll.latePenalties = attendancePenalties.latePenalties;
+        existingPayroll.latePenaltyRate = Number(attendancePenalties.details.penaltyAmount || 0);
         existingPayroll.absencePenalties = attendancePenalties.absencePenalties;
 
         existingPayroll.total = total - (existingPayroll.advance || 0) + (existingPayroll.bonuses || 0) - (existingPayroll.deductions || 0); // Recalculate full total
@@ -323,6 +329,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           accruals: accruals,
           penalties: totalPenalties,
           latePenalties: attendancePenalties.latePenalties,
+          latePenaltyRate: Number(attendancePenalties.details.penaltyAmount || 0),
           absencePenalties: attendancePenalties.absencePenalties,
           userFines: 0,
           baseSalary: baseSalary,

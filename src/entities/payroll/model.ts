@@ -38,6 +38,7 @@ export interface IPayroll extends Document {
   // Поля для штрафов, добавленные для совместимости с payrollAutomationService
   penalties?: number;
   latePenalties?: number;
+  latePenaltyRate?: number;
   absencePenalties?: number;
   userFines?: number;
   history?: Array<{
@@ -135,6 +136,7 @@ const PayrollSchema = new Schema<IPayroll>({
   }],
   penalties: Number,
   latePenalties: Number,
+  latePenaltyRate: Number, // Saved rate used for calculation
   absencePenalties: Number,
   userFines: Number,
   history: [{

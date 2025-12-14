@@ -109,6 +109,7 @@ export class PayrollService {
           shiftRate: (user as any).shiftRate || 0,
           penalties,
           latePenalties,
+          latePenaltyRate: (user as any).penaltyAmount || 500, // Default for virtual record
           absencePenalties,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -182,7 +183,42 @@ export class PayrollService {
       const deductions = data.deductions !== undefined ? data.deductions : payroll.deductions;
       const advance = data.advance !== undefined ? data.advance : payroll.advance || 0;
 
-      data.total = baseSalary + bonuses - deductions - advance;
+      let currentPenalties = payroll.penalties || 0;
+
+      // Handle latePenaltyRate update
+      if (data.latePenaltyRate !== undefined && data.latePenaltyRate !== payroll.latePenaltyRate) {
+        // Recalculate late penalties with new rate
+        if (payroll.staffId && payroll.period) {
+          try {
+            const user = await User().findById(payroll.staffId);
+            if (user) {
+              const attendancePenalties = await calculatePenalties(
+                (payroll.staffId as any)._id?.toString() || payroll.staffId.toString(),
+                payroll.period,
+                user as any,
+                data.latePenaltyRate
+              );
+
+              // Calculate difference in penalties
+              const oldLatePenalties = payroll.latePenalties || 0;
+              const newLatePenalties = attendancePenalties.latePenalties;
+
+              // Update payroll fields
+              data.latePenalties = newLatePenalties;
+              // Update total penalties
+              // penalties = penalties - oldLate + newLate
+              currentPenalties = currentPenalties - oldLatePenalties + newLatePenalties;
+              data.penalties = currentPenalties;
+            }
+          } catch (e) {
+            console.error('Error recalculating penalties on rate change:', e);
+          }
+        }
+      } else if (data.penalties !== undefined) {
+        currentPenalties = data.penalties;
+      }
+
+      data.total = baseSalary + bonuses - currentPenalties - advance;
     }
 
     const updatedPayroll = await Payroll().findByIdAndUpdate(
