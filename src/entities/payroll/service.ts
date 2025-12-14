@@ -9,30 +9,30 @@ import { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } from
 export class PayrollService {
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
-    
+
     if (filters.staffId) filter.staffId = filters.staffId;
     const targetPeriod = filters.period || new Date().toISOString().slice(0, 7);
     if (targetPeriod) filter.period = targetPeriod;
     if (filters.status) filter.status = filters.status;
-    
+
     const payrolls = await Payroll().find(filter)
       .populate('staffId', 'fullName role')
       .sort({ period: -1 });
-    
+
     return payrolls;
   }
 
- async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
+  async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
-    
+
     // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll()
     // Вместо этого мы получаем всех пользователей и затем фильтруем по наличию записей в Payroll()
     if (filters.status) filter.status = filters.status;
     const period = filters.period || new Date().toISOString().slice(0, 7);
-    
+
     // Получаем всех пользователей, подходящих под фильтр
     const users = await User().find(filter).select('_id fullName role iin uniqNumber payroll salary baseSalary salaryType shiftRate penaltyType penaltyAmount').sort({ fullName: 1 });
-    
+
     // Получаем все записи зарплат для указанного периода, если он задан
     let payrollRecords: any[] = [];
     if (period) {
@@ -40,7 +40,7 @@ export class PayrollService {
         .populate('staffId', 'fullName role')
         .sort({ createdAt: -1 });
     }
-    
+
     // Создаем мапу для быстрого поиска зарплаты по staffId
     const payrollMap = new Map();
     payrollRecords.forEach(record => {
@@ -48,11 +48,11 @@ export class PayrollService {
         payrollMap.set(record.staffId._id.toString(), record);
       }
     });
-    
+
     // Объединяем данные пользователей с данными зарплат
     const result = await Promise.all(users.map(async (user) => {
       const payroll = user._id ? payrollMap.get((user._id as any).toString()) : null;
-      
+
       if (payroll) {
         // Если есть запись в коллекции зарплат, возвращаем её
         return payroll;
@@ -124,32 +124,32 @@ export class PayrollService {
     return result.filter(item => item !== null); // Фильтруем null значения, если они появились
   }
 
- async getById(id: string) {
+  async getById(id: string) {
     const payroll = await Payroll().findById(id)
       .populate('staffId', 'fullName role');
-    
+
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
-    
+
     return payroll;
   }
 
- async create(payrollData: Partial<IPayroll>) {
+  async create(payrollData: Partial<IPayroll>) {
     // Вычисляем общую сумму
     const total = (payrollData.baseSalary || 0) +
-                  (payrollData.bonuses || 0) -
-                  (payrollData.deductions || 0) -
-                  (payrollData.advance || 0);
-    
+      (payrollData.bonuses || 0) -
+      (payrollData.deductions || 0) -
+      (payrollData.advance || 0);
+
     const newPayrollData = {
       ...payrollData,
       total
     };
-    
+
     const payroll = new (Payroll())(newPayrollData);
     await payroll.save();
-    
+
     const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
     // Уведомление в Telegram
     if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
@@ -168,29 +168,29 @@ export class PayrollService {
   async update(id: string, data: Partial<IPayroll>) {
     // При обновлении пересчитываем общую сумму
     if (data.baseSalary !== undefined ||
-        data.bonuses !== undefined ||
-        data.deductions !== undefined ||
-        data.advance !== undefined) {
-      
+      data.bonuses !== undefined ||
+      data.deductions !== undefined ||
+      data.advance !== undefined) {
+
       const payroll = await Payroll().findById(id);
       if (!payroll) {
         throw new Error('Зарплата не найдена');
       }
-      
+
       const baseSalary = data.baseSalary !== undefined ? data.baseSalary : payroll.baseSalary;
       const bonuses = data.bonuses !== undefined ? data.bonuses : payroll.bonuses;
       const deductions = data.deductions !== undefined ? data.deductions : payroll.deductions;
       const advance = data.advance !== undefined ? data.advance : payroll.advance || 0;
-      
+
       data.total = baseSalary + bonuses - deductions - advance;
     }
-    
+
     const updatedPayroll = await Payroll().findByIdAndUpdate(
       id,
       data,
       { new: true }
     ).populate('staffId', 'fullName role telegramChatId');
-    
+
     if (!updatedPayroll) {
       throw new Error('Зарплата не найдена');
     }
@@ -210,11 +210,11 @@ export class PayrollService {
 
   async delete(id: string) {
     const result = await Payroll().findByIdAndDelete(id);
-    
+
     if (!result) {
       throw new Error('Зарплата не найдена');
     }
-    
+
     return { message: 'Зарплата успешно удалена' };
   }
 
@@ -227,13 +227,13 @@ export class PayrollService {
       },
       { new: true }
     ).populate('staffId', 'fullName role');
-    
+
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
-    
+
     return payroll;
- }
+  }
 
   async markAsPaid(id: string) {
     const payroll = await Payroll().findByIdAndUpdate(
@@ -244,188 +244,188 @@ export class PayrollService {
       },
       { new: true }
     ).populate('staffId', 'fullName role');
-    
+
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
-    
+
     return payroll;
   }
 
- /**
-  * Добавляет штраф к записи зарплаты
-  */
- async addFine(payrollId: string, fineData: { amount: number; reason: string; type: string; notes?: string }) {
-   const payroll = await Payroll().findById(payrollId);
-   if (!payroll) {
-     throw new Error('Зарплата не найдена');
-   }
+  /**
+   * Добавляет штраф к записи зарплаты
+   */
+  async addFine(payrollId: string, fineData: { amount: number; reason: string; type: string; notes?: string }) {
+    const payroll = await Payroll().findById(payrollId);
+    if (!payroll) {
+      throw new Error('Зарплата не найдена');
+    }
 
-   // Создаем новый штраф
-   const fine = {
-     amount: Number(fineData.amount),
-     reason: fineData.reason,
-     type: fineData.type,
-     notes: fineData.notes,
-     date: new Date(),
-     createdAt: new Date()
-   };
+    // Создаем новый штраф
+    const fine = {
+      amount: Number(fineData.amount),
+      reason: fineData.reason,
+      type: fineData.type,
+      notes: fineData.notes,
+      date: new Date(),
+      createdAt: new Date()
+    };
 
-   // Добавляем штраф в массив
-   if (!payroll.fines) {
-     payroll.fines = [];
-   }
-   payroll.fines.push(fine);
+    // Добавляем штраф в массив
+    if (!payroll.fines) {
+      payroll.fines = [];
+    }
+    payroll.fines.push(fine);
 
-   // Обновляем общую сумму штрафов
-   const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
-   payroll.userFines = totalFines;
-   payroll.penalties = (payroll.penalties || 0) + fine.amount;
-   payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+    // Обновляем общую сумму штрафов
+    const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
+    payroll.userFines = totalFines;
+    payroll.penalties = (payroll.penalties || 0) + fine.amount;
+    payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
 
-   await payroll.save();
+    await payroll.save();
 
-   const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
-   return populatedPayroll;
- }
+    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
+    return populatedPayroll;
+  }
 
- /**
-  * Получает все штрафы для записи зарплаты
-  */
- async getFines(payrollId: string) {
-   const payroll = await Payroll().findById(payrollId);
-   if (!payroll) {
-     throw new Error('Зарплата не найдена');
-   }
+  /**
+   * Получает все штрафы для записи зарплаты
+   */
+  async getFines(payrollId: string) {
+    const payroll = await Payroll().findById(payrollId);
+    if (!payroll) {
+      throw new Error('Зарплата не найдена');
+    }
 
-   return payroll.fines || [];
- }
+    return payroll.fines || [];
+  }
 
- /**
-  * Удаляет штраф из записи зарплаты
-  */
- async removeFine(payrollId: string, fineIndex: number) {
-   const payroll = await Payroll().findById(payrollId);
-   if (!payroll) {
-     throw new Error('Зарплата не найдена');
-   }
+  /**
+   * Удаляет штраф из записи зарплаты
+   */
+  async removeFine(payrollId: string, fineIndex: number) {
+    const payroll = await Payroll().findById(payrollId);
+    if (!payroll) {
+      throw new Error('Зарплата не найдена');
+    }
 
-   if (!payroll.fines || fineIndex < 0 || fineIndex >= payroll.fines.length) {
-     throw new Error('Штраф не найден');
-   }
+    if (!payroll.fines || fineIndex < 0 || fineIndex >= payroll.fines.length) {
+      throw new Error('Штраф не найден');
+    }
 
-   // Получаем сумму удаляемого штрафа
-   const removedFine = payroll.fines.splice(fineIndex, 1)[0];
-   const fineAmount = removedFine.amount;
+    // Получаем сумму удаляемого штрафа
+    const removedFine = payroll.fines.splice(fineIndex, 1)[0];
+    const fineAmount = removedFine.amount;
 
-   // Обновляем общую сумму штрафов
-   const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
-   payroll.userFines = totalFines;
-   payroll.penalties = Math.max(0, (payroll.penalties || 0) - fineAmount);
-   payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+    // Обновляем общую сумму штрафов
+    const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
+    payroll.userFines = totalFines;
+    payroll.penalties = Math.max(0, (payroll.penalties || 0) - fineAmount);
+    payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
 
-   await payroll.save();
+    await payroll.save();
 
-   const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
-   return populatedPayroll;
- }
+    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
+    return populatedPayroll;
+  }
 
- /**
-  * Получает общую сумму штрафов для записи зарплаты
-  */
- async getTotalFines(payrollId: string) {
-   const payroll = await Payroll().findById(payrollId);
-   if (!payroll) {
-     throw new Error('Зарплата не найдена');
-   }
+  /**
+   * Получает общую сумму штрафов для записи зарплаты
+   */
+  async getTotalFines(payrollId: string) {
+    const payroll = await Payroll().findById(payrollId);
+    if (!payroll) {
+      throw new Error('Зарплата не найдена');
+    }
 
-   return payroll.userFines || 0;
- }
+    return payroll.userFines || 0;
+  }
 
- /**
-  * Проверяет наличие расчетных листов для указанного периода и генерирует их, если они отсутствуют
-  */
- async ensurePayrollRecordsForPeriod(period: string) {
-   try {
-     console.log(`Проверка наличия расчетных листов для периода: ${period}`);
-     
-     // Получаем всех активных сотрудников (кроме админов)
-     const allStaff = await User().find({
-       role: { $ne: 'admin' },
-       isActive: true
-     });
-     
-     // Получаем уже существующие записи для этого периода
-     const existingPayrolls = await Payroll().find({ period });
-     const existingStaffIds = existingPayrolls.map(p => p.staffId?.toString());
-     
-     // Находим сотрудников, для которых нет записей в этом периоде
-     const staffWithoutPayroll = allStaff.filter(staff =>
-       !existingStaffIds.includes(staff._id.toString())
-     );
-     
-     console.log(`Найдено ${staffWithoutPayroll.length} сотрудников без расчетных листов для периода ${period}`);
-     
-     if (staffWithoutPayroll.length === 0) {
-       console.log(`Все сотрудники имеют расчетные листы для периода ${period}`);
-       return {
-         message: `Все сотрудники имеют расчетные листы для периода ${period}`,
-         created: 0,
-         totalStaff: allStaff.length
-       };
-     }
-     
-     // Создаем новые записи для сотрудников, у которых их нет
-     const createdRecords = [];
-     for (const staff of staffWithoutPayroll) {
-       // Рассчитываем базовые параметры для нового расчетного листа
-       const baseSalary = Number((staff as any).baseSalary ?? (staff as any).salary ?? 0);
-       const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
-       const shiftRate = Number((staff as any).shiftRate || 0);
-       
-       // Создаем пустую запись с базовыми параметрами
-       const newPayroll = new (Payroll())({
-         staffId: staff._id,
-         period: period,
-         baseSalary: baseSalary,
-         baseSalaryType: baseSalaryType,
-         shiftRate: shiftRate,
-         bonuses: 0,
-         deductions: 0,
-         accruals: 0, // Будет рассчитано при автоматическом пересчете
-         penalties: 0,
-         latePenalties: 0,
-         absencePenalties: 0,
-         userFines: 0,
-         total: 0, // Будет рассчитано при автоматическом пересчете
-         status: 'draft',
-         createdAt: new Date(),
-         updatedAt: new Date()
-       });
-       
-       await newPayroll.save();
-       createdRecords.push(newPayroll);
-       
-       console.log(`Создан расчетный лист для сотрудника: ${staff.fullName}, ID: ${staff._id}`);
-     }
-     
-     console.log(`Создано ${createdRecords.length} новых расчетных листов для периода ${period}`);
-     
-     return {
-       message: `Создано ${createdRecords.length} новых расчетных листов для периода ${period}`,
-       created: createdRecords.length,
-       totalStaff: allStaff.length,
-       staffWithoutPayroll: staffWithoutPayroll.map(s => ({ id: s._id, name: s.fullName }))
-     };
-   } catch (error) {
-     console.error('Ошибка при проверке и создании расчетных листов:', error);
-     let errorMessage = 'Неизвестная ошибка';
-     if (error instanceof Error) {
-       errorMessage = error.message;
-     } else if (typeof error === 'string') {
-       errorMessage = error;
-     }
-     throw new Error(`Ошибка при проверке и создании расчетных листов: ${errorMessage}`);
-   }
- }
+  /**
+   * Проверяет наличие расчетных листов для указанного периода и генерирует их, если они отсутствуют
+   */
+  async ensurePayrollRecordsForPeriod(period: string) {
+    try {
+      console.log(`Проверка наличия расчетных листов для периода: ${period}`);
+
+      // Получаем всех активных сотрудников (кроме админов)
+      const allStaff = await User().find({
+        role: { $ne: 'admin' },
+        active: true
+      });
+
+      // Получаем уже существующие записи для этого периода
+      const existingPayrolls = await Payroll().find({ period });
+      const existingStaffIds = existingPayrolls.map(p => p.staffId?.toString());
+
+      // Находим сотрудников, для которых нет записей в этом периоде
+      const staffWithoutPayroll = allStaff.filter(staff =>
+        !existingStaffIds.includes(staff._id.toString())
+      );
+
+      console.log(`Найдено ${staffWithoutPayroll.length} сотрудников без расчетных листов для периода ${period}`);
+
+      if (staffWithoutPayroll.length === 0) {
+        console.log(`Все сотрудники имеют расчетные листы для периода ${period}`);
+        return {
+          message: `Все сотрудники имеют расчетные листы для периода ${period}`,
+          created: 0,
+          totalStaff: allStaff.length
+        };
+      }
+
+      // Создаем новые записи для сотрудников, у которых их нет
+      const createdRecords = [];
+      for (const staff of staffWithoutPayroll) {
+        // Рассчитываем базовые параметры для нового расчетного листа
+        const baseSalary = Number((staff as any).baseSalary ?? (staff as any).salary ?? 0);
+        const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
+        const shiftRate = Number((staff as any).shiftRate || 0);
+
+        // Создаем пустую запись с базовыми параметрами
+        const newPayroll = new (Payroll())({
+          staffId: staff._id,
+          period: period,
+          baseSalary: baseSalary,
+          baseSalaryType: baseSalaryType,
+          shiftRate: shiftRate,
+          bonuses: 0,
+          deductions: 0,
+          accruals: 0, // Будет рассчитано при автоматическом пересчете
+          penalties: 0,
+          latePenalties: 0,
+          absencePenalties: 0,
+          userFines: 0,
+          total: 0, // Будет рассчитано при автоматическом пересчете
+          status: 'draft',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        await newPayroll.save();
+        createdRecords.push(newPayroll);
+
+        console.log(`Создан расчетный лист для сотрудника: ${staff.fullName}, ID: ${staff._id}`);
+      }
+
+      console.log(`Создано ${createdRecords.length} новых расчетных листов для периода ${period}`);
+
+      return {
+        message: `Создано ${createdRecords.length} новых расчетных листов для периода ${period}`,
+        created: createdRecords.length,
+        totalStaff: allStaff.length,
+        staffWithoutPayroll: staffWithoutPayroll.map(s => ({ id: s._id, name: s.fullName }))
+      };
+    } catch (error) {
+      console.error('Ошибка при проверке и создании расчетных листов:', error);
+      let errorMessage = 'Неизвестная ошибка';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      throw new Error(`Ошибка при проверке и создании расчетных листов: ${errorMessage}`);
+    }
+  }
 }
