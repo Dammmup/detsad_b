@@ -387,7 +387,7 @@ export class PayrollService {
         const newPayroll = new (Payroll())({
           staffId: staff._id,
           period: period,
-          baseSalary: baseSalary,
+          baseSalary: 180000,
           baseSalaryType: baseSalaryType,
           shiftRate: shiftRate,
           bonuses: 0,

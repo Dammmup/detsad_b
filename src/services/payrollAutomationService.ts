@@ -42,16 +42,34 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   const penaltyType: string = (employee as any).penaltyType || 'per_minute';
   const penaltyAmount: number = Number((employee as any).penaltyAmount ?? 0);
 
-  // Для расчета опозданий нам нужны данные о сменах (Shift)
-  const shiftIds = attendanceRecords.map((r: any) => r.shiftId).filter((id: any) => !!id);
-  const shifts = await Shift().find({ _id: { $in: shiftIds } });
-  const shiftsMap = new Map(shifts.map((s: any) => [s._id.toString(), s]));
+  // Получаем все смены сотрудника за месяц для более надежного сопоставления
+  const shifts = await Shift().find({
+    staffId,
+    date: { $regex: new RegExp(`^${month}`) }
+  });
+  const shiftsMap = new Map(shifts.map((s: any) => [s.date, s])); // Map by date string "YYYY-MM-DD"
 
   for (const record of attendanceRecords) {
-    // Пропускаем записи без смены или без фактического времени
-    if (!record.shiftId || !record.actualStart) continue;
+    // Пропускаем записи без фактического времени
+    if (!record.actualStart) continue;
 
-    const shift = shiftsMap.get(record.shiftId.toString());
+    // Пытаемся найти смену по shiftId, если нет - по дате
+    let shift = null;
+    if (record.shiftId && shiftsMap.has(record.shiftId.toString())) {
+      // Note: shiftId won't be in shiftsMap keys if keys are dates.
+      // We should stick to finding by date.
+    }
+
+    // Определяем дату записи в формате YYYY-MM-DD (local time assumed to match Shift)
+    const recordDate = new Date(record.date || record.actualStart);
+    const dateStr = [
+      recordDate.getFullYear(),
+      String(recordDate.getMonth() + 1).padStart(2, '0'),
+      String(recordDate.getDate()).padStart(2, '0')
+    ].join('-');
+
+    shift = shiftsMap.get(dateStr);
+
     if (!shift) continue;
 
     // Сравниваем время
