@@ -109,7 +109,7 @@ export class PayrollService {
           shiftRate: (user as any).shiftRate || 0,
           penalties,
           latePenalties,
-          latePenaltyRate: (user as any).penaltyAmount || 500, // Default for virtual record
+          latePenaltyRate: 13, // Default fixed rate for virtual record
           absencePenalties,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -138,10 +138,10 @@ export class PayrollService {
 
   async create(payrollData: Partial<IPayroll>) {
     // Вычисляем общую сумму
-    const total = (payrollData.baseSalary || 0) +
+    const total = Math.max(0, (payrollData.baseSalary || 0) +
       (payrollData.bonuses || 0) -
       (payrollData.deductions || 0) -
-      (payrollData.advance || 0);
+      (payrollData.advance || 0));
 
     const newPayrollData = {
       ...payrollData,
@@ -184,31 +184,36 @@ export class PayrollService {
       const advance = data.advance !== undefined ? data.advance : payroll.advance || 0;
 
       let currentPenalties = payroll.penalties || 0;
-
       // Handle latePenaltyRate update
+      // The instruction replaces the entire block, so I'll integrate it carefully.
       if (data.latePenaltyRate !== undefined && data.latePenaltyRate !== payroll.latePenaltyRate) {
         // Recalculate late penalties with new rate
         if (payroll.staffId && payroll.period) {
           try {
-            const user = await User().findById(payroll.staffId);
-            if (user) {
-              const attendancePenalties = await calculatePenalties(
-                (payroll.staffId as any)._id?.toString() || payroll.staffId.toString(),
-                payroll.period,
-                user as any,
-                data.latePenaltyRate
-              );
+            const staffId = typeof payroll.staffId === 'object' ? (payroll.staffId as any)._id : payroll.staffId;
+            const staff = await import('../users/model').then(m => m.default().findById(staffId));
 
-              // Calculate difference in penalties
-              const oldLatePenalties = payroll.latePenalties || 0;
-              const newLatePenalties = attendancePenalties.latePenalties;
+            if (staff) {
+              const { calculatePenalties } = await import('../../services/payrollAutomationService');
 
-              // Update payroll fields
-              data.latePenalties = newLatePenalties;
-              // Update total penalties
-              // penalties = penalties - oldLate + newLate
-              currentPenalties = currentPenalties - oldLatePenalties + newLatePenalties;
-              data.penalties = currentPenalties;
+              const safeRate = (data.latePenaltyRate !== undefined) ? Number(data.latePenaltyRate) : 13;
+
+              const recalc = await calculatePenalties(staffId.toString(), payroll.period, staff as any, safeRate);
+
+              // Apply new calculations
+              payroll.latePenalties = recalc.latePenalties;
+              payroll.latePenaltyRate = safeRate;
+              payroll.absencePenalties = recalc.absencePenalties;
+
+              // Re-sum total penalties (late + absence + userFines)
+              const userFines = payroll.userFines || 0;
+              payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + userFines;
+
+              // Update data object to reflect changes for the final update
+              data.latePenalties = payroll.latePenalties;
+              data.latePenaltyRate = payroll.latePenaltyRate;
+              data.absencePenalties = payroll.absencePenalties;
+              data.penalties = payroll.penalties;
             }
           } catch (e) {
             console.error('Error recalculating penalties on rate change:', e);
@@ -218,7 +223,7 @@ export class PayrollService {
         currentPenalties = data.penalties;
       }
 
-      data.total = baseSalary + bonuses - currentPenalties - advance;
+      data.total = Math.max(0, baseSalary + bonuses - currentPenalties - advance);
     }
 
     const updatedPayroll = await Payroll().findByIdAndUpdate(
@@ -316,8 +321,12 @@ export class PayrollService {
     // Обновляем общую сумму штрафов
     const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
     payroll.userFines = totalFines;
-    payroll.penalties = (payroll.penalties || 0) + fine.amount;
-    payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+
+    // Recalculate total penalties (sum of components)
+    // This ensures consistency even if previous value was drifted
+    payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
+
+    payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
 
     await payroll.save();
 
@@ -357,8 +366,12 @@ export class PayrollService {
     // Обновляем общую сумму штрафов
     const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
     payroll.userFines = totalFines;
-    payroll.penalties = Math.max(0, (payroll.penalties || 0) - fineAmount);
-    payroll.total = (payroll.accruals || 0) - (payroll.penalties || 0);
+
+    // Recalculate total penalties (sum of components)
+    payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
+
+    // Recalculate total (include advance/bonuses if they exist)
+    payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
 
     await payroll.save();
 
@@ -415,26 +428,78 @@ export class PayrollService {
       const createdRecords = [];
       for (const staff of staffWithoutPayroll) {
         // Рассчитываем базовые параметры для нового расчетного листа
-        const baseSalary = Number((staff as any).baseSalary ?? (staff as any).salary ?? 0);
+        const baseSalaryRaw = Number((staff as any).baseSalary);
+        const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000
+
         const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
         const shiftRate = Number((staff as any).shiftRate || 0);
 
-        // Создаем пустую запись с базовыми параметрами
+        // Calculate penalties immediately so they aren't 0
+        const { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } = await import('../../services/payrollAutomationService');
+
+        // Use rate 13
+        const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
+
+        // Generate detailed fines array for the new record
+        const newFines = attendancePenalties.attendanceRecords
+          .filter((r: any) => r.lateMinutes > 0)
+          .map((r: any) => ({
+            amount: r.lateMinutes * 13,
+            reason: `Опоздание: ${r.lateMinutes} мин`,
+            type: 'late',
+            date: new Date(r.actualStart),
+            createdAt: new Date()
+          }));
+
+        const latePenalties = attendancePenalties.latePenalties;
+        const absencePenalties = attendancePenalties.absencePenalties;
+        const totalPenalties = latePenalties + absencePenalties;
+
+        // Calculate Accruals (Simplified Logic similar to autoCalculate)
+        let accruals = 0;
+        let workedDays = 0;
+        let workedShifts = 0;
+
+        // Fetch working days
+        const startDate = new Date(`${period}-01`);
+        const workDaysInMonth = await getWorkingDaysInMonth(startDate);
+        const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
+
+        if (baseSalaryType === 'month') {
+          workedShifts = attendedRecords.length;
+          workedDays = workedShifts;
+          if (workDaysInMonth > 0) {
+            accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
+          }
+        } else if (baseSalaryType === 'shift') {
+          workedShifts = attendedRecords.length;
+          accruals = workedShifts * shiftRate;
+        } else {
+          accruals = baseSalary;
+        }
+
+        const total = Math.max(0, accruals - totalPenalties);
+
+        // Создаем запись с рассчитанными данными
         const newPayroll = new (Payroll())({
           staffId: staff._id,
           period: period,
-          baseSalary: 180000,
+          baseSalary: baseSalary,
           baseSalaryType: baseSalaryType,
           shiftRate: shiftRate,
           bonuses: 0,
           deductions: 0,
-          accruals: 0, // Будет рассчитано при автоматическом пересчете
-          penalties: 0,
-          latePenalties: 0,
-          absencePenalties: 0,
+          accruals: accruals,
+          penalties: totalPenalties,
+          fines: newFines, // Save detailed fines!
+          latePenalties: latePenalties,
+          latePenaltyRate: 13,
+          absencePenalties: absencePenalties,
           userFines: 0,
-          total: 0, // Будет рассчитано при автоматическом пересчете
-          status: 'approved',
+          workedDays: workedDays,
+          workedShifts: workedShifts,
+          total: total,
+          status: 'draft',
           createdAt: new Date(),
           updatedAt: new Date()
         });

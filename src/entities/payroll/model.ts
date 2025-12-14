@@ -149,6 +149,9 @@ const PayrollSchema = new Schema<IPayroll>({
   timestamps: true
 });
 
+// Add compound unique index to prevent duplicate payrolls for same staff and period
+PayrollSchema.index({ staffId: 1, period: 1 }, { unique: true });
+
 // Создаем фабрику модели для отложенного создания модели после подключения к базе данных
 const createPayrollModel = createModelFactory<IPayroll>(
   'Payroll',

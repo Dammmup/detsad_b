@@ -27,7 +27,7 @@ function getWorkingDaysInMonth(year: number, month: number): number {
   // В реальном приложении нужно учитывать государственные праздники
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let workingDays = 0;
-  
+
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
     const dayOfWeek = date.getDay();
@@ -35,23 +35,23 @@ function getWorkingDaysInMonth(year: number, month: number): number {
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       workingDays++;
     }
- }
-  
+  }
+
   return workingDays;
 }
 
 // Функция для вычисления штрафов за опоздания
-function calculateLatePenalties(shifts: any[], latePenaltyRate: number = 500): number {
+function calculateLatePenalties(shifts: any[], latePenaltyRate: number = 13): number {
   let totalPenalty = 0;
-  
+
   for (const shift of shifts) {
     if (shift.startTime && shift.scheduledStartTime) {
       const scheduledStart = new Date(shift.scheduledStartTime);
       const actualStart = new Date(shift.startTime);
-      
+
       // Вычисляем разницу в минутах между запланированным и фактическим временем начала
       const delayInMinutes = Math.max(0, (actualStart.getTime() - scheduledStart.getTime()) / (1000 * 60));
-      
+
       // Если опоздание больше 5 минут, применяем штраф
       if (delayInMinutes >= 5) {
         // Штрафы применяются за каждые 5 минут опоздания
@@ -59,22 +59,22 @@ function calculateLatePenalties(shifts: any[], latePenaltyRate: number = 500): n
         totalPenalty += fiveMinuteIntervals * latePenaltyRate;
       }
     }
- }
-  
+  }
+
   return totalPenalty;
 }
 
 // Функция для вычисления штрафов за неявки
 function calculateAbsencePenalties(shifts: any[]): number {
   let totalPenalty = 0;
-  
+
   for (const shift of shifts) {
     // Если смена была запланирована, но не отмечена как отработанная
     if (shift.scheduledStartTime && !shift.startTime) {
       totalPenalty += 5000; // Фиксированная ставка за неявку
     }
   }
-  
+
   return totalPenalty;
 }
 
@@ -86,18 +86,18 @@ async function generatePayrollSheets(period: string) {
 
     // Разбиваем период на год и месяц
     const [year, month] = period.split('-').map(Number);
-    
+
     // Получаем всех сотрудников
     const staff = await User().find({ role: { $ne: 'admin' } });
-    
+
     // Получаем все смены за указанный период
     const startDate = new Date(year, month - 1, 1); // Первый день месяца
     const endDate = new Date(year, month, 0); // Последний день месяца
-    
+
     const shifts = await StaffShift().find({
       date: { $gte: startDate, $lte: endDate }
     }).populate('staffId', '_id');
-    
+
     // Группируем смены по сотрудникам
     const shiftsByStaff: { [key: string]: any[] } = {};
     shifts.forEach(shift => {
@@ -107,28 +107,28 @@ async function generatePayrollSheets(period: string) {
       }
       shiftsByStaff[staffId].push(shift);
     });
-    
+
     // Генерируем расчетные листы для каждого сотрудника
     for (const rawEmployee of staff) {
       // Приводим тип сотрудника к IUserWithPayroll
       const employeeWithPayroll = rawEmployee as IUserWithPayroll;
-      
+
       const employeeShifts = shiftsByStaff[employeeWithPayroll._id.toString()] || [];
-      
+
       // Вычисляем базовые значения
       const workingDaysInPeriod = getWorkingDaysInMonth(year, month - 1);
       const workedDays = employeeShifts.filter(shift => shift.startTime).length;
       const workedShifts = employeeShifts.length;
-      
+
       // Вычисляем штрафы
       const latePenaltyRate = employeeWithPayroll.payroll?.latePenaltyRate || 500;
       const latePenalties = calculateLatePenalties(employeeShifts, latePenaltyRate);
       const absencePenalties = calculateAbsencePenalties(employeeShifts);
-      
+
       // Вычисляем итоговую зарплату
       // В реальном приложении логика начисления зарплаты может быть более сложной
       let baseSalary = employeeWithPayroll.payroll?.baseSalary || 0;
-      
+
       // Если зарплата посменно, вычисляем на основе отработанных смен
       if (employeeWithPayroll.payroll?.type === 'per_shift' && employeeWithPayroll.payroll?.shiftRate) {
         baseSalary = workedShifts * employeeWithPayroll.payroll.shiftRate;
@@ -139,29 +139,29 @@ async function generatePayrollSheets(period: string) {
         const shiftPart = workedShifts * employeeWithPayroll.payroll.shiftRate;
         baseSalary = fixedPart + shiftPart;
       }
-      
+
       // Бонусы (в реальном приложении могут зависеть от KPI, премий и т.д.)
       const bonuses = employeeWithPayroll.payroll?.bonuses || 0;
-      
+
       // Общие штрафы
       const penalties = latePenalties + absencePenalties;
-      
+
       // Итоговая сумма
       const total = baseSalary + bonuses - penalties;
-      
+
       // Проверяем, существует ли уже запись для этого сотрудника и периода
       let payroll = await Payroll().findOne({
         staffId: employeeWithPayroll._id,
         period: period
       });
-      
+
       if (payroll) {
         // Обновляем существующую запись
         payroll.accruals = baseSalary;
         payroll.bonuses = bonuses;
         payroll.total = total;
         payroll.updatedAt = new Date();
-        
+
         await payroll.save();
         console.log(`Обновлена зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
       } else {
@@ -180,12 +180,12 @@ async function generatePayrollSheets(period: string) {
           createdAt: new Date(),
           updatedAt: new Date()
         });
-        
+
         await payroll.save();
         console.log(`Создана зарплата для сотрудника ${employeeWithPayroll.fullName}: ${total} тг`);
       }
     }
-    
+
     console.log('Расчетные листы успешно сгенерированы для периода:', period);
   } catch (error) {
     console.error('Ошибка при генерации расчетных листов:', error);
@@ -198,19 +198,19 @@ async function generatePayrollSheets(period: string) {
 // Проверяем аргументы командной строки
 if (require.main === module) {
   const period = process.argv[2]; // Ожидаем период в формате YYYY-MM
-  
+
   if (!period) {
     console.error('Пожалуйста, укажите период в формате YYYY-MM (например, 2025-01)');
     process.exit(1);
   }
-  
+
   // Проверяем формат периода
   const periodRegex = /^\d{4}-\d{2}$/;
   if (!periodRegex.test(period)) {
     console.error('Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)');
     process.exit(1);
   }
-  
+
   generatePayrollSheets(period);
 }
 

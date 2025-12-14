@@ -44,7 +44,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   if (rateOverride !== undefined) {
     penaltyAmount = rateOverride;
   } else {
-    penaltyAmount = Number((employee as any).penaltyAmount ?? 0);
+    penaltyAmount = (employee as any).penaltyAmount || 13;
   }
 
   // Получаем все смены сотрудника за месяц для более надежного сопоставления
@@ -94,23 +94,11 @@ export const calculatePenalties = async (staffId: string, month: string, employe
       lateMinutes = Math.floor(diffMs / 60000);
     }
 
-    // Ранний уход
-    let earlyLeaveMinutes = 0;
-    if (record.actualEnd) {
-      const actualEnd = new Date(record.actualEnd);
-      const scheduledEnd = new Date(actualEnd); // Предполагаем тот же день
-      scheduledEnd.setHours(schedEndH, schedEndM, 0, 0);
 
-      // Если ушел раньше (actualEnd < scheduledEnd)
-      if (actualEnd < scheduledEnd) {
-        const diffMs = scheduledEnd.getTime() - actualEnd.getTime();
-        earlyLeaveMinutes = Math.floor(diffMs / 60000);
-      }
-    }
 
     // Сохраняем рассчитанные минуты в запись (опционально, но полезно для отладки)
     record.lateMinutes = lateMinutes;
-    record.earlyLeaveMinutes = earlyLeaveMinutes;
+    // record.earlyLeaveMinutes = earlyLeaveMinutes; // Removed logic
     // Можно сохранить изменения в record, если нужно: await record.save();
 
     // Считаем штраф за опоздание
@@ -123,13 +111,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
       latePenalties += lateMinutes * penaltyAmount;
     }
 
-    // Считаем штраф за ранний уход (обычно так же как опоздание)
-    if (earlyLeaveMinutes > 0 && penaltyAmount > 0) {
-      latePenalties += earlyLeaveMinutes * penaltyAmount;
-      // Добавляем к latePenalties или отдельной категории?
-      // В текущей структуре Payroll есть latePenalties и absencePenalties. 
-      // Добавим к latePenalties как "штраф за нарушение времени".
-    }
+
   }
 
   // Штрафы за неявки (absence)
@@ -245,14 +227,15 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     for (const employee of staff) {
       console.log(`🔍 Обработка сотрудника: ${employee.fullName}, ID: ${(employee as any)._id}`);
 
-      // Настройки зарплаты
-      // "Базовая зарплата фикс для каждого создается по 150 000" - если не указано иное
-      const baseSalary = Number((employee as any).baseSalary ?? 150000); // Default 150000
+      const baseSalaryRaw = Number((employee as any).baseSalary);
+      const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000;
+
       let salaryType: string = ((employee as any).salaryType as string) || 'month'; // 'month' or 'shift'
       const shiftRate = Number((employee as any).shiftRate || 0);
 
       // Получаем посещаемость
-      const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employee);
+      // FORCE 13 RATE: Pass 13 explicitly to override any employee settings
+      const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employee, 13);
       const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
       let accruals = 0;
@@ -274,12 +257,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       } else if (salaryType === 'shift') {
         // "количество отработанных смен суммируется"
         workedShifts = attendedRecords.length;
-        // Оклад это сумма смен. Что брать за ставку?
-        // Если `baseSalary` фикс 150000, но тип 'shift', возможно 150000 это не то.
-        // Если тип 'shift', то должна быть `shiftRate`.
-        // Если shiftRate не задан, может используем baseSalary / 22?
-        // Но пользователь сказал: "Если (смена) - количество отработанных смен суммируется"
-        // Будем использовать shiftRate.
+
         accruals = workedShifts * shiftRate;
       } else {
         // Fallback
@@ -292,27 +270,48 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         period: month
       });
 
-      const userFinesTotal = existingPayroll?.userFines || 0;
-      // Also existing manual fines array?
+      const manualFines = existingPayroll?.fines?.filter(f => f.type === 'manual') || [];
+      const newFines = [];
+
+      // Generate late fines from attendance records
+      const lateRate = Number(attendancePenalties.details.penaltyAmount || 0);
+      for (const record of attendancePenalties.attendanceRecords) {
+        if (record.lateMinutes > 0) {
+          const amount = record.lateMinutes * lateRate;
+          if (amount > 0) {
+            newFines.push({
+              amount: amount,
+              reason: `Опоздание: ${record.lateMinutes} мин`,
+              type: 'late',
+              date: new Date(record.actualStart),
+              createdAt: new Date()
+            });
+          }
+        }
+      }
+
+      // Combine fines
+      const allFines = [...manualFines, ...newFines];
 
       // Общие штрафы
-      const totalPenalties = attendancePenalties.totalPenalty + userFinesTotal;
+      const totalPenalties = allFines.reduce((sum, f) => sum + f.amount, 0);
 
       // Итого
-      const total = accruals - totalPenalties; // + Bonuses? existingPayroll?.bonuses || 0
+      const rawTotal = accruals - totalPenalties - (existingPayroll?.advance || 0) + (existingPayroll?.bonuses || 0) - (existingPayroll?.deductions || 0);
+      const total = Math.max(0, rawTotal);
 
       // Сохраняем/Обновляем
       if (existingPayroll) {
         existingPayroll.accruals = accruals;
         existingPayroll.penalties = totalPenalties;
-        // Keep manual fines
-        // existingPayroll.userFines = userFinesTotal; 
+        existingPayroll.fines = allFines;
+        existingPayroll.userFines = manualFines.reduce((sum, f) => sum + f.amount, 0);
 
         existingPayroll.latePenalties = attendancePenalties.latePenalties;
-        existingPayroll.latePenaltyRate = Number(attendancePenalties.details.penaltyAmount || 0);
+        existingPayroll.latePenaltyRate = lateRate;
         existingPayroll.absencePenalties = attendancePenalties.absencePenalties;
 
-        existingPayroll.total = total - (existingPayroll.advance || 0) + (existingPayroll.bonuses || 0) - (existingPayroll.deductions || 0); // Recalculate full total
+        existingPayroll.total = total;
 
         // Update base salary info in record just in case it changed
         existingPayroll.baseSalary = baseSalary;
@@ -328,8 +327,9 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           period: month,
           accruals: accruals,
           penalties: totalPenalties,
+          fines: allFines,
           latePenalties: attendancePenalties.latePenalties,
-          latePenaltyRate: Number(attendancePenalties.details.penaltyAmount || 0),
+          latePenaltyRate: lateRate,
           absencePenalties: attendancePenalties.absencePenalties,
           userFines: 0,
           baseSalary: baseSalary,

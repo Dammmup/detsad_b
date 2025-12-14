@@ -4,31 +4,24 @@ import { createModelFactory } from '../../config/database';
 export interface IUser extends Document {
   phone: string;
   fullName: string;
- password: string;
- passwordHash?: string;
+  password: string;
+  passwordHash?: string;
   initialPassword?: string;
   role: string;
   active: boolean;
   lastLogin?: Date;
   createdAt: Date;
- updatedAt: Date;
-  baseSalary?: number;
-  salary?: number;
-  salaryType?: 'month' | 'day' | 'shift';
-  shiftRate?: number;
-  penaltyType?: string;
-  penaltyAmount?: number;
- // Дополнительные поля из старой модели
- uniqNumber?: string;
+  updatedAt: Date;
+  uniqNumber?: string;
   notes?: string;
- iin?: string;
+  iin?: string;
   groupId?: mongoose.Types.ObjectId;
   // Поля из auth модели
   birthday?: Date;
- photo?: string;
- tenant?: boolean; // Для арендаторов
+  photo?: string;
+  tenant?: boolean; // Для арендаторов
   telegramChatId?: string;
- telegramLinkCode?: string;
+  telegramLinkCode?: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -57,7 +50,7 @@ const UserSchema: Schema = new Schema({
   initialPassword: {
     type: String,
     select: false
- },
+  },
   role: {
     type: String,
     required: [true, 'Роль обязательна'],
@@ -65,37 +58,13 @@ const UserSchema: Schema = new Schema({
     default: 'staff',
     index: true
   },
-  baseSalary: {
-    type: Number,
-    default: 0
-  },
-  salary: {
-    type: Number,
-    default: 0
-  },
-  salaryType: {
-    type: String,
-    enum: ['month', 'day', 'shift'],
-    default: 'month'
-  },
-  shiftRate: {
-    type: Number,
-    default: 0
-  },
-  penaltyType: {
-    type: String,
-    default: 'per_5_minutes'
-  },
-  penaltyAmount: {
-    type: Number,
-    default: 500
-  },
+
   active: {
     type: Boolean,
     default: true
   },
   lastLogin: Date,
- // Дополнительные поля из старой модели
+  // Дополнительные поля из старой модели
   uniqNumber: {
     type: String,
     index: true
@@ -113,7 +82,7 @@ const UserSchema: Schema = new Schema({
   // Поля из auth модели
   birthday: { type: Date },
   photo: { type: String },
- tenant: {
+  tenant: {
     type: Boolean,
     default: false,
     index: true
@@ -125,7 +94,7 @@ const UserSchema: Schema = new Schema({
   telegramLinkCode: {
     type: String,
     required: false
- }
+  }
 
 }, {
   timestamps: true
