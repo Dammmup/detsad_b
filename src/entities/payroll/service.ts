@@ -434,7 +434,7 @@ export class PayrollService {
           absencePenalties: 0,
           userFines: 0,
           total: 0, // Будет рассчитано при автоматическом пересчете
-          status: 'draft',
+          status: 'approved',
           createdAt: new Date(),
           updatedAt: new Date()
         });

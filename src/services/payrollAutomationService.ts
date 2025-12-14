@@ -338,7 +338,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           workedDays: workedDays,
           workedShifts: workedShifts,
           total: total,
-          status: 'draft'
+          status: 'approved'
         });
         await newPayroll.save();
       }
