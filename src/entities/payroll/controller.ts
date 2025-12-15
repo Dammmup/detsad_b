@@ -100,9 +100,13 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
     });
 
     res.json(payrolls);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error fetching my payrolls:', err);
-    res.status(500).json({ error: 'Ошибка получения данных о зарплате' });
+    res.status(500).json({
+      error: 'Ошибка получения данных о зарплате',
+      details: err.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
