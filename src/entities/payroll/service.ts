@@ -191,11 +191,9 @@ export class PayrollService {
         if (payroll.staffId && payroll.period) {
           try {
             const staffId = typeof payroll.staffId === 'object' ? (payroll.staffId as any)._id : payroll.staffId;
-            const staff = await import('../users/model').then(m => m.default().findById(staffId));
+            const staff = await User().findById(staffId);
 
             if (staff) {
-              const { calculatePenalties } = await import('../../services/payrollAutomationService');
-
               const safeRate = (data.latePenaltyRate !== undefined) ? Number(data.latePenaltyRate) : 13;
 
               const recalc = await calculatePenalties(staffId.toString(), payroll.period, staff as any, safeRate);
@@ -398,14 +396,15 @@ export class PayrollService {
     try {
       console.log(`Checking payroll for user: ${staffId}, period: ${period}`);
 
-      // Check if exists
+      // Check if exists using model factory
       const existing = await Payroll().findOne({ staffId, period });
       if (existing) {
         return { message: 'Payroll exists', created: 0 };
       }
 
-      const staff = await import('../users/model').then(m => m.default().findById(staffId));
+      const staff = await User().findById(staffId);
       if (!staff) {
+        console.error(`User not found: ${staffId}`);
         throw new Error('User not found');
       }
 
@@ -416,8 +415,8 @@ export class PayrollService {
       const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
       const shiftRate = Number((staff as any).shiftRate || 0);
 
-      const { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } = await import('../../services/payrollAutomationService');
-
+      // Calculate penalties immediately so they aren't 0
+      // Use rate 13
       const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
 
       const newFines = attendancePenalties.attendanceRecords
@@ -534,7 +533,6 @@ export class PayrollService {
         const shiftRate = Number((staff as any).shiftRate || 0);
 
         // Calculate penalties immediately so they aren't 0
-        const { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } = await import('../../services/payrollAutomationService');
 
         // Use rate 13
         const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);

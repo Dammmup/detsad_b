@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PayrollService } from './service';
 import { AuthUser } from '../../middlewares/authMiddleware';
 import { autoCalculatePayroll } from '../../services/payrollAutomationService';
+import Payroll from './model';
+import User from '../users/model';
 
 // Расширяем интерфейс Request для добавления свойства user
 interface AuthenticatedRequest extends Request {
@@ -263,10 +265,6 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
 
     // Проверяем и создаем расчетные листы для указанного периода, если они отсутствуют
     await payrollService.ensurePayrollRecordsForPeriod(period);
-
-    // Импортируем необходимые модели
-    const Payroll = (await import('../payroll/model')).default;
-    const User = (await import('../users/model')).default;
 
     // Для упрощения предположим, что арендаторы - это пользователи с определенными признаками
     // В реальной системе может быть отдельная коллекция арендаторов или специальная роль
