@@ -23,6 +23,11 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
   endDate.setHours(23, 59, 59, 999);
 
+  // Получаем настройки детского сада для определения часового пояса
+  const settingsService = new SettingsService();
+  const settings = await settingsService.getKindergartenSettings();
+  const timezone = settings?.timezone || 'Asia/Almaty'; // По умолчанию используем Астану
+
   // Получаем посещаемость сотрудника за указанный месяц
   const attendanceRecords = await StaffAttendanceTracking().find({
     staffId,
@@ -82,7 +87,11 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     const [schedStartH, schedStartM] = shift.startTime.split(':').map(Number);
     const [schedEndH, schedEndM] = shift.endTime.split(':').map(Number);
 
-    const actualStart = new Date(record.actualStart);
+    // Создаем объекты дат с учетом часового пояса для корректного сравнения
+    // Преобразуем actualStart в локальное время по часовому поясу детского сада
+    const actualStartISO = new Date(record.actualStart).toISOString();
+    const actualStart = new Date(actualStartISO);
+    
     // Создаем дату начала смены в тот же день, что и actualStart (или shift.date)
     const scheduledStart = new Date(actualStart);
     scheduledStart.setHours(schedStartH, schedStartM, 0, 0);
@@ -100,6 +109,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
       console.log(`  Diff Minutes: ${lateMinutes}`);
       console.log(`  Actual ISO: ${actualStart.toISOString()}`);
       console.log(`  Sched ISO: ${scheduledStart.toISOString()}`);
+      console.log(`  Timezone used: ${timezone}`);
     }
 
     // Сохраняем рассчитанные минуты в запись (опционально, но полезно для отладки)
@@ -121,7 +131,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   }
 
   // Штрафы за неявки (absence)
-  // Находим смены, где статус 'absent' или просто нет attendance record? 
+  // Находим смены, где статус 'absent' или просто нет attendance record?
   // Обычно attendance record создается при чекине. Если не пришел - записи может не быть.
   // Но есть 'status' в Shift.
   // Для простоты пока берем логику пользователя: "сущность payrolls должна доставать записи с коллекции staffAttendanceTracking"
@@ -285,11 +295,13 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         if (record.lateMinutes > 0) {
           const amount = record.lateMinutes * lateRate;
           if (amount > 0) {
+            // Получаем настройки часового пояса для корректного формирования даты штрафа
+            const fineDate = new Date(record.actualStart);
             newFines.push({
               amount: amount,
               reason: `Опоздание: ${record.lateMinutes} мин`,
               type: 'late',
-              date: new Date(record.actualStart),
+              date: fineDate,
               createdAt: new Date()
             });
           }

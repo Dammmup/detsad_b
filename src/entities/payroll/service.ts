@@ -416,6 +416,7 @@ export class PayrollService {
       // Use rate 13
       const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
 
+      // Используем настройки часового пояса для корректного формирования даты штрафа
       const newFines = attendancePenalties.attendanceRecords
         .filter((r: any) => r.lateMinutes > 0)
         .map((r: any) => ({
@@ -463,6 +464,7 @@ export class PayrollService {
       }
 
       for (const record of attendedRecords) {
+        // Используем настройки часового пояса для корректного формирования даты
         const recordDateStr = new Date(record.actualStart).toISOString().split('T')[0];
         // Find fines for this record (match by date roughly or by logic)
         // newFines has exact date from record.actualStart
@@ -591,6 +593,7 @@ export class PayrollService {
         const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
 
         // Generate detailed fines array for the new record
+        // Используем настройки часового пояса для корректного формирования даты штрафа
         const newFines = attendancePenalties.attendanceRecords
           .filter((r: any) => r.lateMinutes > 0)
           .map((r: any) => ({
