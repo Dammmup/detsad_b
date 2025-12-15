@@ -78,16 +78,16 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
 
     // Optimization: check if record exists for this user/period first.
     const existing = await payrollService.getAll({
-      staffId: req.user._id.toString(),
+      staffId: req.user.id,
       period: targetPeriod
     });
 
     // If no record exists for this period, trigger generation logic
     if (existing.length === 0) {
-      console.log(`No payroll found for user ${req.user._id} in period ${targetPeriod}. Ensuring records...`);
+      console.log(`No payroll found for user ${req.user.id} in period ${targetPeriod}. Ensuring records...`);
       // Use optimized method for single user
       try {
-        await payrollService.ensurePayrollForUser(req.user._id.toString(), targetPeriod);
+        await payrollService.ensurePayrollForUser(req.user.id, targetPeriod);
       } catch (generationError) {
         console.error('Error generating payroll on-demand:', generationError);
         // Continue without throwing, so the user sees an empty list instead of 500
@@ -95,7 +95,7 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
     }
 
     const payrolls = await payrollService.getAll({
-      staffId: req.user._id.toString(),
+      staffId: req.user.id,
       period: targetPeriod
     });
 
