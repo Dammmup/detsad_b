@@ -397,10 +397,7 @@ export class PayrollService {
       console.log(`Checking payroll for user: ${staffId}, period: ${period}`);
 
       // Check if exists using model factory
-      const existing = await Payroll().findOne({ staffId, period });
-      if (existing) {
-        return { message: 'Payroll exists', created: 0 };
-      }
+      let existing = await Payroll().findOne({ staffId, period });
 
       const staff = await User().findById(staffId);
       if (!staff) {
@@ -439,6 +436,7 @@ export class PayrollService {
 
       const startDate = new Date(`${period}-01`);
       const workDaysInMonth = await getWorkingDaysInMonth(startDate);
+      // Logic for attendance counting is now relaxed in "shouldCountAttendance"
       const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
       if (baseSalaryType === 'month') {
@@ -454,7 +452,61 @@ export class PayrollService {
         accruals = baseSalary;
       }
 
+      // Generate Shift Details (Breakdown)
+      const shiftDetails: any[] = [];
+      let calculatedDailyPay = 0;
+
+      if (baseSalaryType === 'month' && workDaysInMonth > 0) {
+        calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
+      } else if (baseSalaryType === 'shift') {
+        calculatedDailyPay = shiftRate;
+      }
+
+      for (const record of attendedRecords) {
+        const recordDateStr = new Date(record.actualStart).toISOString().split('T')[0];
+        // Find fines for this record (match by date roughly or by logic)
+        // newFines has exact date from record.actualStart
+        const recordFine = newFines.find((f: any) =>
+          new Date(f.date).toISOString().split('T')[0] === recordDateStr
+        );
+        const fineAmount = recordFine ? recordFine.amount : 0;
+
+        shiftDetails.push({
+          date: new Date(record.actualStart),
+          earnings: calculatedDailyPay,
+          fines: fineAmount,
+          net: calculatedDailyPay - fineAmount,
+          reason: `Смена ${new Date(record.actualStart).toLocaleDateString('ru-RU')}`
+        });
+      }
+
       const total = Math.max(0, accruals - totalPenalties);
+
+      if (existing) {
+        // Only auto-update if it's draft or we want to force refresh on view
+        // Ideally we should check if it's 'approved' before touching.
+        if (existing.status === 'draft' || existing.status === 'generated') {
+          existing.accruals = accruals;
+          existing.penalties = totalPenalties;
+          // Merge manual fines potentially? But for ensurePayroll we often want fresh state.
+          // Preserving manual fines logic if needed:
+          const existingManualFines = existing.fines?.filter(f => f.type === 'manual') || [];
+          existing.fines = [...existingManualFines, ...newFines];
+
+          existing.latePenalties = latePenalties;
+          existing.absencePenalties = absencePenalties;
+          existing.workedDays = workedDays;
+          existing.workedShifts = workedShifts;
+          existing.total = total;
+          // Ensure base salary info is up to date
+          existing.baseSalary = baseSalary;
+          existing.baseSalaryType = baseSalaryType;
+
+          await existing.save();
+          return { message: 'Payroll updated', created: 0 };
+        }
+        return { message: 'Payroll exists (locked)', created: 0 };
+      }
 
       const newPayroll = new (Payroll())({
         staffId: staff._id,
@@ -473,6 +525,7 @@ export class PayrollService {
         userFines: 0,
         workedDays: workedDays,
         workedShifts: workedShifts,
+        shiftDetails: shiftDetails,
         total: total,
         status: 'draft',
         createdAt: new Date(),

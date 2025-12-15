@@ -183,10 +183,10 @@ export const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
 
 // Запись посещаемости засчитывается, если завершена и checkout не позже расписания
 export const shouldCountAttendance = (record: any): boolean => {
-  if (record.status !== 'completed') return false;
-  if (!record.actualEnd) return false;
-  // Для учета посещаемости проверяем, что время завершения не раньше начала
-  return record.actualEnd.getTime() > record.actualStart?.getTime();
+  // Relaxed logic: If they checked in (actualStart exists), count it as a working day/shift.
+  // This ensures that even if they forgot to check out (and got a fine), they still get the base pay for showing up.
+  // The fine will be subtracted from this base pay.
+  return !!record.actualStart;
 };
 
 /**

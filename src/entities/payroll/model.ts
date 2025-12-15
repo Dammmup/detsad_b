@@ -9,7 +9,7 @@ export interface IPayroll extends Document {
   bonuses: number;
   deductions: number;
   total: number;
-  status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent'; // Добавляем статусы для аренды
+  status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent' | 'generated'; // Добавляем статусы для аренды
   paymentDate?: Date;
   advance?: number; // Аванс
   advanceDate?: Date; // Дата аванса
@@ -34,6 +34,13 @@ export interface IPayroll extends Document {
     notes?: string;
     date: Date;
     createdAt: Date;
+  }>;
+  shiftDetails?: Array<{
+    date: Date;
+    earnings: number;
+    fines: number;
+    net: number;
+    reason?: string;
   }>;
   // Поля для штрафов, добавленные для совместимости с payrollAutomationService
   penalties?: number;
@@ -83,7 +90,7 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   status: {
     type: String,
-    enum: ['draft', 'approved', 'paid', 'active', 'overdue', 'paid_rent'], // Добавляем статусы для аренды
+    enum: ['draft', 'approved', 'paid', 'active', 'overdue', 'paid_rent', 'generated'], // Добавляем статусы для аренды
     default: 'draft'
   },
   accruals: {
@@ -133,6 +140,13 @@ const PayrollSchema = new Schema<IPayroll>({
       type: Date,
       default: Date.now
     }
+  }],
+  shiftDetails: [{
+    date: { type: Date, required: true },
+    earnings: { type: Number, required: true, default: 0 },
+    fines: { type: Number, required: true, default: 0 },
+    net: { type: Number, required: true, default: 0 },
+    reason: String
   }],
   penalties: Number,
   latePenalties: Number,

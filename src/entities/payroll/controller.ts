@@ -82,16 +82,14 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
       period: targetPeriod
     });
 
-    // If no record exists for this period, trigger generation logic
-    if (existing.length === 0) {
-      console.log(`No payroll found for user ${req.user.id} in period ${targetPeriod}. Ensuring records...`);
-      // Use optimized method for single user
-      try {
-        await payrollService.ensurePayrollForUser(req.user.id, targetPeriod);
-      } catch (generationError) {
-        console.error('Error generating payroll on-demand:', generationError);
-        // Continue without throwing, so the user sees an empty list instead of 500
-      }
+    // Always ensure records are up to date for the current/requested period
+    // The service handles existing records by updating them if they are in 'draft' status
+    console.log(`Ensuring payroll for user ${req.user.id} in period ${targetPeriod}...`);
+    try {
+      await payrollService.ensurePayrollForUser(req.user.id, targetPeriod);
+    } catch (generationError) {
+      console.error('Error generating/updating payroll on-demand:', generationError);
+      // Continue without throwing
     }
 
     const payrolls = await payrollService.getAll({
