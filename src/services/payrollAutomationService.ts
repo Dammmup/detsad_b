@@ -92,9 +92,15 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     if (actualStart > scheduledStart) {
       const diffMs = actualStart.getTime() - scheduledStart.getTime();
       lateMinutes = Math.floor(diffMs / 60000);
+
+      console.log(`[PENALTY-DEBUG] User: ${employee.fullName}`);
+      console.log(`  Shift Time: ${shift.startTime}`);
+      console.log(`  Actual Start (Local/Server): ${actualStart.toString()}`);
+      console.log(`  Sched Start (Local/Server): ${scheduledStart.toString()}`);
+      console.log(`  Diff Minutes: ${lateMinutes}`);
+      console.log(`  Actual ISO: ${actualStart.toISOString()}`);
+      console.log(`  Sched ISO: ${scheduledStart.toISOString()}`);
     }
-
-
 
     // Сохраняем рассчитанные минуты в запись (опционально, но полезно для отладки)
     record.lateMinutes = lateMinutes;
