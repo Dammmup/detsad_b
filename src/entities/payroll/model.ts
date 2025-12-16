@@ -16,7 +16,7 @@ export interface IPayroll extends Document {
   createdAt: Date;
   updatedAt: Date;
   accruals: number;
-  baseSalaryType: string;
+  baseSalaryType: 'month' | 'shift';
   // Дополнительные поля
   shiftRate?: number;
   penaltyDetails?: {
@@ -99,6 +99,8 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   baseSalaryType: {
     type: String,
+    enum: ['month', 'shift'],
+    default: 'month'
   },
   workedDays: { type: Number, default: 0 },
   workedShifts: { type: Number, default: 0 },

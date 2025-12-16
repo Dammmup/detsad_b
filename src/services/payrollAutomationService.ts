@@ -156,20 +156,22 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
 /**
  * Рассчитывает дневную ставку сотрудника на основе его зарплаты и типа оплаты
+ * РЕФАКТОРИНГ: Теперь принимает опциональные параметры вместо чтения из User
  */
-const calculateDailyRate = (employee: IUser): number => {
-  const salaryType = ((employee as any).salaryType as string) || 'month';
-  const salary = Number((employee as any).baseSalary ?? (employee as any).salary ?? 0);
-  const shiftRate = Number((employee as any).shiftRate || 0);
+const calculateDailyRate = (
+  baseSalary: number = 180000,
+  salaryType: string = 'month',
+  shiftRate: number = 0,
+  workDaysInMonth: number = 22
+): number => {
   switch (salaryType) {
     case 'day':
-      return salary;
+      return baseSalary;
     case 'shift':
       return shiftRate;
     case 'month':
     default:
-      // По умолчанию 22 рабочих дня, реальный расчет ниже при начислении
-      return salary / 22;
+      return workDaysInMonth > 0 ? baseSalary / workDaysInMonth : baseSalary / 22;
   }
 };
 
@@ -243,11 +245,15 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     for (const employee of staff) {
       console.log(`🔍 Обработка сотрудника: ${employee.fullName}, ID: ${(employee as any)._id}`);
 
-      const baseSalaryRaw = Number((employee as any).baseSalary);
-      const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000;
+      // РЕФАКТОРИНГ: Получаем salary данные из существующего payroll или используем дефолты
+      const existingPayrollCheck = await Payroll().findOne({
+        staffId: (employee as any)._id,
+        period: month
+      });
 
-      let salaryType: string = ((employee as any).salaryType as string) || 'month'; // 'month' or 'shift'
-      const shiftRate = Number((employee as any).shiftRate || 0);
+      const baseSalary = existingPayrollCheck?.baseSalary || 180000;
+      const salaryType = existingPayrollCheck?.baseSalaryType || 'month';
+      const shiftRate = existingPayrollCheck?.shiftRate || 0;
 
       // Получаем посещаемость
       // FORCE 13 RATE: Pass 13 explicitly to override any employee settings

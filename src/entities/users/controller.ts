@@ -219,7 +219,7 @@ export const createUser = async (req: Request, res: Response) => {
           await Payroll().create({
             staffId: user._id,
             period: month,
-            baseSalary: Number((user as any).salary || 0),
+            baseSalary: 180000, // РЕФАКТОРИНГ: Используем дефолтное значение
             bonuses: 0,
             deductions: 0,
             accruals: 0,
@@ -464,6 +464,7 @@ export const deleteUser = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 // Обновить зарплатные и штрафные настройки сотрудника
+// РЕФАКТОРИНГ: Теперь сохраняет в Payroll вместо User
 export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
@@ -479,28 +480,48 @@ export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Resp
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    // Persist salary and penalty settings directly on user for now
-    if (req.body.salary !== undefined) (user as any).salary = Number(req.body.salary);
-    if (req.body.shiftRate !== undefined) (user as any).shiftRate = Number(req.body.shiftRate);
-    if (req.body.salaryType !== undefined) (user as any).salaryType = req.body.salaryType;
-    if (req.body.penaltyType !== undefined) (user as any).penaltyType = req.body.penaltyType;
-    if (req.body.penaltyAmount !== undefined) (user as any).penaltyAmount = Number(req.body.penaltyAmount);
-    if (req.body.payroll !== undefined) (user as any).payroll = req.body.payroll;
-    const updatedUser = await userService.update(req.params.id, user.toObject());
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'Пользователь не найден после обновления' });
-    }
-    const userObj = updatedUser.toObject();
-    if (userObj.passwordHash) delete (userObj as any).passwordHash;
-    // Проверяем, является ли пользователь владельцем аккаунта или администратором
-    if (req.user.role === 'admin' || req.user.id === req.params.id) {
-      res.json(userObj);
+
+    // Получаем текущий период
+    const period = req.body.period || new Date().toISOString().slice(0, 7);
+
+    // Находим или создаём payroll для этого периода
+    let payroll = await Payroll().findOne({ staffId: req.params.id, period });
+
+    if (!payroll) {
+      payroll = new (Payroll())({
+        staffId: req.params.id,
+        period,
+        baseSalary: req.body.salary || req.body.baseSalary || 180000,
+        baseSalaryType: req.body.salaryType || 'month',
+        shiftRate: req.body.shiftRate || 0,
+        bonuses: 0,
+        deductions: 0,
+        accruals: 0,
+        penalties: 0,
+        total: 0,
+        status: 'draft'
+      });
     } else {
-      // Для обычных пользователей убираем initialPassword
-      const { initialPassword, ...filteredUser } = userObj;
-      res.json(filteredUser);
+      // Обновляем существующий payroll
+      if (req.body.salary !== undefined || req.body.baseSalary !== undefined) {
+        payroll.baseSalary = Number(req.body.salary || req.body.baseSalary);
+      }
+      if (req.body.shiftRate !== undefined) {
+        payroll.shiftRate = Number(req.body.shiftRate);
+      }
+      if (req.body.salaryType !== undefined) {
+        payroll.baseSalaryType = req.body.salaryType;
+      }
     }
+
+    await payroll.save();
+
+    res.json({
+      message: 'Payroll settings updated',
+      payroll: await Payroll().findById(payroll._id).populate('staffId', 'fullName role')
+    });
   } catch (err) {
+    console.error('Error updating payroll settings:', err);
     res.status(500).json({ error: 'Error updating payroll settings' });
   }
 };

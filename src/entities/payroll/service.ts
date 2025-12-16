@@ -36,8 +36,9 @@ export class PayrollService {
     }
 
     // Получаем пользователей (или одного пользователя если staffId указан)
+    // РЕФАКТОРИНГ: Убраны поля salary из users - теперь берутся из payrolls
     const users = await User().find(userFilter)
-      .select('_id fullName role iin uniqNumber payroll salary baseSalary salaryType shiftRate penaltyType penaltyAmount')
+      .select('_id fullName role iin uniqNumber')
       .sort({ fullName: 1 });
 
     // Получаем записи зарплат для указанного периода
@@ -68,8 +69,12 @@ export class PayrollService {
         }
         return payroll;
       } else {
-        // Если нет записи в коллекции зарплат, создаем виртуальную запись на основе данных пользователя
-        const baseSalary = Number((user as any).baseSalary ?? (user as any).salary ?? 0);
+        // Если нет записи в коллекции зарплат, создаем виртуальную запись
+        // РЕФАКТОРИНГ: Используем дефолтные значения вместо чтения из Users
+        const baseSalary = 180000; // Дефолтный оклад
+        const salaryType: string = 'month'; // Дефолтный тип зарплаты
+        const shiftRate = 0; // Дефолтная ставка за смену
+
         let workedDays = 0;
         let workedShifts = 0;
         let accruals: number;
@@ -118,13 +123,10 @@ export class PayrollService {
         const shiftDetails: any[] = [];
         let calculatedDailyPay = 0;
 
-        // ИСПРАВЛЕНИЕ: Если salaryType не указан, используем 'month' по умолчанию
-        const userSalaryType = (user as any).salaryType || 'month';
-
-        if (userSalaryType === 'month' && countOfWorkdays > 0) {
+        if (salaryType === 'month' && countOfWorkdays > 0) {
           calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
-        } else if (userSalaryType === 'shift') {
-          calculatedDailyPay = (user as any).shiftRate || 0;
+        } else if (salaryType === 'shift') {
+          calculatedDailyPay = shiftRate;
         } else if (countOfWorkdays > 0) {
           // Fallback для неизвестных типов - рассчитываем как месячный оклад
           calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
@@ -168,8 +170,8 @@ export class PayrollService {
           total: calculatedTotal,
           status: 'draft',
           accruals: accruals,
-          baseSalaryType: (user as any).salaryType || 'month',
-          shiftRate: (user as any).shiftRate || 0,
+          baseSalaryType: salaryType,
+          shiftRate: shiftRate,
           penalties,
           latePenalties,
           latePenaltyRate: 13, // Default fixed rate for virtual record
@@ -515,12 +517,11 @@ export class PayrollService {
         throw new Error('User not found');
       }
 
-      // Calculation Logic (Reused from ensurePayrollRecordsForPeriod)
-      const baseSalaryRaw = Number((staff as any).baseSalary);
-      const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000;
-
-      const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
-      const shiftRate = Number((staff as any).shiftRate || 0);
+      // РЕФАКТОРИНГ: Получаем salary данные из существующего payroll или используем дефолты
+      // Не читаем baseSalary/salaryType/shiftRate из Users
+      const baseSalary = existing?.baseSalary || 180000;
+      const baseSalaryType: string = existing?.baseSalaryType || 'month';
+      const shiftRate = existing?.shiftRate || 0;
 
       // Calculate penalties immediately so they aren't 0
       // Use rate 13
@@ -622,7 +623,7 @@ export class PayrollService {
           existing.total = total;
           // Ensure base salary info is up to date
           existing.baseSalary = baseSalary;
-          existing.baseSalaryType = baseSalaryType;
+          existing.baseSalaryType = 'month';
 
           await existing.save();
           return { message: 'Payroll updated', created: 0 };
@@ -699,12 +700,10 @@ export class PayrollService {
       // Создаем новые записи для сотрудников, у которых их нет
       const createdRecords = [];
       for (const staff of staffWithoutPayroll) {
-        // Рассчитываем базовые параметры для нового расчетного листа
-        const baseSalaryRaw = Number((staff as any).baseSalary);
-        const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000
-
-        const baseSalaryType: string = ((staff as any).salaryType as string) || 'month';
-        const shiftRate = Number((staff as any).shiftRate || 0);
+        // РЕФАКТОРИНГ: Используем дефолтные значения вместо чтения из Users
+        const baseSalary = 180000;
+        const baseSalaryType: string = 'month';
+        const shiftRate = 0;
 
         // Calculate penalties immediately so they aren't 0
 

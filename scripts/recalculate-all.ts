@@ -187,7 +187,7 @@ const recalculateAllPayrolls = async () => {
                 // Обновляем payroll
                 payroll.accruals = accruals;
                 payroll.baseSalary = baseSalary;
-                payroll.baseSalaryType = baseSalaryType;
+                payroll.baseSalaryType = 'month';
                 payroll.shiftRate = shiftRate;
                 payroll.workedDays = workedDays;
                 payroll.workedShifts = workedShifts;
