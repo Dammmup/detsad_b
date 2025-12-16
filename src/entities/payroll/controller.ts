@@ -18,7 +18,7 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { userId, period, status, month } = req.query;
+    const { period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
     // Проверяем и создаем расчетные листы для текущего месяца, если они отсутствуют
@@ -27,7 +27,7 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
     }
 
     const payrolls = await payrollService.getAll({
-      staffId: userId as string,
+      staffId: req.user.id,
       period: targetPeriod,
       status: status as string
     });
@@ -110,10 +110,16 @@ export const getPayrollById = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const payroll = await payrollService.getById(req.params.id);
+    // Admin может видеть любые записи, остальные - только свои
+    const userId = req.user.role === 'admin' ? undefined : req.user.id;
+    const payroll = await payrollService.getById(req.params.id, userId);
     res.json(payroll);
   } catch (err: any) {
     console.error('Error fetching payroll:', err);
+    if (err.message === 'Forbidden: Payroll record does not belong to user') {
+      console.log(`Access violation: User ${req.user.id} attempted to access payroll ${req.params.id}`);
+      return res.status(403).json({ error: err.message });
+    }
     res.status(404).json({ error: err.message || 'Зарплата не найдена' });
   }
 };
@@ -130,7 +136,13 @@ export const createPayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
 
-    const payroll = await payrollService.create(req.body);
+    // Ensure payroll is created for the authenticated user
+    const payrollData = {
+      ...req.body,
+      staffId: req.user.id
+    };
+
+    const payroll = await payrollService.create(payrollData);
     res.status(201).json(payroll);
   } catch (err: any) {
     console.error('Error creating payroll:', err);
@@ -153,10 +165,14 @@ export const updatePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
 
-    const payroll = await payrollService.update(req.params.id, req.body);
+    const payroll = await payrollService.update(req.params.id, req.body, req.user.id);
     res.json(payroll);
   } catch (err: any) {
     console.error('Error updating payroll:', err);
+    if (err.message === 'Forbidden: Payroll record does not belong to user') {
+      console.log(`Access violation: User ${req.user.id} attempted to update payroll ${req.params.id}`);
+      return res.status(403).json({ error: err.message });
+    }
     res.status(404).json({ error: err.message || 'Ошибка обновления зарплаты' });
   }
 };
@@ -167,10 +183,15 @@ export const deletePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    const payroll = await payrollService.getById(req.params.id, req.user.id);
     const result = await payrollService.delete(req.params.id);
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting payroll:', err);
+    if (err.message === 'Forbidden: Payroll record does not belong to user') {
+      console.log(`Access violation: User ${req.user.id} attempted to delete payroll ${req.params.id}`);
+      return res.status(403).json({ error: err.message });
+    }
     res.status(404).json({ error: err.message || 'Ошибка удаления зарплаты' });
   }
 };
@@ -181,10 +202,16 @@ export const approvePayroll = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const payroll = await payrollService.approve(req.params.id);
-    res.json(payroll);
+    // Verify ownership before approval
+    const payroll = await payrollService.getById(req.params.id, req.user.id);
+    const updatedPayroll = await payrollService.approve(req.params.id);
+    res.json(updatedPayroll);
   } catch (err: any) {
     console.error('Error approving payroll:', err);
+    if (err.message === 'Forbidden: Payroll record does not belong to user') {
+      console.log(`Access violation: User ${req.user.id} attempted to approve payroll ${req.params.id}`);
+      return res.status(403).json({ error: err.message });
+    }
     res.status(404).json({ error: err.message || 'Ошибка подтверждения зарплаты' });
   }
 };
@@ -195,10 +222,16 @@ export const markPayrollAsPaid = async (req: AuthenticatedRequest, res: Response
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const payroll = await payrollService.markAsPaid(req.params.id);
-    res.json(payroll);
+    // Verify ownership before marking as paid
+    const payroll = await payrollService.getById(req.params.id, req.user.id);
+    const updatedPayroll = await payrollService.markAsPaid(req.params.id);
+    res.json(updatedPayroll);
   } catch (err: any) {
     console.error('Error marking payroll as paid:', err);
+    if (err.message === 'Forbidden: Payroll record does not belong to user') {
+      console.log(`Access violation: User ${req.user.id} attempted to mark payroll ${req.params.id} as paid`);
+      return res.status(403).json({ error: err.message });
+    }
     res.status(404).json({ error: err.message || 'Ошибка отметки зарплаты как оплаченной' });
   }
 };

@@ -26,23 +26,29 @@ export class PayrollService {
   }
 
   async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
-    const filter: any = {};
-
-    // В этом методе мы не фильтруем пользователей по staffId, так как staffId - это поле в модели Payroll()
-    // Вместо этого мы получаем всех пользователей и затем фильтруем по наличию записей в Payroll()
-    if (filters.status) filter.status = filters.status;
+    const userFilter: any = {};
+    if (filters.status) userFilter.status = filters.status;
     const period = filters.period || new Date().toISOString().slice(0, 7);
 
-    // Получаем всех пользователей, подходящих под фильтр
-    const users = await User().find(filter).select('_id fullName role iin uniqNumber payroll salary baseSalary salaryType shiftRate penaltyType penaltyAmount').sort({ fullName: 1 });
-
-    // Получаем все записи зарплат для указанного периода, если он задан
-    let payrollRecords: any[] = [];
-    if (period) {
-      payrollRecords = await Payroll().find({ period })
-        .populate('staffId', 'fullName role')
-        .sort({ createdAt: -1 });
+    // ИСПРАВЛЕНИЕ: Если указан staffId, фильтруем только его (для /payroll/my)
+    if (filters.staffId) {
+      userFilter._id = filters.staffId;
     }
+
+    // Получаем пользователей (или одного пользователя если staffId указан)
+    const users = await User().find(userFilter)
+      .select('_id fullName role iin uniqNumber payroll salary baseSalary salaryType shiftRate penaltyType penaltyAmount')
+      .sort({ fullName: 1 });
+
+    // Получаем записи зарплат для указанного периода
+    let payrollRecords: any[] = [];
+    const payrollFilter: any = { period };
+    if (filters.staffId) {
+      payrollFilter.staffId = filters.staffId;
+    }
+    payrollRecords = await Payroll().find(payrollFilter)
+      .populate('staffId', 'fullName role')
+      .sort({ createdAt: -1 });
 
     const payrollMap = new Map();
     payrollRecords.forEach(record => {
@@ -56,7 +62,10 @@ export class PayrollService {
       const payroll = user._id ? payrollMap.get((user._id as any).toString()) : null;
 
       if (payroll) {
-        // Если есть запись в коллекции зарплат, возвращаем её
+        // Если есть запись в коллекции зарплат - пересчитываем total если он 0
+        if (payroll.total === 0 && (payroll.accruals > 0 || payroll.workedShifts > 0)) {
+          payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0));
+        }
         return payroll;
       } else {
         // Если нет записи в коллекции зарплат, создаем виртуальную запись на основе данных пользователя
@@ -175,13 +184,42 @@ export class PayrollService {
     return result.filter(item => item !== null); // Фильтруем null значения, если они появились
   }
 
-  async getById(id: string) {
+  async getById(id: string, userId?: string) {
     const payroll = await Payroll().findById(id)
       .populate('staffId', 'fullName role');
 
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
+
+    // ИСПРАВЛЕНИЕ: staffId после populate() - это объект, не строка
+    let staffIdStr: string | undefined;
+    if (payroll.staffId) {
+      if (typeof payroll.staffId === 'object' && '_id' in payroll.staffId) {
+        staffIdStr = (payroll.staffId as any)._id?.toString();
+      } else {
+        staffIdStr = String(payroll.staffId);
+      }
+    }
+
+    if (userId && staffIdStr !== userId) {
+      throw new Error('Forbidden: Payroll record does not belong to user');
+    }
+
+    return payroll;
+  }
+
+  /**
+   * Получает payroll для конкретного пользователя за период
+   * Автоматически обновляет/создаёт запись перед возвратом
+   */
+  async getPayrollForUser(userId: string, period: string) {
+    // Сначала убедимся, что запись актуальна
+    await this.ensurePayrollForUser(userId, period);
+
+    // Затем возвращаем обновлённую запись
+    const payroll = await Payroll().findOne({ staffId: userId, period })
+      .populate('staffId', 'fullName role');
 
     return payroll;
   }
@@ -217,10 +255,15 @@ export class PayrollService {
     return populatedPayroll;
   }
 
-  async update(id: string, data: Partial<IPayroll>) {
+  async update(id: string, data: Partial<IPayroll>, userId: string) {
     const payroll = await Payroll().findById(id);
     if (!payroll) {
       throw new Error('Зарплата не найдена');
+    }
+
+    // Ownership check
+    if (payroll.staffId?.toString() !== userId) {
+      throw new Error('Forbidden: Payroll record does not belong to user');
     }
 
     // Обработка обновления базовой информации и пересчет итоговой суммы
