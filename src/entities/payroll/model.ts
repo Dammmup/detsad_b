@@ -107,8 +107,13 @@ const PayrollSchema = new Schema<IPayroll>({
   advanceDate: Date, // Дата аванса
   shiftRate: Number,
   penaltyDetails: {
-    type: String,
-    amount: Number
+    type: {
+      type: String,
+      amount: Number,
+      latePenalties: Number,
+      absencePenalties: Number,
+      userFines: Number
+    }
   },
   fines: [{
     amount: {

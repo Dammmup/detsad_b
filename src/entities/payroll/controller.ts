@@ -76,11 +76,7 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
     // Default to current month if not specified
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
-    // Optimization: check if record exists for this user/period first.
-    const existing = await payrollService.getAll({
-      staffId: req.user.id,
-      period: targetPeriod
-    });
+
 
     // Always ensure records are up to date for the current/requested period
     // The service handles existing records by updating them if they are in 'draft' status
@@ -92,7 +88,7 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
       // Continue without throwing
     }
 
-    const payrolls = await payrollService.getAll({
+    const payrolls = await payrollService.getAllWithUsers({
       staffId: req.user.id,
       period: targetPeriod
     });
@@ -453,5 +449,19 @@ export const getTotalFines = async (req: AuthenticatedRequest, res: Response) =>
   } catch (error) {
     console.error('Error calculating total fines:', error);
     res.status(500).json({ error: 'Error calculating total fines' });
+  }
+};
+export const getPayrollBreakdown = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { id } = req.params;
+    const breakdown = await payrollService.getPayrollBreakdown(id);
+    res.json(breakdown);
+  } catch (err: any) {
+    console.error('Error getting payroll breakdown:', err);
+    res.status(500).json({ error: err.message || 'Ошибка получения детализации зарплаты' });
   }
 };

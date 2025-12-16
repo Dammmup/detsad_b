@@ -14,7 +14,8 @@ import {
   getFines,
   removeFine,
   getTotalFines,
-  getMyPayrolls
+  getMyPayrolls,
+  getPayrollBreakdown
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -31,6 +32,7 @@ router.get('/', authMiddleware, authorizeRole(['admin', 'manager']), getAllPayro
 router.get('/by-users', authMiddleware, authorizeRole(['admin', 'manager']), getAllPayrollsByUsers);
 
 // Получить зарплату по ID
+router.get('/breakdown/:id', authMiddleware, getPayrollBreakdown);
 router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager']), getPayrollById);
 
 // Создать новую зарплату

@@ -1,12 +1,17 @@
-import Payroll from './model';
-import { IPayroll } from './model';
+import Payroll, { IPayroll } from './model';
 import User from '../users/model';
-import { IUser } from '../users/model';
 import { sendTelegramNotification } from '../../utils/telegramNotify';
 import StaffAttendanceTracking from '../staffAttendanceTracking/model';
-import { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } from '../../services/payrollAutomationService';
+import {
+  calculatePenalties,
+  getWorkingDaysInMonth,
+  shouldCountAttendance
+} from '../../services/payrollAutomationService';
 
 export class PayrollService {
+  async getPayrollBreakdown(id: string) {
+    return Payroll().findById(id).populate('staffId', 'fullName role');
+  }
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
 
@@ -15,11 +20,9 @@ export class PayrollService {
     if (targetPeriod) filter.period = targetPeriod;
     if (filters.status) filter.status = filters.status;
 
-    const payrolls = await Payroll().find(filter)
+    return Payroll().find(filter)
       .populate('staffId', 'fullName role')
       .sort({ period: -1 });
-
-    return payrolls;
   }
 
   async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
@@ -41,7 +44,6 @@ export class PayrollService {
         .sort({ createdAt: -1 });
     }
 
-    // Создаем мапу для быстрого поиска зарплаты по staffId
     const payrollMap = new Map();
     payrollRecords.forEach(record => {
       if (record.staffId && record.staffId._id) {
@@ -61,24 +63,28 @@ export class PayrollService {
         const baseSalary = Number((user as any).baseSalary ?? (user as any).salary ?? 0);
         let workedDays = 0;
         let workedShifts = 0;
-        let accruals = 0;
+        let accruals: number;
         let penalties = 0;
         let latePenalties = 0;
         let absencePenalties = 0;
 
+        // Получаем настройки детского сада для определения часового пояса
+        let countOfWorkdays = 0;
         if (period) {
           const startDate = new Date(`${period}-01`);
           const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+          endDate.setHours(23, 59, 59, 999);
+          const workingDaysInPeriod = await getWorkingDaysInMonth(startDate);
           const attendanceRecords = await StaffAttendanceTracking().find({
             staffId: user._id,
             date: { $gte: startDate, $lte: endDate }
           });
-
+          countOfWorkdays = workingDaysInPeriod;
           const countedRecords = attendanceRecords.filter(rec => shouldCountAttendance(rec));
           workedShifts = countedRecords.length;
           workedDays = countedRecords.length; // одна смена — один рабочий день
 
-          const workingDaysInPeriod = await getWorkingDaysInMonth(startDate);
+
           accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
 
           const attendancePenalties = await calculatePenalties(user._id.toString(), period, user as any);
@@ -89,7 +95,49 @@ export class PayrollService {
           accruals = baseSalary;
         }
 
-        const calculatedTotal = accruals - penalties;
+        // Generate Shift Details (Breakdown) for virtual record too
+        const shiftDetails: any[] = [];
+        let calculatedDailyPay = 0;
+
+        if ((user as any).salaryType === 'month' && countOfWorkdays > 0) {
+          calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
+        } else if ((user as any).salaryType === 'shift') {
+          calculatedDailyPay = (user as any).shiftRate || 0;
+        }
+
+        const periodStartDate = new Date(`${period}-01`);
+        const periodEndDate = new Date(periodStartDate.getFullYear(), periodStartDate.getMonth() + 1, 0);
+        periodEndDate.setHours(23, 59, 59, 999); // Set to end of the last day
+
+        const attendanceRecordsForDetails = await StaffAttendanceTracking().find({
+          staffId: user._id,
+          date: { $gte: periodStartDate, $lte: periodEndDate }
+        }).sort({ date: 1 }); // Sort by date for consistent ordering
+
+        // Получаем штрафы для формирования детализации смен
+        const attendancePenaltiesForDetails = await calculatePenalties(user._id.toString(), period, user as any, 13);
+
+        for (const record of attendanceRecordsForDetails) {
+          if (shouldCountAttendance(record)) {
+            // Find associated penalty for this record date
+            const recordDateStr = new Date(record.date).toISOString().split('T')[0];
+            const penaltyRecord = attendancePenaltiesForDetails.attendanceRecords.find((r: any) =>
+              new Date(r.date).toISOString().split('T')[0] === recordDateStr
+            );
+
+            const fineAmount = penaltyRecord && penaltyRecord.lateMinutes > 0 ? penaltyRecord.lateMinutes * 13 : 0;
+
+            shiftDetails.push({
+              date: new Date(record.date),
+              earnings: calculatedDailyPay,
+              fines: fineAmount,
+              net: calculatedDailyPay - fineAmount,
+              reason: `Смена ${new Date(record.date).toLocaleDateString('ru-RU')}`
+            });
+          }
+        }
+
+        const calculatedTotal = Math.max(0, accruals - penalties); // Убедимся, что итог не отрицательный
 
         return {
           _id: null, // Отсутствие ID указывает на то, что записи в базе нет
@@ -118,7 +166,9 @@ export class PayrollService {
           history: undefined,
           // Добавляем поля для отработанных дней/смен
           workedDays: workedDays,
-          workedShifts: workedShifts
+          workedShifts: workedShifts,
+          // Добавляем детализацию смен
+          shiftDetails: shiftDetails
         };
       }
     }));
@@ -140,8 +190,9 @@ export class PayrollService {
     // Вычисляем общую сумму
     const total = Math.max(0, (payrollData.baseSalary || 0) +
       (payrollData.bonuses || 0) -
-      (payrollData.deductions || 0) -
-      (payrollData.advance || 0));
+      (payrollData.penalties || 0) -
+      (payrollData.advance || 0) +
+      (payrollData.accruals || 0)); // accruals уже содержит рассчитанную сумму начислений
 
     const newPayrollData = {
       ...payrollData,
@@ -167,20 +218,19 @@ export class PayrollService {
   }
 
   async update(id: string, data: Partial<IPayroll>) {
-    // При обновлении пересчитываем общую сумму
+    const payroll = await Payroll().findById(id);
+    if (!payroll) {
+      throw new Error('Зарплата не найдена');
+    }
+
+    // Обработка обновления базовой информации и пересчет итоговой суммы
     if (data.baseSalary !== undefined ||
       data.bonuses !== undefined ||
       data.deductions !== undefined ||
       data.advance !== undefined) {
 
-      const payroll = await Payroll().findById(id);
-      if (!payroll) {
-        throw new Error('Зарплата не найдена');
-      }
-
       const baseSalary = data.baseSalary !== undefined ? data.baseSalary : payroll.baseSalary;
       const bonuses = data.bonuses !== undefined ? data.bonuses : payroll.bonuses;
-      const deductions = data.deductions !== undefined ? data.deductions : payroll.deductions;
       const advance = data.advance !== undefined ? data.advance : payroll.advance || 0;
 
       let currentPenalties = payroll.penalties || 0;
@@ -224,11 +274,28 @@ export class PayrollService {
       data.total = Math.max(0, baseSalary + bonuses - currentPenalties - advance);
     }
 
-    const updatedPayroll = await Payroll().findByIdAndUpdate(
-      id,
-      data,
-      { new: true }
-    ).populate('staffId', 'fullName role telegramChatId');
+    // Обновляем поля, если они переданы в данных
+    if (data.shiftDetails !== undefined) {
+      payroll.shiftDetails = data.shiftDetails;
+    }
+
+    // Обновляем все остальные поля, которые могут быть переданы
+    const allowedFields = [
+      'period', 'baseSalary', 'baseSalaryType', 'shiftRate', 'bonuses', 'deductions', 'accruals',
+      'penalties', 'latePenalties', 'latePenaltyRate', 'absencePenalties', 'userFines', 'workedDays',
+      'workedShifts', 'fines', 'status', 'total', 'paymentDate', 'history'
+    ];
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        (payroll as any)[field] = data[field];
+      }
+    }
+
+    await payroll.save();
+
+    const updatedPayroll = await Payroll().findById(payroll._id)
+      .populate('staffId', 'fullName role telegramChatId');
 
     if (!updatedPayroll) {
       throw new Error('Зарплата не найдена');
@@ -317,8 +384,7 @@ export class PayrollService {
     payroll.fines.push(fine);
 
     // Обновляем общую сумму штрафов
-    const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
-    payroll.userFines = totalFines;
+    payroll.userFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
 
     // Recalculate total penalties (sum of components)
     // This ensures consistency even if previous value was drifted
@@ -328,8 +394,7 @@ export class PayrollService {
 
     await payroll.save();
 
-    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
-    return populatedPayroll;
+    return Payroll().findById(payroll._id).populate('staffId', 'fullName role');
   }
 
   /**
@@ -358,12 +423,9 @@ export class PayrollService {
     }
 
     // Получаем сумму удаляемого штрафа
-    const removedFine = payroll.fines.splice(fineIndex, 1)[0];
-    const fineAmount = removedFine.amount;
 
     // Обновляем общую сумму штрафов
-    const totalFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
-    payroll.userFines = totalFines;
+    payroll.userFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
 
     // Recalculate total penalties (sum of components)
     payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
@@ -373,8 +435,7 @@ export class PayrollService {
 
     await payroll.save();
 
-    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role');
-    return populatedPayroll;
+    return Payroll().findById(payroll._id).populate('staffId', 'fullName role');
   }
 
   /**
@@ -482,6 +543,7 @@ export class PayrollService {
         });
       }
 
+      // Убедимся, что итоговая сумма не отрицательна
       const total = Math.max(0, accruals - totalPenalties);
 
       if (existing) {
@@ -499,6 +561,7 @@ export class PayrollService {
           existing.absencePenalties = absencePenalties;
           existing.workedDays = workedDays;
           existing.workedShifts = workedShifts;
+          existing.shiftDetails = shiftDetails; // Добавляем обновление детализации смен
           existing.total = total;
           // Ensure base salary info is up to date
           existing.baseSalary = baseSalary;
@@ -551,7 +614,6 @@ export class PayrollService {
     try {
       console.log(`Проверка наличия расчетных листов для периода: ${period}`);
 
-      // Получаем всех активных сотрудников (кроме админов)
       const allStaff = await User().find({
         role: { $ne: 'admin' },
         active: true
@@ -631,6 +693,35 @@ export class PayrollService {
           accruals = baseSalary;
         }
 
+        // Generate Shift Details (Breakdown) for the new record
+        const shiftDetails: any[] = [];
+        let calculatedDailyPay = 0;
+
+        if (baseSalaryType === 'month' && workDaysInMonth > 0) {
+          calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
+        } else if (baseSalaryType === 'shift') {
+          calculatedDailyPay = shiftRate;
+        }
+
+        for (const record of attendedRecords) {
+          // Используем настройки часового пояса для корректного формирования даты
+          const recordDateStr = new Date(record.actualStart).toISOString().split('T')[0];
+          // Find fines for this record (match by date roughly or by logic)
+          // newFines has exact date from record.actualStart
+          const recordFine = newFines.find((f: any) =>
+            new Date(f.date).toISOString().split('T')[0] === recordDateStr
+          );
+          const fineAmount = recordFine ? recordFine.amount : 0;
+
+          shiftDetails.push({
+            date: new Date(record.actualStart),
+            earnings: calculatedDailyPay,
+            fines: fineAmount,
+            net: calculatedDailyPay - fineAmount,
+            reason: `Смена ${new Date(record.actualStart).toLocaleDateString('ru-RU')}`
+          });
+        }
+
         const total = Math.max(0, accruals - totalPenalties);
 
         // Создаем запись с рассчитанными данными
@@ -651,6 +742,7 @@ export class PayrollService {
           userFines: 0,
           workedDays: workedDays,
           workedShifts: workedShifts,
+          shiftDetails: shiftDetails, // Добавляем детализацию смен
           total: total,
           status: 'draft',
           createdAt: new Date(),
