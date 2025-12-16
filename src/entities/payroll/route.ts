@@ -33,7 +33,7 @@ router.get('/by-users', authMiddleware, authorizeRole(['admin', 'manager']), get
 
 // Получить зарплату по ID
 router.get('/breakdown/:id', authMiddleware, getPayrollBreakdown);
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager']), getPayrollById);
+router.get('/:id', authMiddleware, authorizeRole(['admin', 'teacher']), getPayrollById);
 
 // Создать новую зарплату
 router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createPayroll);
