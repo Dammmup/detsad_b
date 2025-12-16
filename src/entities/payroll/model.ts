@@ -168,6 +168,23 @@ const PayrollSchema = new Schema<IPayroll>({
   timestamps: true
 });
 
+// Автоматический пересчёт total перед сохранением
+// total = accruals - (latePenalties + absencePenalties + userFines)
+PayrollSchema.pre('save', function (next) {
+  const accruals = this.accruals || 0;
+  const latePenalties = this.latePenalties || 0;
+  const absencePenalties = this.absencePenalties || 0;
+  const userFines = this.userFines || 0;
+
+  // Пересчитываем total автоматически
+  this.total = Math.max(0, accruals - latePenalties - absencePenalties - userFines);
+
+  // Также обновляем penalties для консистентности
+  this.penalties = latePenalties + absencePenalties + userFines;
+
+  next();
+});
+
 // Add compound unique index to prevent duplicate payrolls for same staff and period
 PayrollSchema.index({ staffId: 1, period: 1 }, { unique: true });
 

@@ -85,31 +85,31 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     // Сравниваем время
     // Shift startTime/endTime format: "HH:MM"
     const [schedStartH, schedStartM] = shift.startTime.split(':').map(Number);
-    const [schedEndH, schedEndM] = shift.endTime.split(':').map(Number);
 
-    // Создаем объекты дат с учетом часового пояса для корректного сравнения
-    // Преобразуем actualStart в локальное время по часовому поясу детского сада
-    const actualStartISO = new Date(record.actualStart).toISOString();
-    const actualStart = new Date(actualStartISO);
-    
-    // Создаем дату начала смены в тот же день, что и actualStart (или shift.date)
-    const scheduledStart = new Date(actualStart);
-    scheduledStart.setHours(schedStartH, schedStartM, 0, 0);
+    // ИСПРАВЛЕНИЕ ЧАСОВОГО ПОЯСА:
+    // actualStart хранится в UTC. Приводим к локальному времени Казахстана (+05:00)
+    const timezoneOffsetMinutes = 5 * 60; // +05:00
 
-    // Если опоздал (actualStart > scheduledStart)
+    // Получаем время прихода в минутах от полуночи в локальном времени
+    const actualStartUTC = new Date(record.actualStart);
+    const actualStartMinutesUTC = actualStartUTC.getUTCHours() * 60 + actualStartUTC.getUTCMinutes();
+    const actualStartMinutesLocal = actualStartMinutesUTC + timezoneOffsetMinutes;
+    // Корректируем если перешли на следующий день
+    const actualMinutes = actualStartMinutesLocal >= 1440 ? actualStartMinutesLocal - 1440 : actualStartMinutesLocal;
+
+    // Время начала смены в минутах от полуночи
+    const scheduledMinutes = schedStartH * 60 + schedStartM;
+
+    // Если опоздал (actualMinutes > scheduledMinutes)
     let lateMinutes = 0;
-    if (actualStart > scheduledStart) {
-      const diffMs = actualStart.getTime() - scheduledStart.getTime();
-      lateMinutes = Math.floor(diffMs / 60000);
+    if (actualMinutes > scheduledMinutes) {
+      lateMinutes = actualMinutes - scheduledMinutes;
 
       console.log(`[PENALTY-DEBUG] User: ${employee.fullName}`);
-      console.log(`  Shift Time: ${shift.startTime}`);
-      console.log(`  Actual Start (Local/Server): ${actualStart.toString()}`);
-      console.log(`  Sched Start (Local/Server): ${scheduledStart.toString()}`);
-      console.log(`  Diff Minutes: ${lateMinutes}`);
-      console.log(`  Actual ISO: ${actualStart.toISOString()}`);
-      console.log(`  Sched ISO: ${scheduledStart.toISOString()}`);
-      console.log(`  Timezone used: ${timezone}`);
+      console.log(`  Shift Time: ${shift.startTime} (${scheduledMinutes} min from midnight)`);
+      console.log(`  Actual Start (UTC): ${actualStartUTC.toISOString()}`);
+      console.log(`  Actual Local Time: ${Math.floor(actualMinutes / 60)}:${String(actualMinutes % 60).padStart(2, '0')}`);
+      console.log(`  Late Minutes: ${lateMinutes}`);
     }
 
     // Сохраняем рассчитанные минуты в запись (опционально, но полезно для отладки)

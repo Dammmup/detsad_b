@@ -98,6 +98,20 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
       period: targetPeriod
     });
 
+    // DEBUG: Логируем возвращаемые данные
+    if (payrolls.length > 0) {
+      const p = payrolls[0];
+      console.log('=== DEBUG getMyPayrolls ===');
+      console.log(`  staffId: ${req.user.id}, period: ${targetPeriod}`);
+      console.log(`  Found ${payrolls.length} payroll(s)`);
+      console.log(`  First payroll: total=${p.total}, accruals=${p.accruals}, workedShifts=${p.workedShifts}`);
+      console.log(`  shiftDetails count: ${p.shiftDetails?.length || 0}`);
+      if (p.shiftDetails?.length > 0) {
+        console.log(`  First shiftDetail: earnings=${p.shiftDetails[0].earnings}`);
+      }
+      console.log('=========================');
+    }
+
     res.json(payrolls);
   } catch (err: any) {
     console.error('Error fetching my payrolls:', err);

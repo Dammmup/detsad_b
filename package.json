@@ -12,6 +12,9 @@
     "migrate": "ts-node migrate.ts",
     "migrate-staff-attendance": "ts-node src/migrations/migrateStaffAttendance.ts",
     "migrate-tenant-to-rent": "ts-node migrations/convert-tenant-to-rent-role.ts",
+    "update-shifts-start-time": "ts-node scripts/update-start-time.ts",
+    "recalculate-late-minutes": "ts-node scripts/recalculate-late-minutes.ts",
+    "recalculate-all": "ts-node scripts/recalculate-all.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

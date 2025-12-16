@@ -83,7 +83,17 @@ export class PayrollService {
           const startDate = new Date(`${period}-01`);
           const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
           endDate.setHours(23, 59, 59, 999);
-          const workingDaysInPeriod = await getWorkingDaysInMonth(startDate);
+          let workingDaysInPeriod = await getWorkingDaysInMonth(startDate);
+          // ИСПРАВЛЕНИЕ: Если нет настроек, считаем рабочие дни (Пн-Пт) вручную
+          if (workingDaysInPeriod <= 0) {
+            const year = startDate.getFullYear();
+            const month = startDate.getMonth();
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            for (let d = 1; d <= lastDay; d++) {
+              const dayOfWeek = new Date(year, month, d).getDay();
+              if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDaysInPeriod++;
+            }
+          }
           const attendanceRecords = await StaffAttendanceTracking().find({
             staffId: user._id,
             date: { $gte: startDate, $lte: endDate }
@@ -536,21 +546,33 @@ export class PayrollService {
       let workedShifts = 0;
 
       const startDate = new Date(`${period}-01`);
-      const workDaysInMonth = await getWorkingDaysInMonth(startDate);
+      let workDaysInMonth = await getWorkingDaysInMonth(startDate);
+      // ИСПРАВЛЕНИЕ: Если нет настроек, считаем рабочие дни (Пн-Пт) вручную
+      if (workDaysInMonth <= 0) {
+        const year = startDate.getFullYear();
+        const month = startDate.getMonth();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        for (let d = 1; d <= lastDay; d++) {
+          const dayOfWeek = new Date(year, month, d).getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysInMonth++;
+        }
+      }
       // Logic for attendance counting is now relaxed in "shouldCountAttendance"
       const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
-      if (baseSalaryType === 'month') {
+      // ИСПРАВЛЕНИЕ: Учитываем 'month' как дефолт
+      if (baseSalaryType === 'month' || !baseSalaryType) {
         workedShifts = attendedRecords.length;
         workedDays = workedShifts;
-        if (workDaysInMonth > 0) {
-          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
-        }
+        accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
       } else if (baseSalaryType === 'shift') {
         workedShifts = attendedRecords.length;
         accruals = workedShifts * shiftRate;
       } else {
-        accruals = baseSalary;
+        // Fallback для неизвестных типов
+        workedShifts = attendedRecords.length;
+        workedDays = workedShifts;
+        accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
       }
 
       // Generate Shift Details (Breakdown)
@@ -712,20 +734,32 @@ export class PayrollService {
 
         // Fetch working days
         const startDate = new Date(`${period}-01`);
-        const workDaysInMonth = await getWorkingDaysInMonth(startDate);
+        let workDaysInMonth = await getWorkingDaysInMonth(startDate);
+        // ИСПРАВЛЕНИЕ: Если нет настроек, считаем рабочие дни (Пн-Пт) вручную
+        if (workDaysInMonth <= 0) {
+          const year = startDate.getFullYear();
+          const month = startDate.getMonth();
+          const lastDay = new Date(year, month + 1, 0).getDate();
+          for (let d = 1; d <= lastDay; d++) {
+            const dayOfWeek = new Date(year, month, d).getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysInMonth++;
+          }
+        }
         const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
-        if (baseSalaryType === 'month') {
+        // ИСПРАВЛЕНИЕ: Учитываем 'month' как дефолт
+        if (baseSalaryType === 'month' || !baseSalaryType) {
           workedShifts = attendedRecords.length;
           workedDays = workedShifts;
-          if (workDaysInMonth > 0) {
-            accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
-          }
+          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
         } else if (baseSalaryType === 'shift') {
           workedShifts = attendedRecords.length;
           accruals = workedShifts * shiftRate;
         } else {
-          accruals = baseSalary;
+          // Fallback для неизвестных типов
+          workedShifts = attendedRecords.length;
+          workedDays = workedShifts;
+          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
         }
 
         // Generate Shift Details (Breakdown) for the new record
