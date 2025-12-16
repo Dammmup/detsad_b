@@ -108,10 +108,16 @@ export class PayrollService {
         const shiftDetails: any[] = [];
         let calculatedDailyPay = 0;
 
-        if ((user as any).salaryType === 'month' && countOfWorkdays > 0) {
+        // ИСПРАВЛЕНИЕ: Если salaryType не указан, используем 'month' по умолчанию
+        const userSalaryType = (user as any).salaryType || 'month';
+
+        if (userSalaryType === 'month' && countOfWorkdays > 0) {
           calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
-        } else if ((user as any).salaryType === 'shift') {
+        } else if (userSalaryType === 'shift') {
           calculatedDailyPay = (user as any).shiftRate || 0;
+        } else if (countOfWorkdays > 0) {
+          // Fallback для неизвестных типов - рассчитываем как месячный оклад
+          calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
         }
 
         const periodStartDate = new Date(`${period}-01`);
@@ -123,24 +129,14 @@ export class PayrollService {
           date: { $gte: periodStartDate, $lte: periodEndDate }
         }).sort({ date: 1 }); // Sort by date for consistent ordering
 
-        // Получаем штрафы для формирования детализации смен
-        const attendancePenaltiesForDetails = await calculatePenalties(user._id.toString(), period, user as any, 13);
-
         for (const record of attendanceRecordsForDetails) {
           if (shouldCountAttendance(record)) {
-            // Find associated penalty for this record date
-            const recordDateStr = new Date(record.date).toISOString().split('T')[0];
-            const penaltyRecord = attendancePenaltiesForDetails.attendanceRecords.find((r: any) =>
-              new Date(r.date).toISOString().split('T')[0] === recordDateStr
-            );
-
-            const fineAmount = penaltyRecord && penaltyRecord.lateMinutes > 0 ? penaltyRecord.lateMinutes * 13 : 0;
-
+            // ИСПРАВЛЕНИЕ: Убираем штрафы из детализации смен (за них отвечает отдельный раздел)
             shiftDetails.push({
               date: new Date(record.date),
               earnings: calculatedDailyPay,
-              fines: fineAmount,
-              net: calculatedDailyPay - fineAmount,
+              fines: 0, // Штрафы отображаются в отдельном разделе
+              net: calculatedDailyPay,
               reason: `Смена ${new Date(record.date).toLocaleDateString('ru-RU')}`
             });
           }
@@ -561,27 +557,23 @@ export class PayrollService {
       const shiftDetails: any[] = [];
       let calculatedDailyPay = 0;
 
-      if (baseSalaryType === 'month' && workDaysInMonth > 0) {
+      // ИСПРАВЛЕНИЕ: Если baseSalaryType не указан, используем 'month' по умолчанию
+      if ((baseSalaryType === 'month' || !baseSalaryType) && workDaysInMonth > 0) {
         calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
       } else if (baseSalaryType === 'shift') {
         calculatedDailyPay = shiftRate;
+      } else if (workDaysInMonth > 0) {
+        // Fallback
+        calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
       }
 
       for (const record of attendedRecords) {
-        // Используем настройки часового пояса для корректного формирования даты
-        const recordDateStr = new Date(record.actualStart).toISOString().split('T')[0];
-        // Find fines for this record (match by date roughly or by logic)
-        // newFines has exact date from record.actualStart
-        const recordFine = newFines.find((f: any) =>
-          new Date(f.date).toISOString().split('T')[0] === recordDateStr
-        );
-        const fineAmount = recordFine ? recordFine.amount : 0;
-
+        // ИСПРАВЛЕНИЕ: Убираем штрафы из детализации смен (за них отвечает отдельный раздел)
         shiftDetails.push({
           date: new Date(record.actualStart),
           earnings: calculatedDailyPay,
-          fines: fineAmount,
-          net: calculatedDailyPay - fineAmount,
+          fines: 0, // Штрафы отображаются в отдельном разделе
+          net: calculatedDailyPay,
           reason: `Смена ${new Date(record.actualStart).toLocaleDateString('ru-RU')}`
         });
       }
@@ -740,27 +732,23 @@ export class PayrollService {
         const shiftDetails: any[] = [];
         let calculatedDailyPay = 0;
 
-        if (baseSalaryType === 'month' && workDaysInMonth > 0) {
+        // ИСПРАВЛЕНИЕ: Если baseSalaryType не указан, используем 'month' по умолчанию
+        if ((baseSalaryType === 'month' || !baseSalaryType) && workDaysInMonth > 0) {
           calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
         } else if (baseSalaryType === 'shift') {
           calculatedDailyPay = shiftRate;
+        } else if (workDaysInMonth > 0) {
+          // Fallback
+          calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
         }
 
         for (const record of attendedRecords) {
-          // Используем настройки часового пояса для корректного формирования даты
-          const recordDateStr = new Date(record.actualStart).toISOString().split('T')[0];
-          // Find fines for this record (match by date roughly or by logic)
-          // newFines has exact date from record.actualStart
-          const recordFine = newFines.find((f: any) =>
-            new Date(f.date).toISOString().split('T')[0] === recordDateStr
-          );
-          const fineAmount = recordFine ? recordFine.amount : 0;
-
+          // ИСПРАВЛЕНИЕ: Убираем штрафы из детализации смен (за них отвечает отдельный раздел)
           shiftDetails.push({
             date: new Date(record.actualStart),
             earnings: calculatedDailyPay,
-            fines: fineAmount,
-            net: calculatedDailyPay - fineAmount,
+            fines: 0, // Штрафы отображаются в отдельном разделе
+            net: calculatedDailyPay,
             reason: `Смена ${new Date(record.actualStart).toLocaleDateString('ru-RU')}`
           });
         }

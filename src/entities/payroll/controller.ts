@@ -26,8 +26,13 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
       await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
     }
 
+    // ИСПРАВЛЕНИЕ: Admin/manager видят все записи, остальные - только свои
+    const staffIdFilter = (req.user.role === 'admin' || req.user.role === 'manager')
+      ? undefined
+      : req.user.id;
+
     const payrolls = await payrollService.getAll({
-      staffId: req.user.id,
+      staffId: staffIdFilter,
       period: targetPeriod,
       status: status as string
     });
