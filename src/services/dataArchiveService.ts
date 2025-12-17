@@ -6,6 +6,7 @@ import StaffShift from '../entities/staffShifts/model';
 import Payroll from '../entities/payroll/model';
 import EmailService from './emailService';
 import { SettingsService } from '../entities/settings/service';
+import { sendLogToTelegram } from '../utils/telegramLogger';
 
 const emailService = new EmailService();
 const settingsService = new SettingsService();
@@ -315,6 +316,9 @@ export async function archiveAndDeleteRecords(): Promise<void> {
     console.log('📦 Начало автоматического архивирования данных...');
     console.log(`📅 Архивируем записи старше 3 месяцев (до ${getArchiveDate().toLocaleDateString('ru-RU')})`);
 
+    // Уведомление о начале архивирования
+    await sendLogToTelegram(`📦 <b>Начало автоматического архивирования</b>\n\nАрхивируем записи старше ${getArchiveDate().toLocaleDateString('ru-RU')}`);
+
     try {
         // Получаем email из настроек детского сада
         const settings = await settingsService.getKindergartenSettings();
@@ -322,6 +326,7 @@ export async function archiveAndDeleteRecords(): Promise<void> {
 
         if (!recipientEmail) {
             console.error('❌ Email не найден в настройках детского сада. Архивирование отменено.');
+            await sendLogToTelegram('❌ <b>Архивирование отменено</b>\n\nEmail не найден в настройках детского сада.');
             return;
         }
 
@@ -356,6 +361,7 @@ export async function archiveAndDeleteRecords(): Promise<void> {
         const totalRecords = exports.reduce((sum, e) => sum + e.count, 0);
         if (totalRecords === 0) {
             console.log('ℹ️ Нет записей для архивирования. Пропускаем.');
+            await sendLogToTelegram('ℹ️ <b>Архивирование завершено</b>\n\nНет записей старше 3 месяцев для архивирования.');
             return;
         }
 
@@ -386,8 +392,28 @@ export async function archiveAndDeleteRecords(): Promise<void> {
 
         console.log('✅ Автоматическое архивирование завершено успешно!');
 
-    } catch (error) {
+        // Формируем отчёт для Telegram
+        const collectionNames: Record<string, string> = {
+            'childAttendance': 'Посещаемость детей',
+            'childPayments': 'Оплаты детей',
+            'staffAttendanceTracking': 'Учёт рабочего времени',
+            'staffShifts': 'Смены сотрудников',
+            'payrolls': 'Зарплаты'
+        };
+
+        let telegramMessage = `✅ <b>Архивирование завершено</b>\n\n`;
+        telegramMessage += `📧 Архив отправлен на: ${recipientEmail}\n\n`;
+        telegramMessage += `<b>Удалено записей:</b>\n`;
+        exports.filter(e => e.count > 0).forEach(e => {
+            telegramMessage += `• ${collectionNames[e.name] || e.name}: ${e.count}\n`;
+        });
+        telegramMessage += `\n<b>Всего:</b> ${totalRecords} записей`;
+
+        await sendLogToTelegram(telegramMessage);
+
+    } catch (error: any) {
         console.error('❌ Ошибка при архивировании данных:', error);
+        await sendLogToTelegram(`❌ <b>Ошибка архивирования</b>\n\n${error?.message || 'Неизвестная ошибка'}`);
         throw error;
     }
 }
