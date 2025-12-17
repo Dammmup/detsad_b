@@ -6,14 +6,14 @@ export const saveUIState = async (req: Request, res: Response) => {
   try {
     const uiStateData: UIStateRequest = req.body;
 
-    // Валидация обязательных полей
+
     if (!uiStateData.sessionId || !uiStateData.url || !uiStateData.route) {
       return res.status(400).json({ error: 'sessionId, url и route обязательны' });
     }
 
     const result = await UIStateService.saveUIState(uiStateData);
     res.status(201).json(result);
- } catch (error: any) {
+  } catch (error: any) {
     console.error('Ошибка в контроллере сохранения состояния UI:', error);
     res.status(500).json({ error: error.message || 'Внутренняя ошибка сервера' });
   }

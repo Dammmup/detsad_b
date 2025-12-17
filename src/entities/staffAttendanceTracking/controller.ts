@@ -10,14 +10,14 @@ export const clockIn = async (req: Request, res: Response) => {
     }
     const userId = req.user.id as string;
     const { latitude, longitude, photo, notes } = req.body;
-    
+
     const result = await staffAttendanceTrackingService.clockIn(
-      userId, 
-      { latitude, longitude }, 
-      photo, 
+      userId,
+      { latitude, longitude },
+      photo,
       notes
     );
-    
+
     res.status(201).json(result);
   } catch (error) {
     console.error('Error clocking in:', error);
@@ -37,19 +37,19 @@ export const clockOut = async (req: Request, res: Response) => {
     }
     const userId = req.user.id as string;
     const { latitude, longitude, photo, notes } = req.body;
-    
+
     const result = await staffAttendanceTrackingService.clockOut(
-      userId, 
-      { latitude, longitude }, 
-      photo, 
+      userId,
+      { latitude, longitude },
+      photo,
       notes
     );
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error clocking out:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
- }
+  }
 };
 
 export const getEntries = async (req: Request, res: Response) => {
@@ -59,16 +59,16 @@ export const getEntries = async (req: Request, res: Response) => {
     }
     const userId = req.user.id as string;
     const { page, limit, startDate, endDate, status } = req.query;
-    
-    // Build filters
+
+
     const filters: any = {
       page: page ? parseInt(page as string) : undefined,
       limit: limit ? parseInt(limit as string) : undefined,
       startDate: startDate as string,
       endDate: endDate as string
     };
-    
-    // Add status-based filtering
+
+
     if (status) {
       if (status === 'absent') {
         filters.actualStart = { $exists: false };
@@ -80,14 +80,14 @@ export const getEntries = async (req: Request, res: Response) => {
         filters.actualEnd = { $exists: false };
       }
     }
-    
+
     const result = await staffAttendanceTrackingService.getEntries(userId, filters);
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error getting time entries:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
- }
+  }
 };
 
 export const getSummary = async (req: Request, res: Response) => {
@@ -97,22 +97,22 @@ export const getSummary = async (req: Request, res: Response) => {
     }
     const userId = req.user.id as string;
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'startDate and endDate are required' });
     }
-    
+
     const result = await staffAttendanceTrackingService.getSummary(
-      userId, 
-      startDate as string, 
+      userId,
+      startDate as string,
       endDate as string
     );
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error getting time summary:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
- }
+  }
 };
 
 export const getAllStaffAttendanceRecords = async (req: Request, res: Response) => {
@@ -120,10 +120,10 @@ export const getAllStaffAttendanceRecords = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { staffId, date, status, inZone, startDate, endDate, approvedBy, approvedAt } = req.query;
-    
-    // Build filters
+
+
     const filters: any = {
       staffId: staffId as string,
       date: date as string,
@@ -133,8 +133,8 @@ export const getAllStaffAttendanceRecords = async (req: Request, res: Response) 
       approvedBy: approvedBy as string,
       approvedAt: approvedAt as string
     };
-    
-    // Add status-based filtering based on other fields
+
+
     if (status) {
       if (status === 'absent') {
         filters.actualStart = { $exists: false };
@@ -146,9 +146,9 @@ export const getAllStaffAttendanceRecords = async (req: Request, res: Response) 
         filters.actualEnd = { $exists: false };
       }
     }
-    
+
     const records = await staffAttendanceTrackingService.getAll(filters);
-    
+
     res.json(records);
   } catch (err) {
     console.error('Error fetching staff attendance records:', err);
@@ -161,10 +161,10 @@ export const getStaffAttendanceRecordById = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const record = await staffAttendanceTrackingService.getById(req.params.id);
     res.json(record);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error fetching staff attendance record:', err);
     res.status(404).json({ error: err.message || 'Запись посещаемости сотрудника не найдена' });
   }
@@ -175,21 +175,21 @@ export const createStaffAttendanceRecord = async (req: Request, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
-    // Извлекаем поля, которые теперь относятся к модели StaffAttendanceTracking
+
+
     const { lateMinutes, earlyLeaveMinutes, ...recordData } = req.body;
-    
-    // Добавляем эти поля к объекту recordData
+
+
     if (lateMinutes !== undefined) {
       recordData.lateMinutes = lateMinutes;
     }
     if (earlyLeaveMinutes !== undefined) {
       recordData.earlyLeaveMinutes = earlyLeaveMinutes;
     }
-    
+
     const record = await staffAttendanceTrackingService.create(recordData, req.user.id as string);
     res.status(201).json(record);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error creating staff attendance record:', err);
     res.status(400).json({ error: err.message || 'Ошибка создания записи посещаемости сотрудника' });
   }
@@ -200,18 +200,18 @@ export const updateStaffAttendanceRecord = async (req: Request, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
-    // Извлекаем поля, которые теперь относятся к модели StaffAttendanceTracking
+
+
     const { lateMinutes, earlyLeaveMinutes, ...recordData } = req.body;
-    
-    // Добавляем эти поля к объекту recordData
+
+
     if (lateMinutes !== undefined) {
       recordData.lateMinutes = lateMinutes;
     }
     if (earlyLeaveMinutes !== undefined) {
       recordData.earlyLeaveMinutes = earlyLeaveMinutes;
     }
-    
+
     const record = await staffAttendanceTrackingService.update(req.params.id, recordData);
     res.json(record);
   } catch (err: any) {
@@ -225,7 +225,7 @@ export const deleteStaffAttendanceRecord = async (req: Request, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const result = await staffAttendanceTrackingService.delete(req.params.id);
     res.json(result);
   } catch (err: any) {
@@ -239,11 +239,11 @@ export const getStaffAttendanceRecordsByStaffId = async (req: Request, res: Resp
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { staffId } = req.params;
     const { date, status, inZone, startDate, endDate, approvedBy, approvedAt } = req.query;
-    
-    // Build filters
+
+
     const filters: any = {
       date: date as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
@@ -252,8 +252,8 @@ export const getStaffAttendanceRecordsByStaffId = async (req: Request, res: Resp
       approvedBy: approvedBy as string,
       approvedAt: approvedAt as string
     };
-    
-    // Add status-based filtering
+
+
     if (status) {
       if (status === 'absent') {
         filters.actualStart = { $exists: false };
@@ -265,9 +265,9 @@ export const getStaffAttendanceRecordsByStaffId = async (req: Request, res: Resp
         filters.actualEnd = { $exists: false };
       }
     }
-    
+
     const records = await staffAttendanceTrackingService.getByStaffId(staffId, filters);
-    
+
     res.json(records);
   } catch (err: any) {
     console.error('Error fetching staff attendance records by staff ID:', err);
@@ -280,24 +280,24 @@ export const getStaffAttendanceRecordsByDateRange = async (req: Request, res: Re
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const { staffId, status, inZone, approvedBy, approvedAt } = req.query;
-    
-    // Build filters
+
+
     const filters: any = {
       staffId: staffId as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
       approvedBy: approvedBy as string,
       approvedAt: approvedAt as string
     };
-    
-    // Add status-based filtering
+
+
     if (status) {
       if (status === 'absent') {
         filters.actualStart = { $exists: false };
@@ -309,9 +309,9 @@ export const getStaffAttendanceRecordsByDateRange = async (req: Request, res: Re
         filters.actualEnd = { $exists: false };
       }
     }
-    
+
     const records = await staffAttendanceTrackingService.getByDateRange(startDate as string, endDate as string, filters);
-    
+
     res.json(records);
   } catch (err: any) {
     console.error('Error fetching staff attendance records by date range:', err);
@@ -324,10 +324,10 @@ export const getUpcomingAbsences = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { days } = req.query;
     const daysNum = days ? parseInt(days as string) : 7;
-    
+
     const records = await staffAttendanceTrackingService.getUpcomingAbsences(daysNum);
     res.json(records);
   } catch (err: any) {
@@ -341,13 +341,13 @@ export const updateStaffAttendanceRecordStatus = async (req: Request, res: Respo
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({ error: 'Не указан статус' });
     }
-    
+
     const record = await staffAttendanceTrackingService.updateStatus(req.params.id, status);
     res.json(record);
   } catch (err: any) {
@@ -361,13 +361,13 @@ export const addStaffAttendanceRecordNotes = async (req: Request, res: Response)
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { notes } = req.body;
-    
+
     if (!notes) {
       return res.status(400).json({ error: 'Не указаны заметки' });
     }
-    
+
     const record = await staffAttendanceTrackingService.addNotes(req.params.id, notes);
     res.json(record);
   } catch (err: any) {
@@ -381,13 +381,13 @@ export const approveStaffAttendanceRecord = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { approvedBy } = req.body;
-    
+
     if (!approvedBy) {
       return res.status(400).json({ error: 'Не указан утверждающий' });
     }
-    
+
     const record = await staffAttendanceTrackingService.approve(req.params.id, approvedBy);
     res.json(record);
   } catch (err: any) {
@@ -401,7 +401,7 @@ export const getStaffAttendanceStatistics = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const stats = await staffAttendanceTrackingService.getStatistics();
     res.json(stats);
   } catch (err: any) {
@@ -415,9 +415,9 @@ export const updateStaffAttendanceAdjustments = async (req: Request, res: Respon
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { penalties, bonuses, notes } = req.body;
-    
+
     const record = await staffAttendanceTrackingService.updateAdjustments(
       req.params.id,
       penalties,
@@ -425,7 +425,7 @@ export const updateStaffAttendanceAdjustments = async (req: Request, res: Respon
       notes,
       req.user.id as string
     );
-    
+
     res.json(record);
   } catch (err: any) {
     console.error('Error updating staff attendance adjustments:', err);
@@ -438,7 +438,7 @@ export const approveStaffAttendance = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const record = await staffAttendanceTrackingService.approveAttendance(req.params.id, req.user.id as string);
     res.json(record);
   } catch (err: any) {
@@ -452,20 +452,20 @@ export const rejectStaffAttendance = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { reason } = req.body;
-    
+
     const record = await staffAttendanceTrackingService.rejectAttendance(
       req.params.id,
       req.user.id as string,
       reason
     );
-    
+
     res.json(record);
   } catch (err: any) {
     console.error('Error rejecting staff attendance record:', err);
     res.status(404).json({ error: err.message || 'Ошибка отклонения записи учета времени' });
- }
+  }
 };
 
 export const getPendingApprovals = async (req: Request, res: Response) => {
@@ -473,7 +473,7 @@ export const getPendingApprovals = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const records = await staffAttendanceTrackingService.getPendingApprovals();
     res.json(records);
   } catch (err: any) {
@@ -487,10 +487,10 @@ export const getApprovedRecords = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const records = await staffAttendanceTrackingService.getApprovedRecords();
     res.json(records);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error fetching approved records:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения подтвержденных записей' });
   }
@@ -501,13 +501,13 @@ export const getRejectedRecords = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const records = await staffAttendanceTrackingService.getRejectedRecords();
     res.json(records);
   } catch (err: any) {
     console.error('Error fetching rejected records:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения отклоненных записей' });
- }
+  }
 };
 
 export const getLateArrivals = async (req: Request, res: Response) => {
@@ -515,13 +515,13 @@ export const getLateArrivals = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { threshold } = req.query;
     const thresholdMinutes = threshold ? parseInt(threshold as string) : 15;
-    
+
     const records = await staffAttendanceTrackingService.getLateArrivals(thresholdMinutes);
     res.json(records);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error fetching late arrivals:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения записей об опозданиях' });
   }
@@ -532,10 +532,10 @@ export const getEarlyLeaves = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { threshold } = req.query;
     const thresholdMinutes = threshold ? parseInt(threshold as string) : 15;
-    
+
     const records = await staffAttendanceTrackingService.getEarlyLeaves(thresholdMinutes);
     res.json(records);
   } catch (err: any) {
@@ -545,20 +545,20 @@ export const getEarlyLeaves = async (req: Request, res: Response) => {
 };
 
 export const getOvertimeRecords = async (req: Request, res: Response) => {
- try {
+  try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { threshold } = req.query;
     const thresholdMinutes = threshold ? parseInt(threshold as string) : 30;
-    
+
     const records = await staffAttendanceTrackingService.getOvertimeRecords(thresholdMinutes);
     res.json(records);
   } catch (err: any) {
     console.error('Error fetching overtime records:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения записей о сверхурочной работе' });
- }
+  }
 };
 
 export const getAbsenteeismRecords = async (req: Request, res: Response) => {
@@ -566,7 +566,7 @@ export const getAbsenteeismRecords = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const records = await staffAttendanceTrackingService.getAbsenteeismRecords();
     res.json(records);
   } catch (err: any) {
@@ -580,18 +580,18 @@ export const getWorkDurationStats = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const stats = await staffAttendanceTrackingService.getWorkDurationStats(
       startDate as string,
       endDate as string
     );
-    
+
     res.json(stats);
   } catch (err: any) {
     console.error('Error fetching work duration stats:', err);
@@ -604,18 +604,18 @@ export const getBreakDurationStats = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const stats = await staffAttendanceTrackingService.getBreakDurationStats(
       startDate as string,
       endDate as string
     );
-    
+
     res.json(stats);
   } catch (err: any) {
     console.error('Error fetching break duration stats:', err);
@@ -628,18 +628,18 @@ export const getAttendanceRate = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const rate = await staffAttendanceTrackingService.getAttendanceRate(
       startDate as string,
       endDate as string
     );
-    
+
     res.json(rate);
   } catch (err: any) {
     console.error('Error fetching attendance rate:', err);
@@ -652,21 +652,21 @@ export const getLateArrivalRate = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate, threshold } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const thresholdMinutes = threshold ? parseInt(threshold as string) : 15;
-    
+
     const rate = await staffAttendanceTrackingService.getLateArrivalRate(
       startDate as string,
       endDate as string,
       thresholdMinutes
     );
-    
+
     res.json(rate);
   } catch (err: any) {
     console.error('Error fetching late arrival rate:', err);
@@ -679,21 +679,21 @@ export const getEarlyLeaveRate = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate, threshold } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const thresholdMinutes = threshold ? parseInt(threshold as string) : 15;
-    
+
     const rate = await staffAttendanceTrackingService.getEarlyLeaveRate(
       startDate as string,
       endDate as string,
       thresholdMinutes
     );
-    
+
     res.json(rate);
   } catch (err: any) {
     console.error('Error fetching early leave rate:', err);
@@ -706,21 +706,21 @@ export const getOvertimeRate = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate, threshold } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const thresholdMinutes = threshold ? parseInt(threshold as string) : 30;
-    
+
     const rate = await staffAttendanceTrackingService.getOvertimeRate(
       startDate as string,
       endDate as string,
       thresholdMinutes
     );
-    
+
     res.json(rate);
   } catch (err: any) {
     console.error('Error fetching overtime rate:', err);
@@ -733,21 +733,21 @@ export const getAbsenteeismRate = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { startDate, endDate } = req.query;
-    
+
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Необходимо указать начальную и конечную даты' });
     }
-    
+
     const rate = await staffAttendanceTrackingService.getAbsenteeismRate(
       startDate as string,
       endDate as string
     );
-    
+
     res.json(rate);
   } catch (err: any) {
     console.error('Error fetching absenteeism rate:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения процента прогулов' });
- }
+  }
 };

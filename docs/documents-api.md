@@ -502,7 +502,7 @@ API может возвращать следующие коды ошибок:
 ### Получение списка документов сотрудников
 
 ```javascript
-// Получение всех активных документов сотрудников
+
 fetch('/documents?type=contract&category=staff&status=active', {
   headers: {
     'Authorization': 'Bearer <your-jwt-token>'
@@ -515,7 +515,7 @@ fetch('/documents?type=contract&category=staff&status=active', {
 ### Создание нового документа
 
 ```javascript
-// Создание нового документа
+
 const formData = new FormData();
 formData.append('file', fileInput.files[0]);
 formData.append('title', 'Трудовой договор Иванова И.И.');
@@ -538,7 +538,7 @@ fetch('/documents', {
 ### Экспорт документов в Excel
 
 ```javascript
-// Экспорт документов в Excel
+
 fetch('/documents/export', {
   method: 'POST',
   headers: {

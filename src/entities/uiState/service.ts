@@ -2,7 +2,7 @@ import { UIState, UIStateRequest } from './model';
 import mongoose, { Schema } from 'mongoose';
 import { createModelFactory } from '../../config/database';
 
-// Определяем схему для UIState
+
 const uiStateSchema = new Schema({
   userId: { type: String, index: true },
   sessionId: { type: String, required: true, index: true },
@@ -11,8 +11,8 @@ const uiStateSchema = new Schema({
   route: { type: String, required: true },
   visibleText: { type: String },
   componentsState: { type: Schema.Types.Mixed },
-  uiErrors: [String], // Переименовываем поле
- localStorageData: { type: Schema.Types.Mixed },
+  uiErrors: [String],
+  localStorageData: { type: Schema.Types.Mixed },
   sessionStorageData: { type: Schema.Types.Mixed },
   domSnapshot: { type: Schema.Types.Mixed }
 }, {
@@ -20,7 +20,7 @@ const uiStateSchema = new Schema({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания после подключения к базе данных
+
 const createUIStateModel = createModelFactory<any>(
   'UIState',
   uiStateSchema,
@@ -28,7 +28,7 @@ const createUIStateModel = createModelFactory<any>(
   'default'
 );
 
-// Отложенное создание модели
+
 let UIStateModel: any = null;
 
 const getUIStateModel = () => {
@@ -39,17 +39,17 @@ const getUIStateModel = () => {
 };
 
 export class UIStateService {
-  // Сохранить состояние UI
+
   static async saveUIState(uiStateData: UIStateRequest): Promise<UIState> {
     try {
       const uiState = new (getUIStateModel())({
         ...uiStateData,
-        uiErrors: uiStateData.uiErrors, // Поле уже называется uiErrors
+        uiErrors: uiStateData.uiErrors,
         timestamp: new Date()
       });
-      
+
       const savedState = await uiState.save();
-      
+
       return {
         ...uiStateData,
         id: savedState._id.toString(),
@@ -61,17 +61,17 @@ export class UIStateService {
     }
   }
 
-  // Получить последнее состояние UI для сессии
- static async getLastUIState(sessionId: string): Promise<UIState | null> {
+
+  static async getLastUIState(sessionId: string): Promise<UIState | null> {
     try {
       const uiState = await getUIStateModel()
         .findOne({ sessionId })
         .sort({ timestamp: -1 })
-        .lean(); // Используем lean() для получения простого объекта
-      
+        .lean();
+
       if (!uiState) return null;
-      
-      // Преобразуем поля, которые могут быть null в mongoose, в соответствующие типы
+
+
       return {
         id: (uiState as any)._id.toString(),
         userId: (uiState as any).userId || null,
@@ -92,15 +92,15 @@ export class UIStateService {
     }
   }
 
-  // Получить состояние UI по ID
- static async getUIStateById(id: string): Promise<UIState | null> {
+
+  static async getUIStateById(id: string): Promise<UIState | null> {
     try {
       const uiState = await getUIStateModel()
         .findById(id)
-        .lean(); // Используем lean() для получения простого объекта
-      
+        .lean();
+
       if (!uiState) return null;
-      
+
       return {
         id: (uiState as any)._id.toString(),
         userId: (uiState as any).userId || null,
@@ -121,11 +121,11 @@ export class UIStateService {
     }
   }
 
-  // Удалить устаревшие состояния UI (старше 1 часа) - не нужно, т.к. используется TTL индекс
+
   static async cleanupOldStates(): Promise<number> {
     try {
-      // TTL индекс автоматически удаляет устаревшие записи, так что вручную удалять не нужно
-      // Но оставим метод для совместимости
+
+
       return 0;
     } catch (error) {
       console.error('Ошибка при очистке устаревших состояний UI:', error);
@@ -134,5 +134,5 @@ export class UIStateService {
   }
 }
 
-// Экспортируем функцию для использования в реестре моделей
+
 export { getUIStateModel };

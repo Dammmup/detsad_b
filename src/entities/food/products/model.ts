@@ -103,12 +103,12 @@ const ProductSchema = new Schema<IProduct>({
 
 
 
-// Создаем фабрику модели для отложенного создания после подключения к базе данных
+
 const createProductModel = createModelFactory<IProduct>(
   'Product',
   ProductSchema,
   'products',
- 'food'
+  'food'
 );
 
 export default createProductModel;

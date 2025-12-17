@@ -9,7 +9,7 @@ export interface ISomaticJournal extends Document {
   treatment: string;
   doctor: mongoose.Types.ObjectId;
   notes?: string;
- attachments?: string[];
+  attachments?: string[];
   status: 'pending' | 'completed' | 'reviewed';
   nextAppointmentDate?: Date;
   recommendations?: string;
@@ -75,13 +75,13 @@ const SomaticJournalSchema = new Schema<ISomaticJournal>({
   timestamps: true
 });
 
-// Индексы для оптимизации запросов
-// Все необходимые индексы уже определены в схеме через свойство index: true
-// Дополнительные составные индексы:
+
+
+
 SomaticJournalSchema.index({ childId: 1, date: 1 });
 SomaticJournalSchema.index({ doctor: 1, date: -1 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createSomaticJournalModel = createModelFactory<ISomaticJournal>(
   'SomaticJournal',
   SomaticJournalSchema,
@@ -89,5 +89,5 @@ const createSomaticJournalModel = createModelFactory<ISomaticJournal>(
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createSomaticJournalModel;

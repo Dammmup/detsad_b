@@ -16,10 +16,10 @@ export interface IUser extends Document {
   notes?: string;
   iin?: string;
   groupId?: mongoose.Types.ObjectId;
-  // Поля из auth модели
+
   birthday?: Date;
   photo?: string;
-  tenant?: boolean; // Для арендаторов
+  tenant?: boolean;
   telegramChatId?: string;
   telegramLinkCode?: string;
 }
@@ -64,7 +64,7 @@ const UserSchema: Schema = new Schema({
     default: true
   },
   lastLogin: Date,
-  // Дополнительные поля из старой модели
+
   uniqNumber: {
     type: String,
     index: true
@@ -79,7 +79,7 @@ const UserSchema: Schema = new Schema({
     ref: 'Group',
     index: true
   },
-  // Поля из auth модели
+
   birthday: { type: Date },
   photo: { type: String },
   tenant: {
@@ -100,7 +100,7 @@ const UserSchema: Schema = new Schema({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createUserModel = createModelFactory<IUser>(
   'User',
   UserSchema,
@@ -108,5 +108,5 @@ const createUserModel = createModelFactory<IUser>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createUserModel;

@@ -13,11 +13,11 @@ export interface IContactInfectionJournal extends Document {
   status: 'pending' | 'completed' | 'reviewed';
   nextAppointmentDate?: Date;
   recommendations?: string;
-  isolationPeriod?: number; // days
+  isolationPeriod?: number;
   isolationEndDate?: Date;
   contactsTraced?: boolean;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
 }
 
 const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
@@ -39,7 +39,7 @@ const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
     maxlength: [100, 'Тип инфекции не может превышать 100 символов'],
     index: true
   },
- symptoms: [{
+  symptoms: [{
     type: String,
     trim: true,
     maxlength: [50, 'Симптом не может превышать 50 символов']
@@ -61,13 +61,13 @@ const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
     maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
   attachments: [String],
- status: {
+  status: {
     type: String,
     enum: ['pending', 'completed', 'reviewed'],
     default: 'pending',
     index: true
   },
- nextAppointmentDate: {
+  nextAppointmentDate: {
     type: Date,
     index: true
   },
@@ -84,7 +84,7 @@ const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
     type: Date,
     index: true
   },
- contactsTraced: {
+  contactsTraced: {
     type: Boolean,
     default: false,
     index: true
@@ -93,7 +93,7 @@ const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createContactInfectionJournalModel = createModelFactory<IContactInfectionJournal>(
   'ContactInfectionJournal',
   ContactInfectionJournalSchema,
@@ -101,5 +101,5 @@ const createContactInfectionJournalModel = createModelFactory<IContactInfectionJ
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createContactInfectionJournalModel;

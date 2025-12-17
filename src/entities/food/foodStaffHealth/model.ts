@@ -3,11 +3,11 @@ import { createModelFactory } from '../../../config/database';
 
 export interface IFoodStaffHealth extends Document {
   staffId: mongoose.Types.ObjectId;
- date: Date;
+  date: Date;
   medicalCommissionDate: Date;
   medicalCommissionNumber: string;
   medicalCommissionResult: string;
- medicalCommissionNotes?: string;
+  medicalCommissionNotes?: string;
   medicalCommissionAttachments?: string[];
   sanitaryMinimumDate: Date;
   sanitaryMinimumResult: string;
@@ -20,15 +20,15 @@ export interface IFoodStaffHealth extends Document {
   healthNotes?: string;
   healthAttachments?: string[];
   nextMedicalCommissionDate?: Date;
- nextSanitaryMinimumDate?: Date;
- nextVaccinationDate?: Date;
+  nextSanitaryMinimumDate?: Date;
+  nextVaccinationDate?: Date;
   doctor: mongoose.Types.ObjectId;
   notes?: string;
   attachments?: string[];
   status: 'pending' | 'completed' | 'reviewed';
   recommendations?: string;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
 }
 
 const FoodStaffHealthSchema = new Schema<IFoodStaffHealth>({
@@ -119,7 +119,7 @@ const FoodStaffHealthSchema = new Schema<IFoodStaffHealth>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
- },
+  },
   notes: {
     type: String,
     maxlength: [500, 'Заметки не могут превышать 500 символов']
@@ -139,7 +139,7 @@ const FoodStaffHealthSchema = new Schema<IFoodStaffHealth>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createFoodStaffHealthModel = createModelFactory<IFoodStaffHealth>(
   'FoodStaffHealth',
   FoodStaffHealthSchema,
@@ -147,5 +147,5 @@ const createFoodStaffHealthModel = createModelFactory<IFoodStaffHealth>(
   'food'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createFoodStaffHealthModel;

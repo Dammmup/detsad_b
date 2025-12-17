@@ -6,10 +6,10 @@ import Payroll from '../src/entities/payroll/model';
 import User from '../src/entities/users/model';
 import { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } from '../src/services/payrollAutomationService';
 
-// Часовой пояс Казахстана (+05:00)
-const TIMEZONE_OFFSET = 5 * 60; // в минутах
 
-// Пересчитать lateMinutes для всех записей посещаемости
+const TIMEZONE_OFFSET = 5 * 60;
+
+
 const recalculateAllLateMinutes = async () => {
     const StaffAttendanceModel = StaffAttendanceTracking();
     const ShiftModel = Shift();
@@ -24,7 +24,7 @@ const recalculateAllLateMinutes = async () => {
 
     for (const record of attendanceRecords) {
         try {
-            // Находим смену по дате
+
             const recordDate = new Date(record.date || record.actualStart);
             const dateStr = [
                 recordDate.getFullYear(),
@@ -41,23 +41,23 @@ const recalculateAllLateMinutes = async () => {
 
             const [schedStartH, schedStartM] = shift.startTime.split(':').map(Number);
 
-            // Получаем время прихода в минутах от полуночи в локальном времени (+05:00)
+
             const actualStartUTC = new Date(record.actualStart);
             const actualStartMinutesUTC = actualStartUTC.getUTCHours() * 60 + actualStartUTC.getUTCMinutes();
             const actualStartMinutesLocal = actualStartMinutesUTC + TIMEZONE_OFFSET;
-            // Корректируем если перешли на следующий день
+
             const actualMinutes = actualStartMinutesLocal >= 1440 ? actualStartMinutesLocal - 1440 : actualStartMinutesLocal;
 
-            // Время начала смены в минутах от полуночи
+
             const scheduledMinutes = schedStartH * 60 + schedStartM;
 
-            // Считаем опоздание
+
             let lateMinutes = 0;
             if (actualMinutes > scheduledMinutes) {
                 lateMinutes = actualMinutes - scheduledMinutes;
             }
 
-            // Обновляем если изменилось
+
             if (record.lateMinutes !== lateMinutes) {
                 await StaffAttendanceModel.findByIdAndUpdate(record._id, { lateMinutes });
                 updatedCount++;
@@ -72,12 +72,12 @@ const recalculateAllLateMinutes = async () => {
     return updatedCount;
 };
 
-// Пересчитать все payrolls
+
 const recalculateAllPayrolls = async () => {
     const PayrollModel = Payroll();
     const UserModel = User();
 
-    // Получаем все уникальные периоды
+
     const payrolls = await PayrollModel.find();
     const periods = [...new Set(payrolls.map(p => p.period))];
 
@@ -88,7 +88,7 @@ const recalculateAllPayrolls = async () => {
     for (const period of periods) {
         console.log(`\n  Период: ${period}`);
 
-        // Получаем рабочие дни в месяце (fallback на расчёт Пн-Пт если 0)
+
         const startDate = new Date(`${period}-01`);
         let workDaysInMonth = await getWorkingDaysInMonth(startDate);
         if (workDaysInMonth <= 0) {
@@ -102,7 +102,7 @@ const recalculateAllPayrolls = async () => {
         }
         console.log(`    Рабочих дней в месяце: ${workDaysInMonth}`);
 
-        // Получаем все payroll за этот период
+
         const periodPayrolls = await PayrollModel.find({ period });
 
         for (const payroll of periodPayrolls) {
@@ -115,7 +115,7 @@ const recalculateAllPayrolls = async () => {
 
                 if (!staffId) continue;
 
-                // Получаем данные сотрудника
+
                 const staff = await UserModel.findById(staffId);
                 if (!staff) continue;
 
@@ -124,11 +124,11 @@ const recalculateAllPayrolls = async () => {
                 const baseSalaryType = ((staff as any).salaryType as string) || 'month';
                 const shiftRate = Number((staff as any).shiftRate || 0);
 
-                // Пересчитываем штрафы с исправленным часовым поясом
+
                 const attendancePenalties = await calculatePenalties(staffId, period, staff as any, 13);
                 const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
-                // Считаем accruals 
+
                 let accruals = 0;
                 const workedShifts = attendedRecords.length;
                 const workedDays = workedShifts;
@@ -141,7 +141,7 @@ const recalculateAllPayrolls = async () => {
                     accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
                 }
 
-                // Генерируем shiftDetails
+
                 const shiftDetails: any[] = [];
                 let calculatedDailyPay = 0;
 
@@ -157,13 +157,13 @@ const recalculateAllPayrolls = async () => {
                     shiftDetails.push({
                         date: new Date(record.actualStart),
                         earnings: calculatedDailyPay,
-                        fines: 0, // Штрафы в отдельном разделе
+                        fines: 0,
                         net: calculatedDailyPay,
                         reason: `Смена ${new Date(record.actualStart).toLocaleDateString('ru-RU')}`
                     });
                 }
 
-                // Генерируем fines из штрафов за опоздание
+
                 const newFines = attendancePenalties.attendanceRecords
                     .filter((r: any) => r.lateMinutes > 0)
                     .map((r: any) => ({
@@ -174,7 +174,7 @@ const recalculateAllPayrolls = async () => {
                         createdAt: new Date()
                     }));
 
-                // Сохраняем manual fines
+
                 const existingManualFines = payroll.fines?.filter(f => f.type === 'manual') || [];
                 const allFines = [...existingManualFines, ...newFines];
 
@@ -184,7 +184,7 @@ const recalculateAllPayrolls = async () => {
                 const totalPenalties = latePenalties + absencePenalties + userFines;
                 const total = Math.max(0, accruals - totalPenalties);
 
-                // Обновляем payroll
+
                 payroll.accruals = accruals;
                 payroll.baseSalary = baseSalary;
                 payroll.baseSalaryType = 'month';
@@ -200,7 +200,7 @@ const recalculateAllPayrolls = async () => {
                 payroll.penalties = totalPenalties;
                 payroll.total = total;
 
-                // Исправляем невалидный status если нужно
+
                 const validStatuses = ['draft', 'generated', 'approved', 'paid', 'processed'];
                 if (!validStatuses.includes(payroll.status as string)) {
                     payroll.status = 'draft';
@@ -220,23 +220,23 @@ const recalculateAllPayrolls = async () => {
     return totalUpdated;
 };
 
-// Основная функция
+
 const recalculateAll = async () => {
     try {
         console.log('🚀 Начинаем полный пересчёт данных...\n');
         console.log('='.repeat(50));
 
-        // Подключаемся к базе данных
+
         await connectDatabases();
         const dbConnection = getConnection('default');
         console.log('✅ Подключение к БД установлено\n');
 
-        // Шаг 1: Пересчитать lateMinutes
+
         console.log('📌 ШАГ 1: Пересчёт lateMinutes в staff_attendance_tracking');
         console.log('-'.repeat(50));
         await recalculateAllLateMinutes();
 
-        // Шаг 2: Пересчитать payrolls
+
         console.log('📌 ШАГ 2: Пересчёт записей в payrolls');
         console.log('-'.repeat(50));
         await recalculateAllPayrolls();
@@ -244,7 +244,7 @@ const recalculateAll = async () => {
         console.log('='.repeat(50));
         console.log('🎉 Пересчёт завершён успешно!\n');
 
-        // Закрываем соединение
+
         await dbConnection.close();
         console.log('✅ Соединение с БД закрыто');
         process.exit(0);
@@ -255,7 +255,7 @@ const recalculateAll = async () => {
     }
 };
 
-// Запускаем скрипт
+
 if (require.main === module) {
     recalculateAll();
 }

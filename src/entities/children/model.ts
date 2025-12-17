@@ -6,14 +6,14 @@ export interface IChild extends Document {
   iin?: string;
   birthday?: Date;
   address?: string;
- parentName?: string;
+  parentName?: string;
   parentPhone?: string;
   groupId?: mongoose.Types.ObjectId;
   active?: boolean;
-  // Медицинские данные
- gender?: string;
- clinic?: string;
- bloodGroup?: string;
+
+  gender?: string;
+  clinic?: string;
+  bloodGroup?: string;
   rhesus?: string;
   disability?: string;
   dispensary?: string;
@@ -23,7 +23,7 @@ export interface IChild extends Document {
   hospitalizations?: string;
   incapacity?: string;
   checkups?: string;
-  // Прочее
+
   notes?: string;
   photo?: string;
   createdAt?: Date;
@@ -55,7 +55,7 @@ const ChildSchema = new Schema<IChild>({
   photo: String,
 }, { timestamps: true });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createChildModel = createModelFactory<IChild>(
   'Child',
   ChildSchema,
@@ -63,5 +63,5 @@ const createChildModel = createModelFactory<IChild>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createChildModel;

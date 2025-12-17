@@ -5,8 +5,8 @@ export interface IMenuItem extends Document {
   name: string;
   description?: string;
   category: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'dessert' | 'drink';
-  dayOfWeek: number; // 0-6 (Воскресенье-Суббота)
-  weekNumber: number; // 1-4 (номер недели в месяце)
+  dayOfWeek: number;
+  weekNumber: number;
   ingredients: string[];
   nutritionalInfo: {
     calories?: number;
@@ -17,7 +17,7 @@ export interface IMenuItem extends Document {
   allergens: string[];
   price?: number;
   isAvailable: boolean;
-  image?: string; // URL изображения
+  image?: string;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -40,14 +40,14 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Number,
     required: true,
     min: 0,
-    max: 6, // 0-6 (Воскресенье-Суббота)
+    max: 6,
     index: true
   },
   weekNumber: {
     type: Number,
     required: true,
     min: 1,
-    max: 4, // 1-4 (номер недели в месяце)
+    max: 4,
     index: true
   },
   ingredients: [{
@@ -85,7 +85,7 @@ const MenuItemSchema = new Schema<IMenuItem>({
 
 
 
-// Создаем фабрику модели для отложенного создания после подключения к базе данных
+
 const createMenuItemModel = createModelFactory<IMenuItem>(
   'MenuItem',
   MenuItemSchema,

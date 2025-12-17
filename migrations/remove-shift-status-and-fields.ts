@@ -4,15 +4,15 @@ import StaffAttendanceTracking from '../src/entities/staffAttendanceTracking/mod
 
 export async function up() {
   console.log('Начинаем миграцию по удалению поля status из коллекции staffAttendanceTracking и полей actualStart, actualEnd из коллекции shifts...');
-  
+
   try {
-    // Удаляем поле status из коллекции staffAttendanceTracking, если оно существует
+
     console.log('Удаляем поле status из коллекции staffAttendanceTracking...');
     try {
-      // Проверим, есть ли вообще такое поле в коллекции
+
       const sampleRecord = await StaffAttendanceTracking().findOne({});
       if (sampleRecord) {
-        // Удаление поля status из коллекции staffAttendanceTracking
+
         await mongoose.connection.collection('staff_attendance_tracking').updateMany(
           { status: { $exists: true } },
           { $unset: { status: "" } }
@@ -25,25 +25,25 @@ export async function up() {
       console.error('Ошибка при удалении поля status из коллекции staffAttendanceTracking:', error);
     }
 
-    // Удаляем поля actualStart и actualEnd из коллекции shifts
+
     console.log('Удаляем поля actualStart и actualEnd из коллекции shifts...');
     try {
-      // Проверим, есть ли вообще такие поля в коллекции
+
       const sampleShift = await Shift().findOne({});
       if (sampleShift) {
-        // Удаление полей actualStart и actualEnd из коллекции shifts
+
         await mongoose.connection.collection('shifts').updateMany(
-          { 
+          {
             $or: [
               { actualStart: { $exists: true } },
               { actualEnd: { $exists: true } }
             ]
           },
-          { 
-            $unset: { 
-              actualStart: "", 
-              actualEnd: "" 
-            } 
+          {
+            $unset: {
+              actualStart: "",
+              actualEnd: ""
+            }
           }
         );
         console.log('Поля actualStart и actualEnd удалены из коллекции shifts');
@@ -53,7 +53,7 @@ export async function up() {
     } catch (error) {
       console.error('Ошибка при удалении полей actualStart и actualEnd из коллекции shifts:', error);
     }
-    
+
     console.log('Миграция по удалению полей завершена');
   } catch (error) {
     console.error('Ошибка при выполнении миграции по удалению полей:', error);

@@ -74,7 +74,7 @@ router.post('/children', authMiddleware, authorizeRole(['admin', 'manager', 'tea
       const startY = doc.y;
       let currentY = startY;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, 50 + i * 120, currentY, { width: 100, align: 'left' });
@@ -82,7 +82,7 @@ router.post('/children', authMiddleware, authorizeRole(['admin', 'manager', 'tea
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       children.forEach((child: any) => {
         const rowData = [
@@ -97,9 +97,9 @@ router.post('/children', authMiddleware, authorizeRole(['admin', 'manager', 'tea
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, 50 + i * 120, currentY, { width: 100, align: 'left' });
@@ -180,7 +180,7 @@ router.post('/groups', authMiddleware, authorizeRole(['admin', 'manager', 'teach
       const startY = doc.y;
       let currentY = startY;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, 50 + i * 120, currentY, { width: 100, align: 'left' });
@@ -188,7 +188,7 @@ router.post('/groups', authMiddleware, authorizeRole(['admin', 'manager', 'teach
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       groups.forEach((group: any) => {
         const rowData = [
@@ -203,9 +203,9 @@ router.post('/groups', authMiddleware, authorizeRole(['admin', 'manager', 'teach
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, 50 + i * 120, currentY, { width: 100, align: 'left' });
@@ -294,7 +294,7 @@ router.post('/children-attendance', authMiddleware, authorizeRole(['admin', 'man
       const startY = doc.y;
       let currentY = startY;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, 50 + i * 100, currentY, { width: 90, align: 'left' });
@@ -302,7 +302,7 @@ router.post('/children-attendance', authMiddleware, authorizeRole(['admin', 'man
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       data.forEach((record: any) => {
         const rowData = [
@@ -318,9 +318,9 @@ router.post('/children-attendance', authMiddleware, authorizeRole(['admin', 'man
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, 50 + i * 100, currentY, { width: 90, align: 'left' });
@@ -359,7 +359,7 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
   try {
     const { format, filters } = req.body;
 
-    // Объявим translations здесь, чтобы использовать как для фильтрации, так и для вывода
+
     const roleTranslations: Record<string, string> = {
       'admin': 'Администратор',
       'manager': 'Менеджер',
@@ -388,21 +388,21 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
       query.fullName = { $regex: filters.name, $options: 'i' };
     }
     if (filters?.role) {
-      // Фильтрация по ролям - преобразуем русские названия в английские
+
       if (Array.isArray(filters.role)) {
-        // Если передан массив ролей (как в фронтенде), конвертируем русские названия в английские
+
         const englishRoles = filters.role.map((r: string) => {
-          // Найдем английскую роль по русскому названию
+
           const englishRole = Object.keys(roleTranslations).find(key => roleTranslations[key] === r);
-          return englishRole || r; // Если не найдено, возвращаем как есть
+          return englishRole || r;
         });
         query.role = { $in: englishRoles };
       } else {
         query.role = filters.role;
       }
     }
-    
-    // Обработка фильтра по типу 'tenant'
+
+
     if (filters?.type === 'tenant') {
       query.role = 'tenant';
     }
@@ -448,7 +448,7 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
       const startY = doc.y;
       let currentY = startY;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, 50 + i * 80, currentY, { width: 70, align: 'left' });
@@ -456,7 +456,7 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       staff.forEach((s: any) => {
         const rowData = [
@@ -473,9 +473,9 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, 50 + i * 80, currentY, { width: 70, align: 'left' });
@@ -663,7 +663,7 @@ router.post('/staff-attendance-tracking', authMiddleware, authorizeRole(['admin'
         { header: 'Уход', key: 'actualEnd', width: 15 },
         { header: 'Статус', key: 'status', width: 15 },
         { header: 'Время работы', key: 'workDuration', width: 15 },
-        { header: 'Штрафы', key: 'penalties', width: 15 },
+        { header: 'Вычеты', key: 'penalties', width: 15 },
         { header: 'Бонусы', key: 'bonuses', width: 15 },
         { header: 'Примечания', key: 'notes', width: 40 },
       ];
@@ -684,7 +684,7 @@ router.post('/staff-attendance-tracking', authMiddleware, authorizeRole(['admin'
       doc.fontSize(20).text('Учет рабочего времени', { align: 'center' });
       doc.moveDown();
 
-      const tableHeaders = ['Сотрудник', 'Дата', 'Приход', 'Уход', 'Статус', 'Время работы', 'Штрафы', 'Бонусы', 'Примечания'];
+      const tableHeaders = ['Сотрудник', 'Дата', 'Приход', 'Уход', 'Статус', 'Время работы', 'Вычеты', 'Бонусы', 'Примечания'];
       const startY = doc.y;
       let currentY = startY;
 
@@ -786,11 +786,11 @@ router.post('/organoleptic-journal', authMiddleware, authorizeRole(['admin', 'ma
       doc.moveDown();
 
       const tableHeaders = ['Блюдо', 'Группа', 'Внешний вид', 'Вкус', 'Запах', 'Решение'];
-      const columnWidths = [100, 70, 90, 80, 80, 120]; // Adjust widths as needed
+      const columnWidths = [100, 70, 90, 80, 80, 120];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -798,7 +798,7 @@ router.post('/organoleptic-journal', authMiddleware, authorizeRole(['admin', 'ma
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       records.forEach((r: any) => {
         const rowData = [
@@ -815,9 +815,9 @@ router.post('/organoleptic-journal', authMiddleware, authorizeRole(['admin', 'ma
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -893,11 +893,11 @@ router.post('/food-norms-control', authMiddleware, authorizeRole(['admin', 'mana
       doc.moveDown();
 
       const tableHeaders = ['Наименование пищевой продукции', 'Норма (г/мл)', 'Фактически', 'Отклонение (%)', 'Статус'];
-      const columnWidths = [150, 80, 80, 80, 80]; // Adjust widths as needed
+      const columnWidths = [150, 80, 80, 80, 80];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -905,7 +905,7 @@ router.post('/food-norms-control', authMiddleware, authorizeRole(['admin', 'mana
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       rows.forEach((r: any) => {
         const rowData = [
@@ -921,9 +921,9 @@ router.post('/food-norms-control', authMiddleware, authorizeRole(['admin', 'mana
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1001,11 +1001,11 @@ router.post('/perishable-brak', authMiddleware, authorizeRole(['admin', 'manager
       doc.moveDown();
 
       const tableHeaders = ['Дата', 'Продукт', 'Оценка', 'Срок годности', 'Примечания'];
-      const columnWidths = [80, 120, 100, 80, 150]; // Adjust widths as needed
+      const columnWidths = [80, 120, 100, 80, 150];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1013,7 +1013,7 @@ router.post('/perishable-brak', authMiddleware, authorizeRole(['admin', 'manager
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       rows.forEach((r: any) => {
         const rowData = [
@@ -1029,9 +1029,9 @@ router.post('/perishable-brak', authMiddleware, authorizeRole(['admin', 'manager
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1101,11 +1101,11 @@ router.post('/product-certificate', authMiddleware, authorizeRole(['admin', 'man
       doc.moveDown();
 
       const tableHeaders = ['Дата', 'Продукт', 'Номер сертификата', 'Кем выдан', 'Срок годности', 'Примечания'];
-      const columnWidths = [70, 100, 100, 80, 70, 120]; // Adjust widths as needed
+      const columnWidths = [70, 100, 100, 80, 70, 120];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1113,7 +1113,7 @@ router.post('/product-certificate', authMiddleware, authorizeRole(['admin', 'man
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       rows.forEach((r: any) => {
         const rowData = [
@@ -1130,9 +1130,9 @@ router.post('/product-certificate', authMiddleware, authorizeRole(['admin', 'man
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1200,11 +1200,11 @@ router.post('/detergent-log', authMiddleware, authorizeRole(['admin', 'manager',
       doc.moveDown();
 
       const tableHeaders = ['Дата', 'Моющее средство', 'Количество', 'Ответственный', 'Примечания'];
-      const columnWidths = [80, 120, 80, 100, 150]; // Adjust widths as needed
+      const columnWidths = [80, 120, 80, 100, 150];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1212,7 +1212,7 @@ router.post('/detergent-log', authMiddleware, authorizeRole(['admin', 'manager',
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       rows.forEach((r: any) => {
         const rowData = [
@@ -1228,9 +1228,9 @@ router.post('/detergent-log', authMiddleware, authorizeRole(['admin', 'manager',
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1300,11 +1300,11 @@ router.post('/food-stock-log', authMiddleware, authorizeRole(['admin', 'manager'
       doc.moveDown();
 
       const tableHeaders = ['Дата', 'Продукт', 'Количество', 'Ед. изм.', 'Ответственный', 'Примечания'];
-      const columnWidths = [70, 100, 80, 70, 100, 150]; // Adjust widths as needed
+      const columnWidths = [70, 100, 80, 70, 100, 150];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1312,7 +1312,7 @@ router.post('/food-stock-log', authMiddleware, authorizeRole(['admin', 'manager'
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       rows.forEach((r: any) => {
         const rowData = [
@@ -1329,9 +1329,9 @@ router.post('/food-stock-log', authMiddleware, authorizeRole(['admin', 'manager'
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1397,11 +1397,11 @@ router.post('/food-staff-health', authMiddleware, authorizeRole(['admin', 'manag
       doc.moveDown();
 
       const tableHeaders = ['Дата', 'ФИО работника', 'Состояние здоровья', 'Примечания'];
-      const columnWidths = [80, 120, 120, 150]; // Adjust widths as needed
+      const columnWidths = [80, 120, 120, 150];
       const startX = 50;
       let currentY = doc.y;
 
-      // Draw headers
+
       doc.fontSize(10).font('Helvetica-Bold');
       tableHeaders.forEach((header, i) => {
         doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });
@@ -1409,7 +1409,7 @@ router.post('/food-staff-health', authMiddleware, authorizeRole(['admin', 'manag
       doc.moveDown();
       currentY = doc.y;
 
-      // Draw rows
+
       doc.fontSize(10).font('Helvetica');
       rows.forEach((r: any) => {
         const rowData = [
@@ -1424,9 +1424,9 @@ router.post('/food-staff-health', authMiddleware, authorizeRole(['admin', 'manag
         doc.moveDown();
         currentY = doc.y;
 
-        if (currentY > 750) { // Check if content exceeds page height
+        if (currentY > 750) {
           doc.addPage();
-          currentY = 50; // Reset Y position for new page
+          currentY = 50;
           doc.fontSize(10).font('Helvetica-Bold');
           tableHeaders.forEach((header, i) => {
             doc.text(header, startX + columnWidths.slice(0, i).reduce((a, b) => a + b, 0), currentY, { width: columnWidths[i], align: 'left' });

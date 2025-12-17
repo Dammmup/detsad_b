@@ -1,8 +1,8 @@
 import OrganolepticJournal from './model';
 import { IOrganolepticJournal } from './model';
-import User from '../../users/model'; // Using the user model
+import User from '../../users/model';
 
-// Отложенное создание моделей
+
 let OrganolepticJournalModel: any = null;
 let UserModel: any = null;
 
@@ -23,13 +23,13 @@ const getUserModel = () => {
 export class OrganolepticJournalService {
   async getAll(filters: { childId?: string, date?: string, inspectorId?: string, status?: string, productName?: string, supplier?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.inspectorId) filter.inspector = filters.inspectorId;
     if (filters.status) filter.status = filters.status;
     if (filters.productName) filter.productName = filters.productName;
     if (filters.supplier) filter.supplier = filters.supplier;
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -37,12 +37,12 @@ export class OrganolepticJournalService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const journals = await getOrganolepticJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
@@ -50,16 +50,16 @@ export class OrganolepticJournalService {
     const journal = await getOrganolepticJournalModel().findById(id)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role');
-    
+
     if (!journal) {
       throw new Error('Запись органолептического контроля не найдена');
     }
-    
+
     return journal;
   }
 
   async create(journalData: Partial<IOrganolepticJournal>, userId: string) {
-    // Проверяем обязательные поля
+
     if (!journalData.childId) {
       throw new Error('Не указан ребенок');
     }
@@ -108,31 +108,31 @@ export class OrganolepticJournalService {
     if (!journalData.inspector) {
       throw new Error('Не указан инспектор');
     }
-    
-    // Проверяем существование ребенка
+
+
     const child = await getUserModel().findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
-    
-    // Проверяем существование инспектора
+
+
     const inspector = await getUserModel().findById(journalData.inspector);
     if (!inspector) {
       throw new Error('Инспектор не найден');
     }
-    
+
     const organolepticModel = getOrganolepticJournalModel();
     const journal = new organolepticModel({
       ...journalData,
-      inspector: userId // Инспектор - текущий пользователь
+      inspector: userId
     });
-    
+
     await journal.save();
-    
+
     const populatedJournal = await organolepticModel.findById(journal._id)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role');
-    
+
     return populatedJournal;
   }
 
@@ -142,33 +142,33 @@ export class OrganolepticJournalService {
       data,
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('inspector', 'fullName role');
-    
+      .populate('inspector', 'fullName role');
+
     if (!updatedJournal) {
       throw new Error('Запись органолептического контроля не найдена');
     }
-    
+
     return updatedJournal;
   }
 
   async delete(id: string) {
     const result = await getOrganolepticJournalModel().findByIdAndDelete(id);
-    
+
     if (!result) {
       throw new Error('Запись органолептического контроля не найдена');
     }
-    
+
     return { message: 'Запись органолептического контроля успешно удалена' };
   }
 
   async getByChildId(childId: string, filters: { date?: string, inspectorId?: string, status?: string, productName?: string, supplier?: string, startDate?: string, endDate?: string }) {
     const filter: any = { childId };
-    
+
     if (filters.inspectorId) filter.inspector = filters.inspectorId;
     if (filters.status) filter.status = filters.status;
     if (filters.productName) filter.productName = filters.productName;
     if (filters.supplier) filter.supplier = filters.supplier;
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -176,34 +176,34 @@ export class OrganolepticJournalService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const journals = await getOrganolepticJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
   async getByInspectorId(inspectorId: string, filters: { childId?: string, status?: string, productName?: string, supplier?: string, startDate?: string, endDate?: string }) {
     const filter: any = { inspector: inspectorId };
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.status) filter.status = filters.status;
     if (filters.productName) filter.productName = filters.productName;
     if (filters.supplier) filter.supplier = filters.supplier;
-    
+
     if (filters.startDate || filters.endDate) {
       filter.date = {};
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const journals = await getOrganolepticJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
@@ -211,17 +211,17 @@ export class OrganolepticJournalService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const journals = await getOrganolepticJournalModel().find({
       nextInspectionDate: {
         $gte: today,
         $lte: futureDate
       }
     })
-    .populate('childId', 'fullName iin')
-    .populate('inspector', 'fullName role')
-    .sort({ nextInspectionDate: 1 });
-    
+      .populate('childId', 'fullName iin')
+      .populate('inspector', 'fullName role')
+      .sort({ nextInspectionDate: 1 });
+
     return journals;
   }
 
@@ -231,12 +231,12 @@ export class OrganolepticJournalService {
       { status },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('inspector', 'fullName role');
-    
+      .populate('inspector', 'fullName role');
+
     if (!journal) {
       throw new Error('Запись органолептического контроля не найдена');
     }
-    
+
     return journal;
   }
 
@@ -246,12 +246,12 @@ export class OrganolepticJournalService {
       { recommendations },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('inspector', 'fullName role');
-    
+      .populate('inspector', 'fullName role');
+
     if (!journal) {
       throw new Error('Запись органолептического контроля не найдена');
     }
-    
+
     return journal;
   }
 
@@ -267,7 +267,7 @@ export class OrganolepticJournalService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const productStats = await getOrganolepticJournalModel().aggregate([
       {
         $group: {
@@ -279,7 +279,7 @@ export class OrganolepticJournalService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const supplierStats = await getOrganolepticJournalModel().aggregate([
       {
         $group: {
@@ -291,9 +291,9 @@ export class OrganolepticJournalService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const total = await getOrganolepticJournalModel().countDocuments();
-    
+
     return {
       total,
       byStatus: stats.reduce((acc, stat) => {

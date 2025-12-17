@@ -4,7 +4,7 @@ import { createModelFactory } from '../../../config/database';
 export interface IMantouxJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
-  reactionSize: number; // mm
+  reactionSize: number;
   reactionType: 'negative' | 'positive' | 'hyperergic';
   injectionSite: string;
   doctor: mongoose.Types.ObjectId;
@@ -28,7 +28,7 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
     type: Date,
     required: true,
     index: true
- },
+  },
   reactionSize: {
     type: Number,
     required: true,
@@ -74,7 +74,7 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createMantouxJournalModel = createModelFactory<IMantouxJournal>(
   'MantouxJournal',
   MantouxJournalSchema,
@@ -82,5 +82,5 @@ const createMantouxJournalModel = createModelFactory<IMantouxJournal>(
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createMantouxJournalModel;

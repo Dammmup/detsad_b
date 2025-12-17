@@ -5,7 +5,7 @@ import { autoCalculatePayroll } from '../../services/payrollAutomationService';
 import Payroll from './model';
 import User from '../users/model';
 
-// Расширяем интерфейс Request для добавления свойства user
+
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
 }
@@ -21,12 +21,12 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
     const { period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
-    // Проверяем и создаем расчетные листы для текущего месяца, если они отсутствуют
+
     if (targetPeriod === new Date().toISOString().slice(0, 7)) {
       await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
     }
 
-    // ИСПРАВЛЕНИЕ: Admin/manager видят все записи, остальные - только свои
+
     const staffIdFilter = (req.user.role === 'admin' || req.user.role === 'manager')
       ? undefined
       : req.user.id;
@@ -53,7 +53,7 @@ export const getAllPayrollsByUsers = async (req: AuthenticatedRequest, res: Resp
     const { userId, period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
-    // Проверяем и создаем расчетные листы для текущего месяца, если они отсутствуют
+
     if (targetPeriod === new Date().toISOString().slice(0, 7)) {
       await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
     }
@@ -78,19 +78,19 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
     }
 
     const { period, month } = req.query;
-    // Default to current month if not specified
+
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
 
 
-    // Always ensure records are up to date for the current/requested period
-    // The service handles existing records by updating them if they are in 'draft' status
+
+
     console.log(`Ensuring payroll for user ${req.user.id} in period ${targetPeriod}...`);
     try {
       await payrollService.ensurePayrollForUser(req.user.id, targetPeriod);
     } catch (generationError) {
       console.error('Error generating/updating payroll on-demand:', generationError);
-      // Continue without throwing
+
     }
 
     const payrolls = await payrollService.getAllWithUsers({
@@ -98,7 +98,7 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
       period: targetPeriod
     });
 
-    // DEBUG: Логируем возвращаемые данные
+
     if (payrolls.length > 0) {
       const p = payrolls[0];
       console.log('=== DEBUG getMyPayrolls ===');
@@ -129,7 +129,7 @@ export const getPayrollById = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Admin может видеть любые записи, остальные - только свои
+
     const userId = req.user.role === 'admin' ? undefined : req.user.id;
     const payroll = await payrollService.getById(req.params.id, userId);
     res.json(payroll);
@@ -149,13 +149,13 @@ export const createPayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Проверка на отрицательные значения
+
     const { baseSalary, bonuses, deductions, advance } = req.body;
     if (baseSalary < 0 || bonuses < 0 || deductions < 0 || (advance !== undefined && advance < 0)) {
       return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
 
-    // Ensure payroll is created for the authenticated user
+
     const payrollData = {
       ...req.body,
       staffId: req.user.id
@@ -175,7 +175,7 @@ export const updatePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Проверка на отрицательные значения
+
     const { baseSalary, bonuses, deductions, advance } = req.body;
     if ((baseSalary !== undefined && baseSalary < 0) ||
       (bonuses !== undefined && bonuses < 0) ||
@@ -221,7 +221,7 @@ export const approvePayroll = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Verify ownership before approval
+
     const payroll = await payrollService.getById(req.params.id, req.user.id);
     const updatedPayroll = await payrollService.approve(req.params.id);
     res.json(updatedPayroll);
@@ -241,7 +241,7 @@ export const markPayrollAsPaid = async (req: AuthenticatedRequest, res: Response
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Verify ownership before marking as paid
+
     const payroll = await payrollService.getById(req.params.id, req.user.id);
     const updatedPayroll = await payrollService.markAsPaid(req.params.id);
     res.json(updatedPayroll);
@@ -261,7 +261,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Проверяем, что пользователь является администратором
+
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
     }
@@ -273,13 +273,13 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       return res.status(400).json({ error: 'Период обязателен. Используйте формат YYYY-MM (например, 2025-01)' });
     }
 
-    // Проверяем формат периода
+
     const periodRegex = /^\d{4}-\d{2}$/;
     if (!periodRegex.test(targetPeriod)) {
       return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)' });
     }
 
-    // Проверяем и создаем расчетные листы для указанного периода, если они отсутствуют
+
     await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
 
     const results = await autoCalculatePayroll(targetPeriod, {
@@ -301,7 +301,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Проверяем, что пользователь является администратором
+
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
     }
@@ -312,45 +312,45 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
       return res.status(400).json({ error: 'Период обязателен. Используйте формат YYYY-MM (например, 2025-01)' });
     }
 
-    // Проверяем формат периода
+
     const periodRegex = /^\d{4}-\d{2}$/;
     if (!periodRegex.test(period)) {
       return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM (например, 2025-01)' });
     }
 
-    // Проверяем и создаем расчетные листы для указанного периода, если они отсутствуют
+
     await payrollService.ensurePayrollRecordsForPeriod(period);
 
-    // Для упрощения предположим, что арендаторы - это пользователи с определенными признаками
-    // В реальной системе может быть отдельная коллекция арендаторов или специальная роль
+
+
     const allUsers = await User().find({ role: { $ne: 'admin' } });
 
-    // Отфильтруем пользователей, которые потенциально могут быть арендаторами
-    // В данном случае будем считать арендаторами всех пользователей, кроме специфических ролей
+
+
     const potentialTenants = allUsers.filter(user => {
-      // Пользователь считается арендатором, если у него есть какие-то признаки аренды
-      // В реальной системе здесь будет логика проверки специфических полей аренды
-      return true; // Временно считаем всех пользователями арендаторами для демонстрации
+
+
+      return true;
     });
 
-    // Генерируем арендные листы для каждого потенциального арендатора
+
     for (const tenant of potentialTenants) {
-      // Вычисляем арендные данные
-      // В реальной системе здесь будет более сложная логика расчета аренды
-      // Временно используем фиксированное значение аренды или данные из профиля пользователя
-      const rentAmount = 500; // Временное значение аренды, уменьшенное для упрощения
 
-      // Итоговая сумма (нам должны заплатить)
-      const total = rentAmount; // В упрощенной версии без штрафов
 
-      // Проверяем, существует ли уже запись для этого арендатора и периода
+
+      const rentAmount = 500;
+
+
+      const total = rentAmount;
+
+
       let rentRecord = await Payroll().findOne({
-        tenantId: tenant._id, // Используем tenantId вместо staffId для аренды
+        tenantId: tenant._id,
         period: period
       });
 
       if (rentRecord) {
-        // Обновляем существующую запись
+
         rentRecord.accruals = rentAmount;
         rentRecord.total = total;
         rentRecord.updatedAt = new Date();
@@ -358,14 +358,14 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
         await rentRecord.save();
         console.log(`Обновлена аренда для арендатора ${tenant.fullName}: ${total} тг`);
       } else {
-        // Создаем новую запись аренды
+
         rentRecord = new (Payroll())({
-          tenantId: tenant._id, // Используем tenantId для арендатора
+          tenantId: tenant._id,
           period: period,
-          baseSalary: rentAmount, // Базовая сумма аренды
-          accruals: rentAmount, // Начисления (аренда)
-          total: total, // Итоговая сумма, которую должны заплатить
-          status: 'active', // Статус аренды
+          baseSalary: rentAmount,
+          accruals: rentAmount,
+          total: total,
+          status: 'active',
           createdAt: new Date(),
           updatedAt: new Date()
         });
@@ -382,16 +382,13 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
-/**
-* Добавляет штраф к записи зарплаты
-*/
 export const addFine = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Только администратор может добавлять штрафы
+
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add fines' });
     }
@@ -418,9 +415,6 @@ export const addFine = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-/**
-* Получает все штрафы для записи зарплаты
-*/
 export const getFines = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
@@ -429,8 +423,8 @@ export const getFines = async (req: AuthenticatedRequest, res: Response) => {
 
     const payrollId = req.params.id;
 
-    // Проверяем права доступа
-    // Пользователь может получить штрафы только для своей зарплаты или если он администратор
+
+
     if (req.user.role !== 'admin') {
       const payrollService = new PayrollService();
       const payroll = await payrollService.getById(payrollId);
@@ -448,16 +442,13 @@ export const getFines = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-/**
-* Удаляет штраф из записи зарплаты
-*/
 export const removeFine = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Только администратор может удалять штрафы
+
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to remove fines' });
     }
@@ -474,9 +465,6 @@ export const removeFine = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-/**
-* Получает общую сумму штрафов для записи зарплаты
-*/
 export const getTotalFines = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
@@ -485,8 +473,8 @@ export const getTotalFines = async (req: AuthenticatedRequest, res: Response) =>
 
     const payrollId = req.params.id;
 
-    // Проверяем права доступа
-    // Пользователь может получить информацию о штрафах только для своей зарплаты или если он администратор
+
+
     if (req.user.role !== 'admin') {
       const payrollService = new PayrollService();
       const payroll = await payrollService.getById(payrollId);

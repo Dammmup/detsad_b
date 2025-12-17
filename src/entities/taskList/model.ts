@@ -4,10 +4,10 @@ import { createModelFactory } from '../../config/database';
 export interface ITask extends Document {
   title: string;
   description?: string;
- assignedTo: mongoose.Types.ObjectId;
+  assignedTo: mongoose.Types.ObjectId;
   assignedBy: mongoose.Types.ObjectId;
-  assignedToSpecificUser?: mongoose.Types.ObjectId; // Назначение задачи конкретному сотруднику
- dueDate?: Date;
+  assignedToSpecificUser?: mongoose.Types.ObjectId;
+  dueDate?: Date;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   category: string;
@@ -18,12 +18,12 @@ export interface ITask extends Document {
   completedBy?: mongoose.Types.ObjectId;
   cancelledBy?: mongoose.Types.ObjectId;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
 }
 
 const TaskSchema = new Schema<ITask>({
-  title: { 
-    type: String, 
+  title: {
+    type: String,
     required: [true, 'Название задачи обязательно'],
     trim: true,
     maxlength: [200, 'Название задачи не может превышать 200 символов']
@@ -47,7 +47,7 @@ const TaskSchema = new Schema<ITask>({
   assignedToSpecificUser: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    index: true  // Добавляем индекс для оптимизации поиска
+    index: true
   },
   dueDate: {
     type: Date,
@@ -93,13 +93,13 @@ const TaskSchema = new Schema<ITask>({
 
 
 
-// Виртуальные поля
-TaskSchema.virtual('isOverdue').get(function(this: ITask) {
+
+TaskSchema.virtual('isOverdue').get(function (this: ITask) {
   if (!this.dueDate || this.status === 'completed' || this.status === 'cancelled') return false;
   return this.dueDate < new Date();
 });
 
-TaskSchema.virtual('daysUntilDue').get(function(this: ITask) {
+TaskSchema.virtual('daysUntilDue').get(function (this: ITask) {
   if (!this.dueDate) return null;
   const today = new Date();
   const dueDate = new Date(this.dueDate);
@@ -107,32 +107,32 @@ TaskSchema.virtual('daysUntilDue').get(function(this: ITask) {
   return Math.ceil(diffTime / (1000 * 60 * 24));
 });
 
-// Методы для работы с задачами
-TaskSchema.methods.markAsCompleted = function(completedBy: mongoose.Types.ObjectId) {
+
+TaskSchema.methods.markAsCompleted = function (completedBy: mongoose.Types.ObjectId) {
   this.status = 'completed';
   this.completedAt = new Date();
   this.completedBy = completedBy;
   return this.save();
 };
 
-TaskSchema.methods.markAsCancelled = function(cancelledBy: mongoose.Types.ObjectId) {
+TaskSchema.methods.markAsCancelled = function (cancelledBy: mongoose.Types.ObjectId) {
   this.status = 'cancelled';
   this.cancelledAt = new Date();
   this.cancelledBy = cancelledBy;
   return this.save();
 };
 
-TaskSchema.methods.markAsInProgress = function() {
+TaskSchema.methods.markAsInProgress = function () {
   this.status = 'in_progress';
   return this.save();
 };
 
-TaskSchema.methods.updatePriority = function(priority: 'low' | 'medium' | 'high' | 'urgent') {
+TaskSchema.methods.updatePriority = function (priority: 'low' | 'medium' | 'high' | 'urgent') {
   this.priority = priority;
   return this.save();
 };
 
-TaskSchema.methods.addAttachment = function(attachment: string) {
+TaskSchema.methods.addAttachment = function (attachment: string) {
   if (!this.attachments) {
     this.attachments = [];
   }
@@ -140,14 +140,14 @@ TaskSchema.methods.addAttachment = function(attachment: string) {
   return this.save();
 };
 
-TaskSchema.methods.removeAttachment = function(attachment: string) {
+TaskSchema.methods.removeAttachment = function (attachment: string) {
   if (this.attachments) {
     this.attachments = this.attachments.filter((a: string) => a !== attachment);
     return this.save();
   }
 };
 
-TaskSchema.methods.addNote = function(note: string) {
+TaskSchema.methods.addNote = function (note: string) {
   if (!this.notes) {
     this.notes = '';
   }
@@ -155,7 +155,7 @@ TaskSchema.methods.addNote = function(note: string) {
   return this.save();
 };
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createTaskModel = createModelFactory<ITask>(
   'Task',
   TaskSchema,
@@ -163,5 +163,5 @@ const createTaskModel = createModelFactory<ITask>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createTaskModel;

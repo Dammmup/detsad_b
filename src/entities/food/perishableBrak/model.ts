@@ -15,7 +15,7 @@ export interface IPerishableBrak extends Document {
   disposalDate?: Date;
   disposedBy?: mongoose.Types.ObjectId;
   notes?: string;
- attachments?: string[];
+  attachments?: string[];
   status: 'pending' | 'disposed' | 'reviewed';
   createdAt: Date;
   updatedAt: Date;
@@ -103,7 +103,7 @@ const PerishableBrakSchema = new Schema<IPerishableBrak>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createPerishableBrakModel = createModelFactory<IPerishableBrak>(
   'PerishableBrak',
   PerishableBrakSchema,
@@ -111,5 +111,5 @@ const createPerishableBrakModel = createModelFactory<IPerishableBrak>(
   'food'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createPerishableBrakModel;

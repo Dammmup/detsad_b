@@ -85,8 +85,8 @@ export const getByPeriod = async (req: Request, res: Response): Promise<void> =>
   try {
     const { childId, userId } = req.query;
     const { period } = req.params;
-    
-    // Проверяем, является ли period JSON-строкой с объектом
+
+
     let periodObj;
     try {
       const parsed = JSON.parse(period);
@@ -97,16 +97,16 @@ export const getByPeriod = async (req: Request, res: Response): Promise<void> =>
         return;
       }
     } catch {
-      // Если не JSON, проверяем формат старого периода для совместимости
+
       res.status(400).json({ error: 'Period must be in JSON format { start: string, end: string }' });
       return;
     }
-    
+
     if (!periodObj) {
       res.status(400).json({ error: 'Period is required' });
       return;
     }
-    
+
     const payment = await getChildPaymentByPeriod(
       periodObj,
       childId as string,
@@ -117,7 +117,7 @@ export const getByPeriod = async (req: Request, res: Response): Promise<void> =>
       return;
     }
     res.json(payment);
- } catch (error: any) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };

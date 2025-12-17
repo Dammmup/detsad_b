@@ -12,7 +12,7 @@ export async function sendTelegramNotification(chatId: string | undefined, text:
       chat_id: chatId,
       text,
     });
-  } catch (e:any) {
+  } catch (e: any) {
     console.error('Ошибка отправки в Telegram:', e?.response?.data || e.message);
   }
 }

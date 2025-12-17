@@ -13,9 +13,9 @@ import StaffShift from '../staffShifts/model';
 import Payroll from '../payroll/model';
 import Rent from '../rent/model';
 
-// Создаем экземпляры сервисов внутри методов, чтобы избежать проблем с импортами
 
-// Отложенное создание модели
+
+
 let MainEventModel: any = null;
 
 const getMainEventModel = () => {
@@ -92,7 +92,7 @@ export class MainEventsService {
     return mainEvent;
   }
 
-  // Метод для выполнения автоматического экспорта
+
   async executeScheduledExport(mainEventId: string) {
     const mainEvent = await getMainEventModel().findById(mainEventId);
 
@@ -104,15 +104,15 @@ export class MainEventsService {
       throw new Error('Событие не активно');
     }
 
-    // Обновляем время последнего выполнения
+
     mainEvent.lastExecutedAt = new Date();
     mainEvent.nextExecutionAt = this.calculateNextExecution(mainEvent.dayOfMonth);
     await mainEvent.save();
 
-    // Подготавливаем данные для экспорта
+
     const exportData: Record<string, any> = {};
 
-    // Экспорт данных для каждой указанной коллекции
+
     for (const collection of mainEvent.exportCollections) {
       try {
         switch (collection) {
@@ -141,27 +141,27 @@ export class MainEventsService {
         }
       } catch (error: any) {
         console.error(`Ошибка при экспорте коллекции ${collection}:`, error);
-        // Продолжаем с другими коллекциями даже если одна из них не удалась
+
       }
     }
 
-    // Отправляем отчет по email
+
     if (mainEvent.emailRecipients.length > 0) {
       await this.sendExportReport(mainEvent, exportData);
     }
 
-    // Удаляем экспортированные записи
+
     await this.deleteExportedRecords(mainEvent.exportCollections);
 
     return { message: 'Экспорт выполнен успешно', data: exportData };
   }
 
-  // Метод для автоматической проверки и выполнения событий
+
   async checkAndExecuteScheduledEvents() {
     const now = new Date();
-    const dayOfMonth = now.getDate(); // День месяца (1-31)
+    const dayOfMonth = now.getDate();
 
-    // Находим все активные события, которые должны выполняться в этот день месяца
+
     const eventsToExecute = await getMainEventModel().find({
       enabled: true,
       dayOfMonth: dayOfMonth
@@ -187,7 +187,7 @@ export class MainEventsService {
       }
     }
 
-    // Отправляем уведомление в Telegram
+
     const timeInAstana = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
     if (timeInAstana.getHours() === 10 && timeInAstana.getMinutes() === 0) {
       await sendLogToTelegram(`В 10:0 по времени Астаны: ${results.length} событий выполнено`);
@@ -196,12 +196,12 @@ export class MainEventsService {
     return results;
   }
 
-  // Метод для ручного запуска проверки и выполнения всех активных событий
+
   async executeAllScheduledEvents() {
     const now = new Date();
-    const dayOfMonth = now.getDate(); // День месяца (1-31)
+    const dayOfMonth = now.getDate();
 
-    // Находим все активные события
+
     const eventsToExecute = await getMainEventModel().find({
       enabled: true
     });
@@ -209,7 +209,7 @@ export class MainEventsService {
     const results = [];
 
     for (const event of eventsToExecute) {
-      // Проверяем, соответствует ли день месяца событию
+
       if (event.dayOfMonth === dayOfMonth) {
         try {
           const result = await this.executeScheduledExport(event._id.toString());
@@ -233,42 +233,42 @@ export class MainEventsService {
   }
 
 
-  // Экспорт данных посещаемости детей
+
   private async exportChildAttendance(): Promise<IChildAttendance[]> {
-    // Временная заглушка - в реальном приложении здесь будет вызов соответствующего сервиса
+
     console.log('Экспорт данных посещаемости детей');
     return [] as IChildAttendance[];
   }
 
-  // Экспорт данных оплат за посещение детей
+
   private async exportChildPayment(): Promise<IChildPayment[]> {
-    // Временная заглушка - в реальном приложении здесь будет вызов соответствующего сервиса
+
     console.log('Экспорт данных оплат за посещение детей');
     return [] as IChildPayment[];
   }
 
-  // Экспорт данных смен сотрудников
+
   private async exportStaffShifts(): Promise<IShift[]> {
-    // Временная заглушка - в реальном приложении здесь будет вызов соответствующего сервиса
+
     console.log('Экспорт данных смен сотрудников');
     return [] as IShift[];
   }
 
-  // Экспорт данных зарплат
+
   private async exportPayroll(): Promise<IPayroll[]> {
-    // Временная заглушка - в реальном приложении здесь будет вызов соответствующего сервиса
+
     console.log('Экспорт данных зарплат');
     return [] as IPayroll[];
   }
 
-  // Экспорт данных аренды
+
   private async exportRent(): Promise<IRent[]> {
-    // Временная заглушка - в реальном приложении здесь будет вызов соответствующего сервиса
+
     console.log('Экспорт данных аренды');
     return [] as IRent[];
   }
 
-  // Удаление экспортированных записей
+
   private async deleteExportedRecords(collections: string[]): Promise<void> {
     for (const collection of collections) {
       try {
@@ -295,7 +295,7 @@ export class MainEventsService {
     }
   }
 
-  // Удаление записей посещаемости
+
   private async deleteChildAttendanceRecords(): Promise<void> {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -309,7 +309,7 @@ export class MainEventsService {
     });
   }
 
-  // Удаление записей оплат
+
   private async deleteChildPaymentRecords(): Promise<void> {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -323,17 +323,17 @@ export class MainEventsService {
     });
   }
 
-  // Удаление записей смен
+
   private async deleteStaffShiftRecords(): Promise<void> {
     const today = new Date();
-    const dateString = today.toISOString().split('T')[0]; // Формат YYYY-MM-DD
+    const dateString = today.toISOString().split('T')[0];
 
     await StaffShift().deleteMany({
       date: dateString
     });
   }
 
-  // Удаление записей зарплат
+
   private async deletePayrollRecords(): Promise<void> {
     const now = new Date();
     const year = now.getFullYear();
@@ -345,7 +345,7 @@ export class MainEventsService {
     });
   }
 
-  // Удаление записей аренды
+
   private async deleteRentRecords(): Promise<void> {
     const now = new Date();
     const year = now.getFullYear();
@@ -357,7 +357,7 @@ export class MainEventsService {
     });
   }
 
-  // Отправка отчета по email
+
   private async sendExportReport(mainEvent: IMainEvent, exportData: Record<string, any>): Promise<void> {
     const subject = `Автоматический экспорт данных - ${mainEvent.name}`;
     let body = `<h2>Отчет об автоматическом экспорте</h2>
@@ -366,22 +366,22 @@ export class MainEventsService {
                <p><strong>Коллекции:</strong> ${mainEvent.exportCollections.join(', ')}</p>
                <hr>`;
 
-    // Добавляем информацию о количестве записей для каждой коллекции
+
     for (const [collection, data] of Object.entries(exportData)) {
       body += `<h3>${this.getCollectionName(collection)} (${(data as any[]).length} записей)</h3>`;
     }
 
-    // Подготавливаем JSON данные для отправки
+
     const jsonData = JSON.stringify(exportData, null, 2);
 
-    // Отправляем email с Excel и JSON файлами
+
     try {
-      // В реальном приложении здесь будет отправка с двумя вложениями
-      // Сейчас используем тестовый метод для демонстрации
+
+
       console.log('Отправка отчета на email:', mainEvent.emailRecipients[0]);
       console.log('JSON данные для отправки:', jsonData);
 
-      // Также можно отправить JSON отдельно, если нужно
+
     } catch (error) {
       console.error('Ошибка при отправке отчета:', error);
       throw error;
@@ -389,7 +389,7 @@ export class MainEventsService {
 
   }
 
-  // Получение человекочитаемого названия коллекции
+
   private getCollectionName(collection: string): string {
     const names: Record<string, string> = {
       'childAttendance': 'Посещаемость детей',
@@ -401,21 +401,21 @@ export class MainEventsService {
     return names[collection] || collection;
   }
 
-  // Расчет следующего времени выполнения
+
   private calculateNextExecution(dayOfMonth: number): Date {
     const now = new Date();
     const currentDay = now.getDate();
     const nextDate = new Date(now);
 
-    // Устанавливаем нужный день месяца
+
     nextDate.setDate(dayOfMonth);
 
-    // Если сегодня уже день выполнения, то следующий месяц
+
     if (nextDate <= now) {
       nextDate.setMonth(nextDate.getMonth() + 1);
     }
 
-    // Устанавливаем время на 00:00:00
+
     nextDate.setHours(0, 0, 0, 0);
 
     return nextDate;

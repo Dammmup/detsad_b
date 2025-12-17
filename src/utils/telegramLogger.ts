@@ -7,7 +7,7 @@ export async function sendLogToTelegram(message: string) {
     return;
   }
 
- const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+  const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
   await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

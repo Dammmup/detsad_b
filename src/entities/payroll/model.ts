@@ -2,22 +2,22 @@ import mongoose, { Schema, Document } from 'mongoose';
 import { createModelFactory } from '../../config/database';
 
 export interface IPayroll extends Document {
-  staffId?: mongoose.Types.ObjectId; // Может быть undefined для аренды
-  // tenant?: boolean; // Для арендаторов - поле перемещено в сущность staff
-  period: string; // например, '2025-01'
+  staffId?: mongoose.Types.ObjectId;
+
+  period: string;
   baseSalary: number;
   bonuses: number;
   deductions: number;
   total: number;
-  status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent' | 'generated'; // Добавляем статусы для аренды
+  status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent' | 'generated';
   paymentDate?: Date;
-  advance?: number; // Аванс
-  advanceDate?: Date; // Дата аванса
+  advance?: number;
+  advanceDate?: Date;
   createdAt: Date;
   updatedAt: Date;
   accruals: number;
   baseSalaryType: 'month' | 'shift';
-  // Дополнительные поля
+
   shiftRate?: number;
   penaltyDetails?: {
     type: string;
@@ -26,7 +26,7 @@ export interface IPayroll extends Document {
     absencePenalties?: number;
     userFines?: number;
   };
-  // Добавляем массив штрафов для более детального учета
+
   fines?: Array<{
     amount: number;
     reason: string;
@@ -42,7 +42,7 @@ export interface IPayroll extends Document {
     net: number;
     reason?: string;
   }>;
-  // Поля для штрафов, добавленные для совместимости с payrollAutomationService
+
   penalties?: number;
   latePenalties?: number;
   latePenaltyRate?: number;
@@ -61,13 +61,13 @@ const PayrollSchema = new Schema<IPayroll>({
   staffId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    index: true  // Убираем required: true, так как может быть undefined для аренды
+    index: true
   },
-  // tenant: {
-  //   type: Boolean,
-  //   default: false,
-  //   index: true // Добавляем поле tenant для арендаторов
-  // },
+
+
+
+
+
   period: {
     type: String,
     required: true
@@ -90,7 +90,7 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   status: {
     type: String,
-    enum: ['draft', 'approved', 'paid', 'active', 'overdue', 'paid_rent', 'generated'], // Добавляем статусы для аренды
+    enum: ['draft', 'approved', 'paid', 'active', 'overdue', 'paid_rent', 'generated'],
     default: 'draft'
   },
   accruals: {
@@ -104,9 +104,9 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   workedDays: { type: Number, default: 0 },
   workedShifts: { type: Number, default: 0 },
-  // Дополнительные поля
-  advance: Number, // Аванс
-  advanceDate: Date, // Дата аванса
+
+  advance: Number,
+  advanceDate: Date,
   shiftRate: Number,
   penaltyDetails: {
     type: {
@@ -157,7 +157,7 @@ const PayrollSchema = new Schema<IPayroll>({
   }],
   penalties: Number,
   latePenalties: Number,
-  latePenaltyRate: Number, // Saved rate used for calculation
+  latePenaltyRate: Number,
   absencePenalties: Number,
   userFines: Number,
   history: [{
@@ -170,27 +170,27 @@ const PayrollSchema = new Schema<IPayroll>({
   timestamps: true
 });
 
-// Автоматический пересчёт total перед сохранением
-// total = accruals - (latePenalties + absencePenalties + userFines)
+
+
 PayrollSchema.pre('save', function (next) {
   const accruals = this.accruals || 0;
   const latePenalties = this.latePenalties || 0;
   const absencePenalties = this.absencePenalties || 0;
   const userFines = this.userFines || 0;
 
-  // Пересчитываем total автоматически
+
   this.total = Math.max(0, accruals - latePenalties - absencePenalties - userFines);
 
-  // Также обновляем penalties для консистентности
+
   this.penalties = latePenalties + absencePenalties + userFines;
 
   next();
 });
 
-// Add compound unique index to prevent duplicate payrolls for same staff and period
+
 PayrollSchema.index({ staffId: 1, period: 1 }, { unique: true });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createPayrollModel = createModelFactory<IPayroll>(
   'Payroll',
   PayrollSchema,
@@ -198,5 +198,5 @@ const createPayrollModel = createModelFactory<IPayroll>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createPayrollModel;

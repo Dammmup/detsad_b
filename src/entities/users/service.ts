@@ -8,7 +8,7 @@ export class UserService {
     const projection = includePasswords ? '+passwordHash +initialPassword' : '-passwordHash -initialPassword';
     const query: any = { role: { $ne: 'admin' } };
     return await User.find(query).select(projection);
- }
+  }
 
   async getById(id: string): Promise<IUser | null> {
     const User = getModel<IUser>('User');
@@ -22,7 +22,7 @@ export class UserService {
 
   async create(data: Partial<IUser>): Promise<IUser> {
     const User = getModel<IUser>('User');
-    // Хешируем пароль перед сохранением
+
     if ((data as any).password) {
       (data as any).password = await hashPassword((data as any).password);
     }
@@ -32,13 +32,13 @@ export class UserService {
 
   async update(id: string, data: Partial<IUser>): Promise<IUser | null> {
     const User = getModel<IUser>('User');
-    // Если обновляется пароль, хешируем его
+
     if ((data as any).password) {
       (data as any).password = await hashPassword((data as any).password);
     }
-    // Если обновляется initialPassword, сохраняем его как есть (без хеширования)
+
     if ((data as any).initialPassword !== undefined) {
-      // initialPassword не хешируется, просто сохраняем как есть
+
     }
     return await User.findByIdAndUpdate(id, data, { new: true }).select('-passwordHash');
   }
@@ -49,12 +49,12 @@ export class UserService {
     return !!result;
   }
 
- async validatePassword(phone: string, password: string): Promise<IUser | null> {
-   const User = getModel<IUser>('User');
-   const user = await User.findOne({ phone }).select('+passwordHash');
-   if (!user) return null;
+  async validatePassword(phone: string, password: string): Promise<IUser | null> {
+    const User = getModel<IUser>('User');
+    const user = await User.findOne({ phone }).select('+passwordHash');
+    if (!user) return null;
 
-   const isValid = await comparePassword(password, user.passwordHash || (user as any).password as any);
-   return isValid ? user : null;
- }
+    const isValid = await comparePassword(password, user.passwordHash || (user as any).password as any);
+    return isValid ? user : null;
+  }
 }

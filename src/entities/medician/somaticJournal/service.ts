@@ -1,8 +1,8 @@
 import SomaticJournal from './model';
 import { ISomaticJournal } from './model';
-import User from '../../users/model'; // Using the user model
+import User from '../../users/model';
 
-// Отложенное создание моделей
+
 let SomaticJournalModel: any = null;
 let UserModel: any = null;
 
@@ -23,11 +23,11 @@ const getUserModel = () => {
 export class SomaticJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -35,12 +35,12 @@ export class SomaticJournalService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const journals = await getSomaticJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
@@ -48,16 +48,16 @@ export class SomaticJournalService {
     const journal = await getSomaticJournalModel().findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
-    
+
     if (!journal) {
       throw new Error('Запись соматического журнала не найдена');
     }
-    
+
     return journal;
   }
 
   async create(journalData: Partial<ISomaticJournal>, userId: string) {
-    // Проверяем обязательные поля
+
     if (!journalData.childId) {
       throw new Error('Не указан ребенок');
     }
@@ -73,31 +73,31 @@ export class SomaticJournalService {
     if (!journalData.doctor) {
       throw new Error('Не указан врач');
     }
-    
-    // Проверяем существование ребенка
+
+
     const child = await getUserModel().findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
-    
-    // Проверяем существование врача
+
+
     const doctor = await getUserModel().findById(journalData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
-    
+
     const somaticJournalModel = getSomaticJournalModel();
     const journal = new somaticJournalModel({
       ...journalData,
-      doctor: userId // Врач - текущий пользователь
+      doctor: userId
     });
-    
+
     await journal.save();
-    
+
     const populatedJournal = await somaticJournalModel.findById(journal._id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
-    
+
     return populatedJournal;
   }
 
@@ -107,31 +107,31 @@ export class SomaticJournalService {
       data,
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!updatedJournal) {
       throw new Error('Запись соматического журнала не найдена');
     }
-    
+
     return updatedJournal;
   }
 
   async delete(id: string) {
     const result = await getSomaticJournalModel().findByIdAndDelete(id);
-    
+
     if (!result) {
       throw new Error('Запись соматического журнала не найдена');
     }
-    
+
     return { message: 'Запись соматического журнала успешно удалена' };
   }
 
   async getByChildId(childId: string, filters: { date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
     const filter: any = { childId };
-    
+
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -139,32 +139,32 @@ export class SomaticJournalService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const journals = await getSomaticJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
   async getByDoctorId(doctorId: string, filters: { childId?: string, status?: string, startDate?: string, endDate?: string }) {
     const filter: any = { doctor: doctorId };
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.status) filter.status = filters.status;
-    
+
     if (filters.startDate || filters.endDate) {
       filter.date = {};
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const journals = await getSomaticJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
@@ -172,17 +172,17 @@ export class SomaticJournalService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const journals = await getSomaticJournalModel().find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
       }
     })
-    .populate('childId', 'fullName iin')
-    .populate('doctor', 'fullName role')
-    .sort({ nextAppointmentDate: 1 });
-    
+      .populate('childId', 'fullName iin')
+      .populate('doctor', 'fullName role')
+      .sort({ nextAppointmentDate: 1 });
+
     return journals;
   }
 
@@ -192,12 +192,12 @@ export class SomaticJournalService {
       { status },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!journal) {
       throw new Error('Запись соматического журнала не найдена');
     }
-    
+
     return journal;
   }
 
@@ -207,12 +207,12 @@ export class SomaticJournalService {
       { recommendations },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!journal) {
       throw new Error('Запись соматического журнала не найдена');
     }
-    
+
     return journal;
   }
 
@@ -228,9 +228,9 @@ export class SomaticJournalService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const total = await getSomaticJournalModel().countDocuments();
-    
+
     return {
       total,
       byStatus: stats.reduce((acc, stat) => {

@@ -3,7 +3,7 @@ import { createModelFactory } from '../../config/database';
 
 export interface ILocation {
   name: string;
-  radius: number; // meters
+  radius: number;
   timestamp: Date;
   coordinates: {
     latitude: number;
@@ -13,14 +13,14 @@ export interface ILocation {
 
 export interface IStaffAttendanceTracking extends Document {
   staffId: mongoose.Types.ObjectId;
-  shiftId?: mongoose.Types.ObjectId; // Ссылка на смену
+  shiftId?: mongoose.Types.ObjectId;
   date: Date;
   actualStart?: Date;
   groupId?: mongoose.Types.ObjectId;
   actualEnd?: Date;
-  workDuration?: number; // minutes
-  breakDuration?: number; // minutes
-  overtimeDuration?: number; // minutes
+  workDuration?: number;
+  breakDuration?: number;
+  overtimeDuration?: number;
   lateMinutes?: number;
   earlyLeaveMinutes?: number;
   penalties: {
@@ -54,11 +54,11 @@ export interface IStaffAttendanceTracking extends Document {
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date;
   inZone?: boolean;
-  // Fields from timeTracking
+
   clockInLocation?: ILocation;
   clockOutLocation?: ILocation;
-  photoClockIn?: string; // URL to photo taken during clock-in
-  photoClockOut?: string; // URL to photo taken during clock-out
+  photoClockIn?: string;
+  photoClockOut?: string;
   totalHours: number;
   regularHours: number;
   overtimeHours: number;
@@ -159,7 +159,7 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
     default: false,
     index: true
   },
-  // Fields from timeTracking
+
   clockInLocation: LocationSchema,
   clockOutLocation: LocationSchema,
   photoClockIn: String,
@@ -193,20 +193,20 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   timestamps: true
 });
 
-// Pre-save middleware to calculate hours
+
 StaffAttendanceTrackingSchema.pre('save', function (this: IStaffAttendanceTracking, next) {
   if (this.actualStart && this.actualEnd) {
     const totalMs = this.actualEnd.getTime() - this.actualStart.getTime();
     let totalMinutes = Math.floor(totalMs / (1000 * 60));
 
-    // Subtract break duration
+
     if (this.breakDuration) {
       totalMinutes -= this.breakDuration;
     }
 
     this.totalHours = Math.max(0, totalMinutes / 60);
 
-    // Calculate regular vs overtime (assuming 8-hour standard)
+
     const standardHours = 8;
     this.regularHours = Math.min(this.totalHours, standardHours);
     this.overtimeHours = Math.max(0, this.totalHours - standardHours);
@@ -214,30 +214,30 @@ StaffAttendanceTrackingSchema.pre('save', function (this: IStaffAttendanceTracki
   next();
 });
 
-// Post-save hook: пересчитать payroll после создания/обновления записи посещаемости
+
 StaffAttendanceTrackingSchema.post('save', async function (this: IStaffAttendanceTracking) {
   try {
-    // Определяем период на основе даты записи
+
     const attendanceDate = this.date || new Date();
     const period = `${attendanceDate.getFullYear()}-${String(attendanceDate.getMonth() + 1).padStart(2, '0')}`;
 
-    // Импортируем PayrollService динамически чтобы избежать циклических зависимостей
+
     const { PayrollService } = await import('../payroll/service');
     const payrollService = new PayrollService();
 
-    // Вызываем ensurePayrollForUser - это пересчитает штрафы и обновит total
+
     await payrollService.ensurePayrollForUser(this.staffId.toString(), period);
 
     console.log(`Payroll recalculated for staff ${this.staffId} period ${period} after attendance update`);
   } catch (error) {
-    // Логируем ошибку но не прерываем сохранение записи посещаемости
+
     console.error('Error recalculating payroll after attendance save:', error);
   }
 });
 
 
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createStaffAttendanceTrackingModel = createModelFactory<IStaffAttendanceTracking>(
   'StaffAttendanceTracking',
   StaffAttendanceTrackingSchema,
@@ -245,5 +245,5 @@ const createStaffAttendanceTrackingModel = createModelFactory<IStaffAttendanceTr
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createStaffAttendanceTrackingModel;

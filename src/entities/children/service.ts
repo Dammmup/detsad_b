@@ -1,6 +1,6 @@
 import { IChild } from './model';
 import Child from './model';
-import Group from '../groups/model'; // Добавляем импорт модели Group
+import Group from '../groups/model';
 
 export class ChildService {
   private get childModel() {
@@ -27,24 +27,23 @@ export class ChildService {
     return await this.childModel.findByIdAndUpdate(id, data, { new: true }).populate('groupId');
   }
 
-    async delete(id: string): Promise<boolean> {
+  async delete(id: string): Promise<boolean> {
 
-      const result = await this.childModel.findByIdAndDelete(id);
+    const result = await this.childModel.findByIdAndDelete(id);
 
-      return !!result;
-
-    }
+    return !!result;
 
   }
 
-  
+}
 
-  export const getChildren = async (filters: any = {}): Promise<IChild[]> => {
 
-    const childModel = Child();
 
-    return await childModel.find(filters);
+export const getChildren = async (filters: any = {}): Promise<IChild[]> => {
 
-  };
+  const childModel = Child();
 
-  
+  return await childModel.find(filters);
+
+};
+

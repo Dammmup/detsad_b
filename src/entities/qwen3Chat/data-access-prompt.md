@@ -37,12 +37,12 @@ GET /users/roles - получить доступные роли пользова
 GET /users/{id} - получить информацию о конкретном сотруднике (только для админов)
 POST /users - создать нового пользователя (только для админов)
 PUT /users/{id} - обновить данные пользователя (только для админов)
-PUT /users/{id}/payroll-settings - обновить зарплатные и штрафные настройки сотрудника
+PUT /users/{id}/payroll-settings - обновить зарплатные и Вычетные настройки сотрудника
 PUT /users/{id}/salary - обновить зарплату пользователя
-POST /users/{id}/fines - добавить штраф пользователю
-GET /users/{id}/fines - получить штрафы пользователя
-GET /users/{id}/fines/total - получить общую сумму штрафов пользователя
-DELETE /users/{userId}/fines/{fineId} - удалить штраф пользователя
+POST /users/{id}/fines - добавить Вычет пользователю
+GET /users/{id}/fines - получить Вычеты пользователя
+GET /users/{id}/fines/total - получить общую сумму Вычетов пользователя
+DELETE /users/{userId}/fines/{fineId} - удалить Вычет пользователя
 DELETE /users/{id} - удалить пользователя (только для админов)
 4. Посещаемость детей: /child-attendance
 GET /child-attendance/debug - проверить статус коллекции посещаемости
@@ -103,7 +103,7 @@ DELETE /staff-shifts/{id} - удалить смену
 POST /staff-shifts/checkin/{shiftId} - чек-ин сотрудника
 POST /staff-shifts/checkout/{shiftId} - чек-аут сотрудника
 GET /staff-shifts/timetracking - получить записи учета времени
-PUT /staff-shifts/timetracking/{id}/adjustments - обновить штрафы/бонусы
+PUT /staff-shifts/timetracking/{id}/adjustments - обновить Вычеты/бонусы
 10. Задачи: /task-list
 GET /task-list - получить все задачи (с фильтрами)
 GET /task-list/{id} - получить задачу по ID

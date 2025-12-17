@@ -24,7 +24,7 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
     let skippedCount = 0;
 
     for (const child of activeChildren) {
-      // 1. Проверяем, существует ли уже оплата для этого ребенка в текущем месяце
+
       const existingPayments = await getChildPayments({
         childId: child._id.toString(),
         'period.start': { $gte: currentMonthStart },
@@ -37,7 +37,7 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
         continue;
       }
 
-      // 2. Ищем оплату за предыдущий месяц
+
       const previousPayments = await getChildPayments({
         childId: child._id.toString(),
         'period.start': { $gte: previousMonthStart },
@@ -48,7 +48,7 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
       let total = DEFAULT_AMOUNT;
 
       if (previousPayments.length > 0) {
-        // Используем данные из последнего платежа за прошлый месяц
+
         const lastPayment = previousPayments[previousPayments.length - 1];
         amount = lastPayment.amount;
         total = lastPayment.total;
@@ -57,7 +57,7 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
         console.log(`Оплата за прошлый месяц для ребенка ${child.fullName} не найдена. Используется стандартная сумма: ${DEFAULT_AMOUNT}`);
       }
 
-      // 3. Создаем новую запись об оплате
+
       await createChildPayment({
         childId: child._id as mongoose.Types.ObjectId,
         period: {

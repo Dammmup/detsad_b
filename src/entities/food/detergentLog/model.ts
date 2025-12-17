@@ -21,7 +21,7 @@ export interface IDetergentLog extends Document {
   disposalDate?: Date;
   disposalMethod?: string;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
 }
 
 const DetergentLogSchema = new Schema<IDetergentLog>({
@@ -114,7 +114,7 @@ const DetergentLogSchema = new Schema<IDetergentLog>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createDetergentLogModel = createModelFactory<IDetergentLog>(
   'DetergentLog',
   DetergentLogSchema,
@@ -122,5 +122,5 @@ const createDetergentLogModel = createModelFactory<IDetergentLog>(
   'food'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createDetergentLogModel;

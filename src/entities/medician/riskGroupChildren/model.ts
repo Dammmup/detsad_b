@@ -12,8 +12,8 @@ export interface IRiskGroupChild extends Document {
   status: 'pending' | 'completed' | 'reviewed';
   nextAssessmentDate?: Date;
   recommendations?: string;
- createdAt: Date;
- updatedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
@@ -41,7 +41,7 @@ const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
- },
+  },
   notes: {
     type: String,
     maxlength: [500, 'Заметки не могут превышать 500 символов']
@@ -63,7 +63,7 @@ const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createRiskGroupChildModel = createModelFactory<IRiskGroupChild>(
   'RiskGroupChild',
   RiskGroupChildSchema,
@@ -71,5 +71,5 @@ const createRiskGroupChildModel = createModelFactory<IRiskGroupChild>(
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createRiskGroupChildModel;

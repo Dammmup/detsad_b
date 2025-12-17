@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { RiskGroupChildrenService } from './service';
 
-// Отложенное создание экземпляра сервиса
+
 let riskGroupChildrenService: RiskGroupChildrenService | null = null;
 
 const getRiskGroupChildrenService = (): RiskGroupChildrenService => {
@@ -16,9 +16,9 @@ export const getAllRiskGroupChildren = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { childId, date, doctorId, status, riskFactor, startDate, endDate, nextAssessmentDate } = req.query;
-    
+
     const children = await getRiskGroupChildrenService().getAll({
       childId: childId as string,
       date: date as string,
@@ -29,7 +29,7 @@ export const getAllRiskGroupChildren = async (req: Request, res: Response) => {
       endDate: endDate as string,
       nextAssessmentDate: nextAssessmentDate as string
     });
-    
+
     res.json(children);
   } catch (err) {
     console.error('Error fetching risk group children:', err);
@@ -42,7 +42,7 @@ export const getRiskGroupChildById = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const child = await getRiskGroupChildrenService().getById(req.params.id);
     res.json(child);
   } catch (err: any) {
@@ -56,7 +56,7 @@ export const createRiskGroupChild = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const child = await getRiskGroupChildrenService().create(req.body, req.user.id as string);
     res.status(201).json(child);
   } catch (err: any) {
@@ -70,7 +70,7 @@ export const updateRiskGroupChild = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const child = await getRiskGroupChildrenService().update(req.params.id, req.body);
     res.json(child);
   } catch (err: any) {
@@ -84,7 +84,7 @@ export const deleteRiskGroupChild = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const result = await getRiskGroupChildrenService().delete(req.params.id);
     res.json(result);
   } catch (err: any) {
@@ -98,10 +98,10 @@ export const getRiskGroupChildrenByChildId = async (req: Request, res: Response)
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { childId } = req.params;
     const { date, doctorId, status, riskFactor, startDate, endDate, nextAssessmentDate } = req.query;
-    
+
     const children = await getRiskGroupChildrenService().getByChildId(childId, {
       date: date as string,
       doctorId: doctorId as string,
@@ -111,7 +111,7 @@ export const getRiskGroupChildrenByChildId = async (req: Request, res: Response)
       endDate: endDate as string,
       nextAssessmentDate: nextAssessmentDate as string
     });
-    
+
     res.json(children);
   } catch (err: any) {
     console.error('Error fetching risk group children by child ID:', err);
@@ -124,10 +124,10 @@ export const getRiskGroupChildrenByDoctorId = async (req: Request, res: Response
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { doctorId } = req.params;
     const { childId, status, riskFactor, startDate, endDate, nextAssessmentDate } = req.query;
-    
+
     const children = await getRiskGroupChildrenService().getByDoctorId(doctorId, {
       childId: childId as string,
       status: status as string,
@@ -136,7 +136,7 @@ export const getRiskGroupChildrenByDoctorId = async (req: Request, res: Response
       endDate: endDate as string,
       nextAssessmentDate: nextAssessmentDate as string
     });
-    
+
     res.json(children);
   } catch (err: any) {
     console.error('Error fetching risk group children by doctor ID:', err);
@@ -149,10 +149,10 @@ export const getUpcomingAssessments = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { days } = req.query;
     const daysNum = days ? parseInt(days as string) : 7;
-    
+
     const children = await getRiskGroupChildrenService().getUpcomingAssessments(daysNum);
     res.json(children);
   } catch (err: any) {
@@ -166,13 +166,13 @@ export const updateRiskGroupChildStatus = async (req: Request, res: Response) =>
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({ error: 'Не указан статус' });
     }
-    
+
     const child = await getRiskGroupChildrenService().updateStatus(req.params.id, status);
     res.json(child);
   } catch (err: any) {
@@ -186,13 +186,13 @@ export const addRiskGroupChildRecommendations = async (req: Request, res: Respon
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { recommendations } = req.body;
-    
+
     if (!recommendations) {
       return res.status(400).json({ error: 'Не указаны рекомендации' });
     }
-    
+
     const child = await getRiskGroupChildrenService().addRecommendations(req.params.id, recommendations);
     res.json(child);
   } catch (err: any) {
@@ -206,7 +206,7 @@ export const getRiskGroupChildStatistics = async (req: Request, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const stats = await getRiskGroupChildrenService().getStatistics();
     res.json(stats);
   } catch (err: any) {

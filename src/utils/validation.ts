@@ -1,4 +1,4 @@
-// Валидация документов
+
 export interface DocumentValidationResult {
   isValid: boolean;
   errors: string[];
@@ -34,24 +34,19 @@ export interface TemplateData {
   usageCount?: number;
 }
 
-// Допустимые значения для документов
+
 const VALID_DOCUMENT_TYPES = ['contract', 'certificate', 'report', 'policy', 'other'];
 const VALID_DOCUMENT_CATEGORIES = ['staff', 'children', 'financial', 'administrative', 'other'];
 const VALID_DOCUMENT_STATUSES = ['active', 'archived'];
 
-// Допустимые значения для шаблонов
+
 const VALID_TEMPLATE_TYPES = ['contract', 'certificate', 'report', 'policy', 'other'];
 const VALID_TEMPLATE_CATEGORIES = ['staff', 'children', 'financial', 'administrative', 'other'];
 
-/**
- * Валидация данных документа
- * @param document Данные документа для валидации
- * @returns Результат валидации
- */
 export const validateDocument = (document: Partial<DocumentData>): DocumentValidationResult => {
   const errors: string[] = [];
 
-  // Проверка обязательных полей
+
   if (!document.title) {
     errors.push('Поле "title" обязательно');
   }
@@ -92,11 +87,11 @@ export const validateDocument = (document: Partial<DocumentData>): DocumentValid
     errors.push('Недопустимый статус документа');
   }
 
-  // Проверка даты истечения срока
+
   if (document.expiryDate) {
     const expiryDate = new Date(document.expiryDate);
     const uploadDate = document.uploadDate ? new Date(document.uploadDate) : new Date();
-    
+
     if (expiryDate < uploadDate) {
       errors.push('Дата истечения срока должна быть позже даты загрузки');
     }
@@ -108,15 +103,10 @@ export const validateDocument = (document: Partial<DocumentData>): DocumentValid
   };
 };
 
-/**
- * Валидация данных шаблона документа
- * @param template Данные шаблона для валидации
- * @returns Результат валидации
- */
 export const validateDocumentTemplate = (template: Partial<TemplateData>): DocumentValidationResult => {
   const errors: string[] = [];
 
-  // Проверка обязательных полей
+
   if (!template.name) {
     errors.push('Поле "name" обязательно');
   }
@@ -151,7 +141,7 @@ export const validateDocumentTemplate = (template: Partial<TemplateData>): Docum
     errors.push('Поле "isActive" обязательно');
   }
 
-  // Проверка версии
+
   if (template.version) {
     const versionRegex = /^\d+\.\d+$/;
     if (!versionRegex.test(template.version)) {
@@ -165,64 +155,44 @@ export const validateDocumentTemplate = (template: Partial<TemplateData>): Docum
   };
 };
 
-/**
- * Валидация email
- * @param email Email для валидации
- * @returns true если email валиден, иначе false
- */
 export const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
-/**
- * Валидация номера телефона
- * @param phone Номер телефона для валидации
- * @returns true если номер телефона валиден, иначе false
- */
 export const validatePhone = (phone: string): boolean => {
-  // Простая валидация для казахстанского номера телефона
+
   const phoneRegex = /^(\+7|8)?7\d{9}$/;
   return phoneRegex.test(phone.replace(/\s+/g, ''));
 };
 
-/**
- * Валидация пароля
- * @param password Пароль для валидации
- * @returns true если пароль валиден, иначе false
- */
 export const validatePassword = (password: string): boolean => {
-  // Минимум 8 символов, хотя бы одна буква и одна цифра
+
   const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
   return passwordRegex.test(password);
 };
 
-/**
- * Валидация ИИН (Индивидуальный идентификационный номер)
- * @param iin ИИН для валидации
- * @returns true если ИИН валиден, иначе false
- */
 export const validateIIN = (iin: string): boolean => {
-  // ИИН должен состоять из 12 цифр
+
   if (!/^\d{12}$/.test(iin)) {
     return false;
   }
 
-  // Алгоритм проверки контрольной суммы ИИН
+
   const weights1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const weights2 = [3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2];
 
   const digits = iin.split('').map(Number);
   let sum = 0;
 
-  // Первый расчет контрольной суммы
+
   for (let i = 0; i < 11; i++) {
     sum += digits[i] * weights1[i];
   }
 
   let controlDigit = sum % 11;
   if (controlDigit === 10) {
-    // Второй расчет контрольной суммы
+
     sum = 0;
     for (let i = 0; i < 11; i++) {
       sum += digits[i] * weights2[i];

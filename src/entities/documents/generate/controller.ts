@@ -6,11 +6,11 @@ import Child from '../../children/model';
 export const generateDocument = async (req: Request, res: Response) => {
   try {
     const { templateName, childId, date, extra } = req.body;
-    
+
     if (!templateName || !date) {
       return res.status(400).json({ error: 'Требуется указать templateName и date' });
     }
-    
+
     let user = null;
     if (childId) {
       user = await Child().findById(childId);
@@ -18,15 +18,15 @@ export const generateDocument = async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'Ребенок не найден' });
       }
     }
-    
+
     const buffer = await generateDocx(templateName, user, date, extra);
-    
-    // Сохраняем сгенерированный документ во временный файл
+
+
     const tempFileName = `generated_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.docx`;
     const tempFilePath = `/tmp/${tempFileName}`;
-    
-    // В реальной системе здесь должен быть код для сохранения файла
-    
+
+
+
     res.json({
       message: 'Документ успешно сгенерирован',
       fileName: tempFileName,
@@ -41,9 +41,9 @@ export const generateDocument = async (req: Request, res: Response) => {
 export const downloadGeneratedDocument = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
-    // В реальной системе здесь должен быть код для загрузки файла по ID
-    
+
+
+
     res.status(404).json({ error: 'Файл не найден' });
   } catch (error) {
     console.error('Ошибка загрузки документа:', error);

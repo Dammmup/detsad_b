@@ -17,47 +17,47 @@ export interface IDocument extends Document {
 }
 
 const DocumentSchema = new Schema<IDocument>({
-  title: { 
-    type: String, 
-    required: true 
+  title: {
+    type: String,
+    required: true
   },
   description: String,
-  fileName: { 
-    type: String, 
-    required: true 
+  fileName: {
+    type: String,
+    required: true
   },
-  filePath: { 
-    type: String, 
-    required: true 
+  filePath: {
+    type: String,
+    required: true
   },
-  fileType: { 
-    type: String, 
-    required: true 
+  fileType: {
+    type: String,
+    required: true
   },
-  fileSize: { 
-    type: Number, 
-    required: true 
+  fileSize: {
+    type: Number,
+    required: true
   },
-  owner: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
+  owner: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  category: { 
-    type: String, 
-    required: true 
+  category: {
+    type: String,
+    required: true
   },
-  isPublic: { 
-    type: Boolean, 
-    default: false 
+  isPublic: {
+    type: Boolean,
+    default: false
   },
   tags: [String],
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
 });
 
 
-// Создаем фабрику модели для отложенного создания после подключения к базе данных
+
 const createDocumentModel = createModelFactory<IDocument>(
   'Document',
   DocumentSchema,

@@ -3,10 +3,10 @@ import { createModelFactory } from '../../../config/database';
 
 export interface IFoodStockLog extends Document {
   productId: mongoose.Types.ObjectId;
- productName: string;
+  productName: string;
   batchNumber: string;
   expirationDate: Date;
- quantity: number;
+  quantity: number;
   unit: string;
   supplier: string;
   supplierContact: string;
@@ -21,7 +21,7 @@ export interface IFoodStockLog extends Document {
   disposalDate?: Date;
   disposalMethod?: string;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
 }
 
 const FoodStockLogSchema = new Schema<IFoodStockLog>({
@@ -103,7 +103,7 @@ const FoodStockLogSchema = new Schema<IFoodStockLog>({
   usageDate: {
     type: Date,
     index: true
- },
+  },
   usagePerson: {
     type: String,
     trim: true,
@@ -122,7 +122,7 @@ const FoodStockLogSchema = new Schema<IFoodStockLog>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createFoodStockLogModel = createModelFactory<IFoodStockLog>(
   'FoodStockLog',
   FoodStockLogSchema,
@@ -130,5 +130,5 @@ const createFoodStockLogModel = createModelFactory<IFoodStockLog>(
   'food'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createFoodStockLogModel;

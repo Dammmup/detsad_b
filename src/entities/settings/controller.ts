@@ -3,13 +3,13 @@ import { SettingsService } from './service';
 
 const settingsService = new SettingsService();
 
-// Контроллеры для настроек детского сада
+
 export const getKindergartenSettings = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.getKindergartenSettings();
     res.json(settings || {});
   } catch (err) {
@@ -23,7 +23,7 @@ export const updateKindergartenSettings = async (req: Request, res: Response) =>
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.updateKindergartenSettings(req.body);
     res.json(settings);
   } catch (err: any) {
@@ -32,13 +32,13 @@ export const updateKindergartenSettings = async (req: Request, res: Response) =>
   }
 };
 
-// Контроллеры для настроек уведомлений
+
 export const getNotificationSettings = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.getNotificationSettings();
     res.json(settings || {});
   } catch (err) {
@@ -52,22 +52,22 @@ export const updateNotificationSettings = async (req: Request, res: Response) =>
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.updateNotificationSettings(req.body);
     res.json(settings);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error updating notification settings:', err);
     res.status(400).json({ error: err.message || 'Ошибка обновления настроек уведомлений' });
   }
 };
 
-// Контроллеры для настроек безопасности
+
 export const getSecuritySettings = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.getSecuritySettings();
     res.json(settings || {});
   } catch (err) {
@@ -81,7 +81,7 @@ export const updateSecuritySettings = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.updateSecuritySettings(req.body);
     res.json(settings);
   } catch (err: any) {
@@ -90,13 +90,13 @@ export const updateSecuritySettings = async (req: Request, res: Response) => {
   }
 };
 
-// Контроллеры для настроек геолокации
+
 export const getGeolocationSettings = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.getGeolocationSettings();
     res.json(settings || {});
   } catch (err) {
@@ -110,10 +110,10 @@ export const updateGeolocationSettings = async (req: Request, res: Response) => 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const settings = await settingsService.updateGeolocationSettings(req.body);
     res.json(settings);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error updating geolocation settings:', err);
     res.status(400).json({ error: err.message || 'Ошибка обновления настроек геолокации' });
   }
@@ -124,19 +124,19 @@ export const updateCoordinates = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { latitude, longitude } = req.body;
-    
+
     if (latitude === undefined || longitude === undefined) {
       return res.status(400).json({ error: 'Необходимо указать широту и долготу' });
     }
-    
+
     const settings = await settingsService.updateCoordinates(latitude, longitude);
     res.json(settings);
- } catch (err: any) {
+  } catch (err: any) {
     console.error('Error updating coordinates:', err);
     res.status(400).json({ error: err.message || 'Ошибка обновления координат' });
- }
+  }
 };
 
 export const updateRadius = async (req: Request, res: Response) => {
@@ -144,13 +144,13 @@ export const updateRadius = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { radius } = req.body;
-    
+
     if (radius === undefined) {
       return res.status(400).json({ error: 'Необходимо указать радиус' });
     }
-    
+
     const settings = await settingsService.updateRadius(radius);
     res.json(settings);
   } catch (err: any) {

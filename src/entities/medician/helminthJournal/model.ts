@@ -61,7 +61,7 @@ const HelminthJournalSchema = new Schema<IHelminthJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createHelminthJournalModel = createModelFactory<IHelminthJournal>(
   'HelminthJournal',
   HelminthJournalSchema,
@@ -69,5 +69,5 @@ const createHelminthJournalModel = createModelFactory<IHelminthJournal>(
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createHelminthJournalModel;

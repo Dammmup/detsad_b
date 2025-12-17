@@ -4,10 +4,10 @@ import { createModelFactory } from '../../config/database';
 export interface IMainEvent extends Document {
   name: string;
   description: string;
-  dayOfMonth: number; // День месяца для экспорта (1-31)
+  dayOfMonth: number;
   enabled: boolean;
-  exportCollections: string[]; // Список коллекций для экспорта
-  emailRecipients: string[]; // Email адреса получателей
+  exportCollections: string[];
+  emailRecipients: string[];
   lastExecutedAt?: Date;
   nextExecutionAt?: Date;
   createdAt: Date;
@@ -52,7 +52,7 @@ const MainEventSchema: Schema = new Schema({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания после подключения к базе данных
+
 const createMainEventModel = createModelFactory<IMainEvent>(
   'MainEvent',
   MainEventSchema,

@@ -8,7 +8,7 @@ import createStaffShiftModel from '../src/entities/staffShifts/model';
 import createStaffAttendanceTrackingModel from '../src/entities/staffAttendanceTracking/model';
 import createChildAttendanceModel from '../src/entities/childAttendance/model';
 
-// --- Helpers ---
+
 const getStatus = (value: string | null) => {
   if (!value) return 'absent';
   const val = value.toString().trim();
@@ -17,7 +17,7 @@ const getStatus = (value: string | null) => {
   if (val === 'Б') return 'sick_leave';
   if (val === 'Д') return 'maternity_leave';
   if (val === 'ОЖ') return 'child_care_leave';
-  if (val.includes('ч')) return 'completed'; // Если указаны часы, считаем смену завершенной
+  if (val.includes('ч')) return 'completed';
   return 'absent';
 };
 
@@ -28,7 +28,7 @@ const runMigration = async () => {
     await connectDatabases();
     console.log('Успешное подключение к базе данных.');
 
-    // --- Модели ---
+
     const User = createUserModel();
     const Child = createChildModel();
     const StaffShift = createStaffShiftModel();
@@ -41,25 +41,25 @@ const runMigration = async () => {
     const worksheet = workbook.worksheets[0];
     console.log('Файл Excel успешно прочитан.');
 
-    // --- Парсинг дат из заголовка (строка 5) ---
+
     const dateMap = new Map<number, Date>();
     const dateRow = worksheet.getRow(5);
-    const year = 2025; // Год из имени файла "сен 2025 г."
+    const year = 2025;
 
-    for (let i = 5; i <= 34; i++) { // Даты с 1 по 30 сентября
+    for (let i = 5; i <= 34; i++) {
       const cellValue = dateRow.getCell(i).value as string;
       if (cellValue) {
         const day = parseInt(cellValue.split(' ')[0], 10);
-        const month = 8; // Сентябрь (0-indexed)
+        const month = 8;
         dateMap.set(i, new Date(Date.UTC(year, month, day)));
       }
     }
     console.log(`Карта дат успешно создана. ${dateMap.size} дат найдено.`);
 
-    // --- Обработка строк с данными ---
+
     for (let rowNumber = 6; rowNumber <= worksheet.rowCount; rowNumber++) {
       const row = worksheet.getRow(rowNumber);
-      // Меняем местами firstNameRaw и lastName
+
       const firstNameRaw = (row.getCell(2).value as string || '').trim();
       const lastName = (row.getCell(3).value as string || '').trim();
       const role = (row.getCell(4).value as string || '').trim();
@@ -68,16 +68,16 @@ const runMigration = async () => {
         console.log(`Пропуск строки ${rowNumber}: неполные данные (имя или фамилия).`);
         continue;
       }
-      
+
       const firstName = role === 'Ребенок' ? firstNameRaw.replace(/Ребенок\s*/i, '').trim() : firstNameRaw;
       const fullNameForSearch = `${firstName} ${lastName}`;
       const fullNameFromSheet = `${lastName} ${firstNameRaw}`;
 
       try {
         let child, user;
-        
+
         if (role === 'Ребенок') {
-          // Поиск ребенка по fullName
+
           child = await Child.findOne({ fullName: { $regex: fullNameForSearch, $options: 'i' } }).lean();
           if (!child) {
             console.warn(`ПРЕДУПРЕЖДЕНИЕ: Ребенок "${fullNameForSearch}" не найден в базе данных. Пропускаем.`);
@@ -87,7 +87,7 @@ const runMigration = async () => {
           for (const [colIndex, date] of dateMap.entries()) {
             const attendanceValue = row.getCell(colIndex).value as string | null;
             const status = getStatus(attendanceValue);
-            
+
             await ChildAttendance.updateOne(
               { childId: child._id, date: date },
               { $set: { status: status === 'completed' ? 'present' : status, childId: child._id, date: date, markedBy: child._id } },
@@ -96,7 +96,7 @@ const runMigration = async () => {
           }
           console.log(`Обработана посещаемость для ребенка: ${fullNameFromSheet}`);
         } else {
-          // Поиск сотрудника по fullName
+
           user = await User.findOne({ fullName: { $regex: fullNameForSearch, $options: 'i' } }).lean();
           if (!user) {
             console.warn(`ПРЕДУПРЕЖДЕНИЕ: Сотрудник "${fullNameForSearch}" (${role}) не найден в базе данных. Пропускаем.`);
@@ -106,25 +106,25 @@ const runMigration = async () => {
           for (const [colIndex, date] of dateMap.entries()) {
             const attendanceValue = row.getCell(colIndex).value as string | null;
             const status = getStatus(attendanceValue);
-            
-            // Миграция в обе коллекции: StaffShift и StaffAttendanceTracking
-            // Обновляем StaffShift
+
+
+
             await StaffShift.updateOne(
-              { staffId: user._id, date: date.toString().split('T')[0] }, // date в StaffShift хранится в формате строки
+              { staffId: user._id, date: date.toString().split('T')[0] },
               {
                 $set: {
                   status: status,
                   staffId: user._id,
                   date: date.toString().split('T')[0],
-                  startTime: '09:00', // Время по умолчанию, можно улучшить позже
-                  endTime: '18:00', // Время по умолчанию, можно улучшить позже
+                  startTime: '09:00',
+                  endTime: '18:00',
                   createdBy: user._id
                 }
               },
               { upsert: true }
             );
-            
-            // Обновляем StaffAttendanceTracking
+
+
             await StaffAttendanceTracking.updateOne(
               { staffId: user._id, date: date },
               {
@@ -132,7 +132,7 @@ const runMigration = async () => {
                   staffId: user._id,
                   date: date,
                   status: status,
-                  totalHours: status === 'completed' ? 8 : 0, // Примерное количество часов
+                  totalHours: status === 'completed' ? 8 : 0,
                   regularHours: status === 'completed' ? 8 : 0,
                   overtimeHours: 0,
                   isManualEntry: true

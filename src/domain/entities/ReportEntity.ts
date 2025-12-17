@@ -3,20 +3,20 @@ import { ObjectId } from 'mongoose';
 export interface IReportEntity {
   id?: string;
   title: string;
- description?: string;
- type: string; // 'attendance', 'payroll', 'inventory', 'medical', 'financial'
-  data: any; // Данные отчета в формате JSON
+  description?: string;
+  type: string;
+  data: any;
   generatedBy: ObjectId;
   generatedAt?: Date;
-  filters: any; // Фильтры, использованные при генерации отчета
+  filters: any;
   format: 'pdf' | 'excel' | 'csv';
-  filePath?: string; // Путь к сгенерированному файлу
- fileName?: string; // Имя файла
+  filePath?: string;
+  fileName?: string;
   status: 'draft' | 'generated' | 'sent';
-  recipients?: string[]; // Email адреса получателей
+  recipients?: string[];
   sentAt?: Date;
   createdAt?: Date;
- updatedAt?: Date;
+  updatedAt?: Date;
 }
 
 export class ReportEntity {
@@ -39,7 +39,7 @@ export class ReportEntity {
 
   constructor(data: IReportEntity) {
     this.validate(data);
-    
+
     this.id = data.id;
     this.title = data.title;
     this.description = data.description;
@@ -62,25 +62,25 @@ export class ReportEntity {
     if (!data.title) {
       throw new Error('Заголовок отчета обязателен');
     }
-    
+
     if (!data.type) {
       throw new Error('Тип отчета обязателен');
     }
-    
+
     if (!data.generatedBy) {
       throw new Error('Автор отчета обязателен');
     }
-    
+
     const validTypes = ['attendance', 'payroll', 'inventory', 'medical', 'financial', 'custom'];
     if (!validTypes.includes(data.type)) {
       throw new Error(`Недопустимый тип отчета. Допустимые значения: ${validTypes.join(', ')}`);
     }
-    
+
     const validFormats = ['pdf', 'excel', 'csv'];
     if (data.format && !validFormats.includes(data.format)) {
       throw new Error(`Недопустимый формат. Допустимые значения: ${validFormats.join(', ')}`);
     }
-    
+
     const validStatuses = ['draft', 'generated', 'sent'];
     if (data.status && !validStatuses.includes(data.status)) {
       throw new Error(`Недопустимый статус. Допустимые значения: ${validStatuses.join(', ')}`);
@@ -99,7 +99,7 @@ export class ReportEntity {
     if (data.status !== undefined) this.status = data.status;
     if (data.recipients !== undefined) this.recipients = data.recipients;
     if (data.sentAt !== undefined) this.sentAt = data.sentAt;
-    
+
     this.updatedAt = new Date();
   }
 

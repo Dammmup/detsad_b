@@ -3,18 +3,18 @@ import { createModelFactory } from '../../config/database';
 import { IUser } from '../users/model';
 
 export interface IRent extends Document {
-  tenantId: mongoose.Types.ObjectId; // Ссылка на пользователя-арендатора
-  period: string; // период аренды в формате YYYY-MM
-  amount: number; // Сумма аренды
-  total: number; // Общая сумма к оплате
-  status: 'active' | 'overdue' | 'paid' | 'draft'; // Статус аренды
-  latePenalties?: number; // Штрафы за просрочку
-  absencePenalties?: number; // Штрафы за неявки
-  penalties?: number; // Общие штрафы
-  latePenaltyRate?: number; // Ставка штрафа за просрочку
-  accruals?: number; // Начисления
-  paidAmount?: number; // Оплаченная сумма
-  paymentDate?: Date; // Дата оплаты
+  tenantId: mongoose.Types.ObjectId;
+  period: string;
+  amount: number;
+  total: number;
+  status: 'active' | 'overdue' | 'paid' | 'draft';
+  latePenalties?: number;
+  absencePenalties?: number;
+  penalties?: number;
+  latePenaltyRate?: number;
+  accruals?: number;
+  paidAmount?: number;
+  paymentDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,7 +54,7 @@ const RentSchema = new Schema<IRent>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createRentModel = createModelFactory<IRent>(
   'Rent',
   RentSchema,
@@ -62,5 +62,5 @@ const createRentModel = createModelFactory<IRent>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createRentModel;

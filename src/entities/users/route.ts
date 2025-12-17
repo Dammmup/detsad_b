@@ -20,46 +20,46 @@ import { authMiddleware } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
-// Получить список всех пользователей (доступно авторизованным пользователям)
+
 router.get('/', authMiddleware, getAllUsers);
 
-// Получить доступные роли пользователей
+
 router.get('/roles', authMiddleware, getUserRoles);
 
-// Получить одного пользователя по id (только для админов)
+
 router.get('/:id', authMiddleware, authorizeRole(['admin']), getUserById);
 
-// Создать нового пользователя (только для админов)
+
 router.post('/', authMiddleware, authorizeRole(['admin']), createUser);
 
-// Обновить данные пользователя (только для админов)
+
 router.put('/:id', authMiddleware, updateUser);
 
-// Обновить зарплатные и штрафные настройки сотрудника
+
 router.put('/:id/payroll-settings', authMiddleware, authorizeRole(['admin']), updatePayrollSettings);
 
-// Обновить зарплату пользователя
+
 router.put('/:id/salary', authMiddleware, authorizeRole(['admin']), updateUserSalary);
 
-// Добавить штраф пользователю
+
 router.post('/:id/fines', authMiddleware, authorizeRole(['admin']), addUserFine);
 
-// Получить штрафы пользователя
+
 router.get('/:id/fines', authMiddleware, authorizeRole(['admin']), getUserFines);
 
-// Получить общую сумму штрафов пользователя
+
 router.get('/:id/fines/total', authMiddleware, authorizeRole(['admin']), getUserTotalFines);
 
-// Удалить штраф пользователя
+
 router.delete('/:payrollId/fines/:fineIndex', authMiddleware, authorizeRole(['admin']), removeUserFine);
 
-// Удалить пользователя (только для админов)
+
 router.delete('/:id', authMiddleware, authorizeRole(['admin']), deleteUser);
 
-// Генерация кода для привязки Telegram
+
 router.post('/:id/generate-telegram-code', authMiddleware, generateTelegramCode);
 
-// Смена пароля пользователя
+
 router.post('/:id/change-password', authMiddleware, changePassword);
 
 export default router;

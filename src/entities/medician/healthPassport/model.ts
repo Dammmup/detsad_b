@@ -104,7 +104,7 @@ const HealthPassportSchema = new Schema<IHealthPassport>({
 });
 
 
-// Создаем фабрику модели для отложенного создания после подключения к базе данных
+
 const createHealthPassportModel = createModelFactory<IHealthPassport>(
   'HealthPassport',
   HealthPassportSchema,

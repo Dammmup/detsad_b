@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 import User from '../users/model';
 
 export class RentService {
-  // Получить все аренды с фильтрацией
+
   async getAll(filters: {
     tenantId?: string;
     period?: string;
@@ -29,7 +29,7 @@ export class RentService {
       .sort({ createdAt: -1 });
   }
 
-  // Получить аренду по ID
+
   async getById(id: string) {
     const rent = await Rent().findById(id).populate('tenantId', 'fullName role');
     if (!rent) {
@@ -38,13 +38,13 @@ export class RentService {
     return rent;
   }
 
-  // Создать новую аренду
+
   async create(rentData: Partial<IRent>) {
     const rent = new (Rent())(rentData);
     return await rent.save();
   }
 
-  // Обновить аренду
+
   async update(id: string, updateData: Partial<IRent>) {
     const rent = await Rent().findByIdAndUpdate(id, updateData, { new: true })
       .populate('tenantId', 'fullName role');
@@ -56,7 +56,7 @@ export class RentService {
     return rent;
   }
 
-  // Удалить аренду
+
   async delete(id: string) {
     const rent = await Rent().findByIdAndDelete(id);
     if (!rent) {
@@ -65,7 +65,7 @@ export class RentService {
     return { message: 'Аренда успешно удалена' };
   }
 
-  // Отметить аренду как оплаченную
+
   async markAsPaid(id: string) {
     const rent = await Rent().findByIdAndUpdate(
       id,
@@ -83,13 +83,13 @@ export class RentService {
     return rent;
   }
 
-  // Получить аренды для конкретного периода
+
   async getByPeriod(period: string) {
     return await Rent().find({ period })
       .populate('tenantId', 'fullName role');
   }
 
-  // Проверить существование аренды для конкретного арендатора и периода
+
   async getRentByTenantAndPeriod(tenantId: string, period: string) {
     return await Rent().findOne({
       tenantId: new Types.ObjectId(tenantId),
@@ -97,7 +97,7 @@ export class RentService {
     }).populate('tenantId', 'fullName role');
   }
 
-  // Создать или обновить аренду для конкретного арендатора и периода
+
   async createOrUpdateForTenant(tenantId: string, period: string, data: Partial<IRent>) {
     const existingRent = await Rent().findOne({
       tenantId: new Types.ObjectId(tenantId),
@@ -120,21 +120,16 @@ export class RentService {
     }
   }
 
-  /**
-   * Generate rent sheets for all tenants
-   * @param {string} period - Period in YYYY-MM format
-   * @returns {Promise<any>} Success response
-   */
   async generateRentSheets(period: string) {
     try {
-      // Get all tenants (users with role !== 'admin')
+
       const tenants = await User().find({ role: { $ne: 'admin' } });
 
-      // Generate rent sheets for each tenant
+
       for (const tenant of tenants) {
-        // Calculate rent data
-        // In real system, here will be more complex rent calculation logic
-        // Create or update rent record
+
+
+
         await this.createOrUpdateForTenant((tenant as any)._id.toString(), period, {
           tenantId: (tenant as any)._id,
           period: period,

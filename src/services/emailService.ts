@@ -3,9 +3,6 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import ExcelJS from 'exceljs';
 import { Readable } from 'stream';
 
-/**
- * Интерфейс для данных Excel отчета
- */
 export interface ExcelReportData {
   filename: string;
   sheetName: string;
@@ -15,9 +12,6 @@ export interface ExcelReportData {
   data: any[][];
 }
 
-/**
- * Интерфейс для данных отчета о зарплате
- */
 interface PayrollReportData {
   month: string;
   totalEmployees: number;
@@ -35,11 +29,11 @@ class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor() {
-    // Настройки SMTP из переменных окружения
+
     const smtpConfig: SMTPTransport.Options = {
       host: process.env.SMTP_HOST || 'smtp.example.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true', // true для порта 465, false для других портов
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER || 'user@example.com',
         pass: process.env.SMTP_PASS || 'password'
@@ -49,9 +43,6 @@ class EmailService {
     this.transporter = nodemailer.createTransport(smtpConfig);
   }
 
-  /**
-   * Тестирование подключения к SMTP серверу
-   */
   async testConnection(): Promise<boolean> {
     try {
       await this.transporter.verify();
@@ -63,9 +54,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Отправка Excel файла по email
-   */
   async sendExcel(options: {
     to: string | string[];
     subject: string;
@@ -77,18 +65,18 @@ class EmailService {
     data: any[][];
   }): Promise<any> {
     try {
-      // Создаем Excel файл
+
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(options.sheetName);
 
-      // Добавляем заголовок
+
       worksheet.mergeCells('A1', `${String.fromCharCode(64 + options.headers.length)}1`);
       const titleCell = worksheet.getCell('A1');
       titleCell.value = options.title;
       titleCell.font = { bold: true, size: 14 };
       titleCell.alignment = { horizontal: 'center' };
 
-      // Добавляем подзаголовок, если есть
+
       if (options.subtitle) {
         worksheet.mergeCells('A2', `${String.fromCharCode(64 + options.headers.length)}2`);
         const subtitleCell = worksheet.getCell('A2');
@@ -97,7 +85,7 @@ class EmailService {
         subtitleCell.alignment = { horizontal: 'center' };
       }
 
-      // Добавляем заголовки таблицы
+
       const headerRow = worksheet.addRow(options.headers);
       headerRow.font = { bold: true };
       headerRow.fill = {
@@ -106,12 +94,12 @@ class EmailService {
         fgColor: { argb: 'FFCCCCCC' }
       };
 
-      // Добавляем данные
+
       options.data.forEach(rowData => {
         worksheet.addRow(rowData);
       });
 
-      // Автоширина столбцов
+
       worksheet.columns.forEach(column => {
         let maxWidth = 0;
         if (column && typeof column.eachCell === 'function') {
@@ -122,10 +110,10 @@ class EmailService {
         }
       });
 
-      // Создаем буфер с Excel файлом
+
       const buffer = await workbook.xlsx.writeBuffer();
 
-      // Отправляем письмо
+
       const mailOptions = {
         from: process.env.SMTP_FROM || 'noreply@example.com',
         to: options.to,
@@ -141,7 +129,7 @@ class EmailService {
 
       const info = await this.transporter.sendMail(mailOptions);
       console.log(`📧 Excel file sent to ${Array.isArray(options.to) ? options.to.join(', ') : options.to}`);
-      
+
       return info;
     } catch (error) {
       console.error('❌ Error sending Excel file:', error);
@@ -149,30 +137,27 @@ class EmailService {
     }
   }
 
-  /**
-   * Отправка нескольких отчетов по email
-   */
   async sendMonthlyReports(recipients: string[], reportsData: ExcelReportData[]): Promise<boolean> {
     try {
       console.log(`📧 Preparing to send ${reportsData.length} monthly reports to ${recipients.length} recipients`);
 
-      // Создаем архив с отчетами
+
       const attachments: Array<{ filename: string; content: Buffer }> = [];
-      
+
       for (const reportData of reportsData) {
         try {
-          // Создаем Excel файл для каждого отчета
+
           const workbook = new ExcelJS.Workbook();
           const worksheet = workbook.addWorksheet(reportData.sheetName);
 
-          // Добавляем заголовок
+
           worksheet.mergeCells('A1', `${String.fromCharCode(64 + reportData.headers.length)}1`);
           const titleCell = worksheet.getCell('A1');
           titleCell.value = reportData.title;
           titleCell.font = { bold: true, size: 14 };
           titleCell.alignment = { horizontal: 'center' };
 
-          // Добавляем подзаголовок, если есть
+
           if (reportData.subtitle) {
             worksheet.mergeCells('A2', `${String.fromCharCode(64 + reportData.headers.length)}2`);
             const subtitleCell = worksheet.getCell('A2');
@@ -181,7 +166,7 @@ class EmailService {
             subtitleCell.alignment = { horizontal: 'center' };
           }
 
-          // Добавляем заголовки таблицы (с учетом возможного сдвига из-за подзаголовка)
+
           const headerRowIndex = reportData.subtitle ? 3 : 2;
           const headerRow = worksheet.addRow(reportData.headers);
           headerRow.font = { bold: true };
@@ -191,12 +176,12 @@ class EmailService {
             fgColor: { argb: 'FFCCCCCC' }
           };
 
-          // Добавляем данные
+
           reportData.data.forEach(rowData => {
             worksheet.addRow(rowData);
           });
 
-          // Автоширина столбцов
+
           worksheet.columns.forEach(column => {
             let maxWidth = 0;
             if (column && typeof column.eachCell === 'function') {
@@ -207,9 +192,9 @@ class EmailService {
             }
           });
 
-          // Создаем буфер с Excel файлом
+
           const buffer = await workbook.xlsx.writeBuffer();
-          
+
           attachments.push({
             filename: `${reportData.filename}.xlsx`,
             content: buffer as any
@@ -223,7 +208,7 @@ class EmailService {
         throw new Error('No reports could be generated');
       }
 
-      // Отправляем письмо со всеми отчетами
+
       const mailOptions = {
         from: process.env.SMTP_FROM || 'noreply@example.com',
         to: recipients,
@@ -242,7 +227,7 @@ class EmailService {
 
       const info = await this.transporter.sendMail(mailOptions);
       console.log(`📧 Monthly reports sent successfully to ${recipients.join(', ')}`);
-      
+
       return true;
     } catch (error) {
       console.error('❌ Error sending monthly reports:', error);
@@ -250,15 +235,12 @@ class EmailService {
     }
   }
 
-  /**
-   * Отправляет отчет о зарплате по email
-   */
- async sendPayrollReportEmail(recipient: string, reportData: any): Promise<any> {
+  async sendPayrollReportEmail(recipient: string, reportData: any): Promise<any> {
     try {
       console.log(`📧 Подготовка отправки отчета о зарплате на ${recipient} за ${reportData.month}`);
       console.log(`📊 Данные отчета: сотрудников=${reportData.totalEmployees}, общая сумма=${reportData.totalPayroll}`);
-      
-      // Формируем HTML содержимое письма
+
+
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -288,7 +270,7 @@ class EmailService {
               <tr>
                 <th>Сотрудник</th>
                 <th>Базовая зарплата</th>
-                <th>Штрафы</th>
+                <th>Вычеты</th>
                 <th>Итого к выплате</th>
                 <th>Статус</th>
               </tr>
@@ -313,8 +295,8 @@ class EmailService {
         </body>
         </html>
       `;
-      
-      // Формируем текстовое содержимое письма
+
+
       const textContent = `
         Отчет о зарплатах за ${reportData.month}
         
@@ -323,16 +305,16 @@ class EmailService {
         
         Детализация по сотрудникам:
         ${reportData.details.map((detail: any) =>
-          `${detail.staffName}: ${detail.baseSalary.toLocaleString('ru-RU')} тг - ${detail.penalties.toLocaleString('ru-RU')} тг штрафов = ${detail.total.toLocaleString('ru-RU')} тг`
-        ).join('\n')}
+        `${detail.staffName}: ${detail.baseSalary.toLocaleString('ru-RU')} тг - ${detail.penalties.toLocaleString('ru-RU')} тг Вычетов = ${detail.total.toLocaleString('ru-RU')} тг`
+      ).join('\n')}
         
         ---
         Это автоматически сгенерированный отчет. Пожалуйста, не отвечайте на это письмо.
         С уважением,
         Система управления детским садом
       `;
-      
-      // Отправляем письмо
+
+
       const mailOptions = {
         from: process.env.SMTP_FROM || 'noreply@example.com',
         to: recipient,
@@ -340,11 +322,11 @@ class EmailService {
         text: textContent,
         html: htmlContent
       };
-      
+
       console.log(`📧 Отправка письма на ${recipient} с темой: ${mailOptions.subject}`);
       const info = await this.transporter.sendMail(mailOptions);
       console.log(`✅ Отчет о зарплате успешно отправлен на ${recipient}: ${info.messageId}`);
-      
+
       return info;
     } catch (error) {
       console.error(`❌ Ошибка при отправке отчета о зарплате на ${recipient}:`, error);
@@ -352,9 +334,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Отправляет тестовое письмо для проверки настроек
-   */
   async sendTestEmail(recipient: string): Promise<any> {
     try {
       const mailOptions = {
@@ -364,16 +343,107 @@ class EmailService {
         text: 'Это тестовое письмо для проверки настроек электронной почты.',
         html: '<p>Это тестовое письмо для проверки настроек электронной почты.</p>'
       };
-      
+
       const info = await this.transporter.sendMail(mailOptions);
       console.log(`📧 Тестовое письмо отправлено на ${recipient}: ${info.messageId}`);
-      
+
       return info;
     } catch (error) {
       console.error(`❌ Ошибка при отправке тестового письма на ${recipient}:`, error);
       throw error;
     }
   }
+
+  async sendArchiveEmail(
+    recipient: string,
+    attachments: Array<{ filename: string; content: Buffer | string }>,
+    exports: Array<{ name: string; count: number }>
+  ): Promise<any> {
+    try {
+      const archiveDate = new Date();
+      archiveDate.setMonth(archiveDate.getMonth() - 3);
+
+      const collectionNames: Record<string, string> = {
+        'childAttendance': 'Посещаемость детей',
+        'childPayments': 'Оплаты детей',
+        'staffAttendanceTracking': 'Учёт рабочего времени',
+        'staffShifts': 'Смены сотрудников',
+        'payrolls': 'Зарплаты'
+      };
+
+      const totalRecords = exports.reduce((sum, e) => sum + e.count, 0);
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Архив данных</title>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .footer { margin-top: 30px; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <h2>📦 Автоматический архив данных</h2>
+          
+          <p><strong>Дата архивирования:</strong> ${new Date().toLocaleDateString('ru-RU')}</p>
+          <p><strong>Архивируемый период:</strong> записи старше ${archiveDate.toLocaleDateString('ru-RU')}</p>
+          <p><strong>Всего записей:</strong> ${totalRecords}</p>
+          
+          <h3>Состав архива:</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Коллекция</th>
+                <th>Количество записей</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${exports.map(e => `
+                <tr>
+                  <td>${collectionNames[e.name] || e.name}</td>
+                  <td>${e.count}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <p>Во вложении находятся файлы архива в форматах Excel и JSON.</p>
+          <p><strong>⚠️ Эти данные были удалены из базы данных.</strong></p>
+          
+          <div class="footer">
+            <p>Это автоматически сгенерированный отчёт. Пожалуйста, сохраните вложения для архива.</p>
+            <p>С уважением,<br>Система управления детским садом</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const mailOptions = {
+        from: process.env.SMTP_FROM || 'noreply@example.com',
+        to: recipient,
+        subject: `📦 Архив данных за ${archiveDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`,
+        html: htmlContent,
+        attachments: attachments.map(a => ({
+          filename: a.filename,
+          content: a.content
+        }))
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log(`📧 Архив успешно отправлен на ${recipient}: ${info.messageId}`);
+
+      return info;
+    } catch (error) {
+      console.error(`❌ Ошибка при отправке архива на ${recipient}:`, error);
+      throw error;
+    }
+  }
 }
 
 export default EmailService;
+

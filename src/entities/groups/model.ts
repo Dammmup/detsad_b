@@ -4,19 +4,19 @@ import { createModelFactory } from '../../config/database';
 export interface IGroup extends Document {
   name: string;
   description?: string;
- ageRange?: string;
+  ageRange?: string;
   ageGroup?: string;
   capacity?: number;
   maxStudents?: number;
   isActive: boolean;
- teacherId?: mongoose.Types.ObjectId;
+  teacherId?: mongoose.Types.ObjectId;
   assistantId?: mongoose.Types.ObjectId;
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Интерфейс для групп с детьми
+
 export interface IGroupWithChildren {
   _id: string;
   name: string;
@@ -31,12 +31,12 @@ export interface IGroupWithChildren {
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
-  children?: any[]; // Массив детей в группе
+  children?: any[];
 }
 
-// Расширяем интерфейс для операций создания/обновления, чтобы включить вспомогательные поля
+
 export interface IGroupInput extends Partial<IGroup> {
-  teacher?: string; // Поле для передачи в запросе, которое будет преобразовано в teacherId
+  teacher?: string;
 }
 
 const GroupSchema: Schema = new Schema({
@@ -49,7 +49,7 @@ const GroupSchema: Schema = new Schema({
     index: true
   },
   description: String,
- ageRange: String,
+  ageRange: String,
   ageGroup: String,
   capacity: {
     type: Number,
@@ -83,9 +83,9 @@ const GroupSchema: Schema = new Schema({
   timestamps: true
 });
 
-// Добавим индекс для поиска по названию группы
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
+
 const createGroupModel = createModelFactory<IGroup>(
   'Group',
   GroupSchema,
@@ -93,5 +93,5 @@ const createGroupModel = createModelFactory<IGroup>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createGroupModel;

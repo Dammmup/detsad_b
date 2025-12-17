@@ -3,14 +3,14 @@ import { ObjectId } from 'mongoose';
 export interface IChildEntity {
   id?: string;
   fullName: string;
- iin?: string;
+  iin?: string;
   birthday?: Date;
   address?: string;
- parentName?: string;
+  parentName?: string;
   parentPhone?: string;
   groupId?: ObjectId;
   active?: boolean;
-  // Медицинские данные
+
   gender?: string;
   clinic?: string;
   bloodGroup?: string;
@@ -23,7 +23,7 @@ export interface IChildEntity {
   hospitalizations?: string;
   incapacity?: string;
   checkups?: string;
-  // Прочее
+
   notes?: string;
   photo?: string;
   createdAt?: Date;
@@ -33,35 +33,35 @@ export interface IChildEntity {
 export class ChildEntity {
   id?: string;
   fullName: string;
- iin?: string;
+  iin?: string;
   birthday?: Date;
   address?: string;
- parentName?: string;
+  parentName?: string;
   parentPhone?: string;
   groupId?: ObjectId;
   active?: boolean;
-  // Медицинские данные
+
   gender?: string;
   clinic?: string;
   bloodGroup?: string;
   rhesus?: string;
   disability?: string;
- dispensary?: string;
+  dispensary?: string;
   diagnosis?: string;
- allergy?: string;
+  allergy?: string;
   infections?: string;
   hospitalizations?: string;
   incapacity?: string;
   checkups?: string;
-  // Прочее
+
   notes?: string;
- photo?: string;
+  photo?: string;
   createdAt?: Date;
   updatedAt?: Date;
 
   constructor(data: IChildEntity) {
     this.validate(data);
-    
+
     this.id = data.id;
     this.fullName = data.fullName;
     this.iin = data.iin;
@@ -93,22 +93,22 @@ export class ChildEntity {
     if (!data.fullName) {
       throw new Error('ФИО ребенка обязательно');
     }
-    
+
     if (data.iin && data.iin.length !== 12) {
       throw new Error('ИИН должен содержать 12 символов');
     }
-    
+
     if (data.birthday && data.birthday > new Date()) {
       throw new Error('Дата рождения не может быть в будущем');
     }
-    
+
     if (data.parentPhone && !this.isValidPhone(data.parentPhone)) {
       throw new Error('Некорректный формат номера телефона родителя');
     }
   }
 
- private isValidPhone(phone: string): boolean {
-    // Проверяем формат казахстанского номера телефона
+  private isValidPhone(phone: string): boolean {
+
     const phoneRegex = /^(\+7|8)?[0-9]{10}$/;
     return phoneRegex.test(phone.replace(/\s/g, ''));
   }
@@ -136,21 +136,21 @@ export class ChildEntity {
     if (data.checkups !== undefined) this.checkups = data.checkups;
     if (data.notes !== undefined) this.notes = data.notes;
     if (data.photo !== undefined) this.photo = data.photo;
-    
+
     this.updatedAt = new Date();
   }
 
- public getAge(): number {
+  public getAge(): number {
     if (!this.birthday) return 0;
     const today = new Date();
     const birthDate = new Date(this.birthday);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
   }
 
@@ -158,16 +158,16 @@ export class ChildEntity {
     if (!this.birthday) return 0;
     const today = new Date();
     const birthDate = new Date(this.birthday);
-    
+
     let months = (today.getFullYear() - birthDate.getFullYear()) * 12;
     months += today.getMonth() - birthDate.getMonth();
-    
+
     if (today.getDate() < birthDate.getDate()) {
       months--;
     }
-    
+
     return months;
- }
+  }
 
   public isActive(): boolean {
     return this.active !== false;

@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
 import StaffAttendanceTracking from './model';
 import { IStaffAttendanceTracking } from './model';
-import User from '../users/model'; // Using the user model
-import Group from '../groups/model'; // Using the group model
-import Shift from '../staffShifts/model'; // Import the shift model to check permissions
-import Payroll from '../payroll/model'; // Import the payroll model to check penalties
+import User from '../users/model';
+import Group from '../groups/model';
+import Shift from '../staffShifts/model';
+import Payroll from '../payroll/model';
 import { SettingsService } from '../settings/service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
 
-// Отложенное создание моделей
+
 let StaffAttendanceTrackingModel: any = null;
 let UserModel: any = null;
 let GroupModel: any = null;
@@ -51,9 +51,9 @@ const getPayrollModel = () => {
 };
 
 export class StaffAttendanceTrackingService {
-  // Helper function to calculate distance between two coordinates
+
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3; // Earth's radius in meters
+    const R = 6371e3;
     const φ1 = lat1 * Math.PI / 180;
     const φ2 = lat2 * Math.PI / 180;
     const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -64,16 +64,16 @@ export class StaffAttendanceTrackingService {
       Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c; // Distance in meters
+    return R * c;
   }
 
-  // Helper function to check if user is within geolocation
+
   private async isUserInGeolocation(latitude: number, longitude: number): Promise<boolean> {
     const settingsService = new SettingsService();
     const geolocationSettings = await settingsService.getGeolocationSettings();
 
     if (!geolocationSettings || !geolocationSettings.enabled) {
-      return true; // If geolocation is not enabled, allow access
+      return true;
     }
 
     const distance = this.calculateDistance(
@@ -95,7 +95,7 @@ export class StaffAttendanceTrackingService {
     } catch (e) {
       console.error('Telegram notify error (clockIn):', e);
     }
-    // Check if user already has an active time entry for today
+
     const today = new Date();
     today.setHours(0, 0, 0);
     const tomorrow = new Date(today);
@@ -110,7 +110,7 @@ export class StaffAttendanceTrackingService {
       throw new Error('You already have an active time entry today. Please clock out first.');
     }
 
-    // Check if user is in geolocation
+
     const inZone = await this.isUserInGeolocation(locationData.latitude, locationData.longitude);
     if (!inZone) {
       throw new Error(JSON.stringify({
@@ -119,13 +119,13 @@ export class StaffAttendanceTrackingService {
       }));
     }
 
-    // Get user details
+
     const user = await getUserModel().findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
-    // Create attendance record
+
     const staffAttendanceTrackingModel = getStaffAttendanceTrackingModel();
     const attendanceRecord = new staffAttendanceTrackingModel({
       staffId: userId,
@@ -158,18 +158,18 @@ export class StaffAttendanceTrackingService {
       const actualStart = new Date();
       const [hours, minutes] = scheduledShift.startTime.split(':').map(Number);
 
-      // Create a date object with the scheduled start time
+
       const scheduledStart = new Date(actualStart);
       scheduledStart.setHours(hours, minutes, 0, 0);
 
-      // Calculate lateness in minutes
+
       const latenessMs = actualStart.getTime() - scheduledStart.getTime();
       const latenessMinutes = Math.floor(latenessMs / (1000 * 60));
 
       if (latenessMinutes > 0) {
-        // Get payroll to determine penalty rate
+
         const payroll = await getPayrollModel().findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 500; // Default 500 tenge per minute
+        const penaltyRate = payroll?.penaltyDetails?.amount || 500;
 
         const penaltyAmount = latenessMinutes * penaltyRate;
 
@@ -207,11 +207,11 @@ export class StaffAttendanceTrackingService {
 
       const message = `Сотрудник ${user.fullName} отметил ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`;
 
-      // Уведомление сотруднику
+
       if ((user as any).telegramChatId) {
         await sendLogToTelegram(`Вы отметили ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`);
       }
-      // Уведомление администратору
+
       if (adminChatId) {
         await sendLogToTelegram(message);
       }
@@ -233,7 +233,7 @@ export class StaffAttendanceTrackingService {
     } catch (e) {
       console.error('Telegram notify error (clockOut):', e);
     }
-    // Find today's attendance record
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -248,10 +248,10 @@ export class StaffAttendanceTrackingService {
       throw new Error('No active time entry found for today. Please clock in first.');
     }
 
-    // Update attendance record
+
     attendanceRecord.actualEnd = new Date();
 
-    // Calculate early leave if scheduled shift exists
+
     const dateStr = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
     const scheduledShift = await ShiftModel.findOne({
       staffId: userId,
@@ -262,18 +262,18 @@ export class StaffAttendanceTrackingService {
       const actualEnd = new Date();
       const [hours, minutes] = scheduledShift.endTime.split(':').map(Number);
 
-      // Create a date object with the scheduled end time
+
       const scheduledEnd = new Date(actualEnd);
       scheduledEnd.setHours(hours, minutes, 0, 0);
 
-      // Calculate early leave in minutes
+
       const earlyLeaveMs = scheduledEnd.getTime() - actualEnd.getTime();
       const earlyLeaveMinutes = Math.floor(earlyLeaveMs / (1000 * 60));
 
       if (earlyLeaveMinutes > 0) {
-        // Get payroll to determine penalty rate
+
         const payroll = await PayrollModel.findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 50; // Default 50 tenge per minute
+        const penaltyRate = payroll?.penaltyDetails?.amount || 50;
 
         const penaltyAmount = earlyLeaveMinutes * penaltyRate;
 
@@ -285,7 +285,7 @@ export class StaffAttendanceTrackingService {
         attendanceRecord.earlyLeaveMinutes = earlyLeaveMinutes;
       }
 
-      // Link the shift to the attendance record
+
       if (!attendanceRecord.shiftId) {
         attendanceRecord.shiftId = scheduledShift._id;
       }
@@ -305,11 +305,11 @@ export class StaffAttendanceTrackingService {
       attendanceRecord.notes = attendanceRecord.notes ? `${attendanceRecord.notes}\n${notes}` : notes;
     }
 
-    await attendanceRecord.save(); // This will trigger pre-save middleware to calculate hours
+    await attendanceRecord.save();
 
     await attendanceRecord.populate('staffId', 'fullName role');
 
-    // Найти пользователя перед отправкой уведомления
+
     const user = await UserModel.findById(userId);
     if (!user) throw new Error('User not found');
     try {
@@ -332,11 +332,11 @@ export class StaffAttendanceTrackingService {
 
       const message = `Сотрудник ${user.fullName} отметил УХОД с работы ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`;
 
-      // Уведомление сотруднику
+
       if ((user as any).telegramChatId) {
         await sendLogToTelegram(`Вы отметили УХОД с работы ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`);
       }
-      // Уведомление администратору
+
       if (adminChatId) {
         await sendLogToTelegram(message);
       }
@@ -393,7 +393,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async create(recordData: Partial<IStaffAttendanceTracking>, userId: string) {
-    // Проверяем обязательные поля
+
     if (!recordData.staffId) {
       throw new Error('Не указан сотрудник');
     }
@@ -401,13 +401,13 @@ export class StaffAttendanceTrackingService {
       throw new Error('Не указана дата');
     }
 
-    // Проверяем существование сотрудника
+
     const staff = await UserModel.findById(recordData.staffId);
     if (!staff) {
       throw new Error('Сотрудник не найден');
     }
 
-    // Проверяем существование утверждающего
+
     if (recordData.approvedBy) {
       const approver = await UserModel.findById(recordData.approvedBy);
       if (!approver) {
@@ -417,7 +417,7 @@ export class StaffAttendanceTrackingService {
 
     const record = new (getStaffAttendanceTrackingModel())({
       ...recordData,
-      approvedBy: userId // Утверждающий - текущий пользователь
+      approvedBy: userId
     });
 
     await record.save();
@@ -511,7 +511,7 @@ export class StaffAttendanceTrackingService {
     const limit = filters.limit || 10;
     const skip = (page - 1) * limit;
 
-    // Build query
+
     const query: any = { staffId: userId };
 
     if (filters.status) query.status = filters.status;
@@ -586,7 +586,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async updateStatus(id: string, status: 'on_break' | 'overtime' | 'absent' | 'active' | 'completed' | 'missed' | 'pending_approval' | 'late') {
-    // Since we removed the status field, we'll update the linked shift's status instead
+
     const record = await getStaffAttendanceTrackingModel().findById(id);
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
@@ -722,8 +722,8 @@ export class StaffAttendanceTrackingService {
     const records = await getStaffAttendanceTrackingModel().find({
       approvedAtTimeTracking: { $exists: true },
       approvedByTimeTracking: { $exists: true }
-      // Note: Without status field, we can't determine "rejected" records
-      // This functionality needs to be rethought
+
+
     })
       .populate('staffId', 'fullName role')
       .sort({ date: -1 });
@@ -762,7 +762,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getAbsenteeismRecords() {
-    // Find records without actual start time or with specific criteria indicating absence
+
     const records = await getStaffAttendanceTrackingModel().find({
       actualStart: { $exists: false }
     })

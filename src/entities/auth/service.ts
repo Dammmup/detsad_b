@@ -27,7 +27,7 @@ export class AuthService {
   }
 
   async login(phone: string, password: string) {
-    // Select both initialPassword and passwordHash
+
     const user = await this.userModel.findOne({ phone: phone || '' }).select('+initialPassword +passwordHash');
     if (!user) {
       throw new Error('No account with this data');
@@ -35,19 +35,19 @@ export class AuthService {
 
     let isAuthenticated = false;
 
-    // Determine which field holds the hash.
-    // Restored users put hash in 'password'. Legitimate old users might use 'passwordHash'.
+
+
     const targetHash = user.passwordHash || user.password;
 
-    // Проверяем пароль с использованием bcrypt
-    if (targetHash && targetHash.startsWith('$2')) { // Basic check for bcrypt-like string
+
+    if (targetHash && targetHash.startsWith('$2')) {
       const isMatch = await bcrypt.compare(password, targetHash);
       if (isMatch) {
         isAuthenticated = true;
       }
     }
 
-    // Если не прошла проверка по passwordHash, пробуем проверить initialPassword
+
     if (!isAuthenticated && user.initialPassword) {
       if (password === user.initialPassword) {
         isAuthenticated = true;
@@ -58,7 +58,7 @@ export class AuthService {
       throw new Error('incorrect password');
     }
 
-    // Обновляем время последнего входа
+
     user.lastLogin = new Date();
     await user.save();
 
@@ -96,8 +96,8 @@ export class AuthService {
   }
 
   async logout() {
-    // В сервисе аутентификации logout не требует специфической логики
-    // Обработка происходит на уровне контроллера
+
+
     return { success: true, message: 'Успешный выход из системы' };
   }
 }

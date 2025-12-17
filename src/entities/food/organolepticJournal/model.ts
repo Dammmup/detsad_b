@@ -3,15 +3,15 @@ import { createModelFactory } from '../../../config/database';
 
 export interface IOrganolepticJournal extends Document {
   childId: mongoose.Types.ObjectId;
- date: Date;
- productName: string;
- appearance: string;
- color: string;
+  date: Date;
+  productName: string;
+  appearance: string;
+  color: string;
   smell: string;
   taste: string;
-  temperature: number; // °C
- consistency: string;
- packagingCondition: string;
+  temperature: number;
+  consistency: string;
+  packagingCondition: string;
   expirationDate: Date;
   batchNumber: string;
   supplier: string;
@@ -33,10 +33,10 @@ const OrganolepticJournalSchema = new Schema<IOrganolepticJournal>({
     ref: 'User',
     required: true
   },
- date: {
+  date: {
     type: Date,
     required: true
- },
+  },
   productName: {
     type: String,
     required: true,
@@ -88,7 +88,7 @@ const OrganolepticJournalSchema = new Schema<IOrganolepticJournal>({
   expirationDate: {
     type: Date,
     required: true
- },
+  },
   batchNumber: {
     type: String,
     required: true,
@@ -122,7 +122,7 @@ const OrganolepticJournalSchema = new Schema<IOrganolepticJournal>({
     enum: ['pending', 'completed', 'reviewed'],
     default: 'pending'
   },
- nextInspectionDate: {
+  nextInspectionDate: {
     type: Date
   },
   recommendations: {
@@ -138,7 +138,7 @@ const OrganolepticJournalSchema = new Schema<IOrganolepticJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createOrganolepticJournalModel = createModelFactory<IOrganolepticJournal>(
   'OrganolepticJournal',
   OrganolepticJournalSchema,
@@ -146,5 +146,5 @@ const createOrganolepticJournalModel = createModelFactory<IOrganolepticJournal>(
   'food'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createOrganolepticJournalModel;

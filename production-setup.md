@@ -12,7 +12,7 @@ NODE_ENV=production
 PORT=8080
 
 # MongoDB
-MONGODB_URI=mongodb://localhost:27017/detsad_crm
+MONGODB_URI=mongodb:
 
 # JWT Secret - КРИТИЧЕСКИ ВАЖНО!
 # Сгенерируйте случайную строку длиной минимум 32 символа
@@ -20,7 +20,7 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-32chars-min
 
 
 # CORS настройки
-CORS_ORIGIN=https://yourdomain.com
+CORS_ORIGIN=https:
 
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
@@ -118,7 +118,7 @@ server {
     server_name yourdomain.com;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http:
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { SomaticJournalService } from './service';
 
-// Отложенное создание экземпляра сервиса
+
 let somaticJournalService: SomaticJournalService | null = null;
 
 const getSomaticJournalService = (): SomaticJournalService => {
@@ -16,9 +16,9 @@ export const getAllSomaticJournals = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { childId, date, doctorId, status, startDate, endDate } = req.query;
-    
+
     const journals = await getSomaticJournalService().getAll({
       childId: childId as string,
       date: date as string,
@@ -27,7 +27,7 @@ export const getAllSomaticJournals = async (req: Request, res: Response) => {
       startDate: startDate as string,
       endDate: endDate as string
     });
-    
+
     res.json(journals);
   } catch (err) {
     console.error('Error fetching somatic journals:', err);
@@ -40,7 +40,7 @@ export const getSomaticJournalById = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getSomaticJournalService().getById(req.params.id);
     res.json(journal);
   } catch (err: any) {
@@ -54,7 +54,7 @@ export const createSomaticJournal = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getSomaticJournalService().create(req.body, req.user.id as string);
     res.status(201).json(journal);
   } catch (err: any) {
@@ -68,7 +68,7 @@ export const updateSomaticJournal = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getSomaticJournalService().update(req.params.id, req.body);
     res.json(journal);
   } catch (err: any) {
@@ -82,7 +82,7 @@ export const deleteSomaticJournal = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const result = await getSomaticJournalService().delete(req.params.id);
     res.json(result);
   } catch (err: any) {
@@ -96,10 +96,10 @@ export const getSomaticJournalsByChildId = async (req: Request, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { childId } = req.params;
     const { date, doctorId, status, startDate, endDate } = req.query;
-    
+
     const journals = await getSomaticJournalService().getByChildId(childId, {
       date: date as string,
       doctorId: doctorId as string,
@@ -107,7 +107,7 @@ export const getSomaticJournalsByChildId = async (req: Request, res: Response) =
       startDate: startDate as string,
       endDate: endDate as string
     });
-    
+
     res.json(journals);
   } catch (err: any) {
     console.error('Error fetching somatic journals by child ID:', err);
@@ -120,17 +120,17 @@ export const getSomaticJournalsByDoctorId = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { doctorId } = req.params;
     const { childId, status, startDate, endDate } = req.query;
-    
+
     const journals = await getSomaticJournalService().getByDoctorId(doctorId, {
       childId: childId as string,
       status: status as string,
       startDate: startDate as string,
       endDate: endDate as string
     });
-    
+
     res.json(journals);
   } catch (err: any) {
     console.error('Error fetching somatic journals by doctor ID:', err);
@@ -143,10 +143,10 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { days } = req.query;
     const daysNum = days ? parseInt(days as string) : 7;
-    
+
     const journals = await getSomaticJournalService().getUpcomingAppointments(daysNum);
     res.json(journals);
   } catch (err: any) {
@@ -160,13 +160,13 @@ export const updateSomaticJournalStatus = async (req: Request, res: Response) =>
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({ error: 'Не указан статус' });
     }
-    
+
     const journal = await getSomaticJournalService().updateStatus(req.params.id, status);
     res.json(journal);
   } catch (err: any) {
@@ -180,13 +180,13 @@ export const addSomaticJournalRecommendations = async (req: Request, res: Respon
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { recommendations } = req.body;
-    
+
     if (!recommendations) {
       return res.status(400).json({ error: 'Не указаны рекомендации' });
     }
-    
+
     const journal = await getSomaticJournalService().addRecommendations(req.params.id, recommendations);
     res.json(journal);
   } catch (err: any) {
@@ -200,7 +200,7 @@ export const getSomaticJournalStatistics = async (req: Request, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const stats = await getSomaticJournalService().getStatistics();
     res.json(stats);
   } catch (err: any) {

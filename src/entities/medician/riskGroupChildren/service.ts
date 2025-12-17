@@ -1,8 +1,8 @@
 import RiskGroupChild from './model';
 import { IRiskGroupChild } from './model';
-import User from '../../users/model'; // Using the user model
+import User from '../../users/model';
 
-// Отложенное создание моделей
+
 let RiskGroupChildModel: any = null;
 let UserModel: any = null;
 
@@ -23,12 +23,12 @@ const getUserModel = () => {
 export class RiskGroupChildrenService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {
     const filter: any = {};
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
     if (filters.riskFactor) filter.riskFactors = { $in: [filters.riskFactor] };
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -36,16 +36,16 @@ export class RiskGroupChildrenService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     if (filters.nextAssessmentDate) {
       filter.nextAssessmentDate = new Date(filters.nextAssessmentDate);
     }
-    
+
     const children = await getRiskGroupChildModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return children;
   }
 
@@ -53,16 +53,16 @@ export class RiskGroupChildrenService {
     const child = await getRiskGroupChildModel().findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
-    
+
     if (!child) {
       throw new Error('Запись ребенка из группы риска не найдена');
     }
-    
+
     return child;
   }
 
   async create(childData: Partial<IRiskGroupChild>, userId: string) {
-    // Проверяем обязательные поля
+
     if (!childData.childId) {
       throw new Error('Не указан ребенок');
     }
@@ -78,32 +78,32 @@ export class RiskGroupChildrenService {
     if (!childData.doctor) {
       throw new Error('Не указан врач');
     }
-    
-    // Проверяем существование ребенка
+
+
     const child = await getUserModel().findById(childData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
-    
-    // Проверяем существование врача
+
+
     const doctor = await getUserModel().findById(childData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
-    
+
     const riskGroupModel = getRiskGroupChildModel();
     const riskChild = new riskGroupModel({
       ...childData,
-      doctor: userId // Врач - текущий пользователь
+      doctor: userId
     });
-    
+
     await riskChild.save();
-    
+
     const populatedChildModel = getRiskGroupChildModel();
     const populatedChild = await populatedChildModel.findById(riskChild._id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
-    
+
     return populatedChild;
   }
 
@@ -113,32 +113,32 @@ export class RiskGroupChildrenService {
       data,
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!updatedChild) {
       throw new Error('Запись ребенка из группы риска не найдена');
     }
-    
+
     return updatedChild;
   }
 
   async delete(id: string) {
     const result = await getRiskGroupChildModel().findByIdAndDelete(id);
-    
+
     if (!result) {
       throw new Error('Запись ребенка из группы риска не найдена');
     }
-    
+
     return { message: 'Запись ребенка из группы риска успешно удалена' };
   }
 
   async getByChildId(childId: string, filters: { date?: string, doctorId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {
     const filter: any = { childId };
-    
+
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
     if (filters.riskFactor) filter.riskFactors = { $in: [filters.riskFactor] };
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -146,41 +146,41 @@ export class RiskGroupChildrenService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     if (filters.nextAssessmentDate) {
       filter.nextAssessmentDate = new Date(filters.nextAssessmentDate);
     }
-    
+
     const children = await getRiskGroupChildModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return children;
   }
 
   async getByDoctorId(doctorId: string, filters: { childId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {
     const filter: any = { doctor: doctorId };
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.status) filter.status = filters.status;
     if (filters.riskFactor) filter.riskFactors = { $in: [filters.riskFactor] };
-    
+
     if (filters.startDate || filters.endDate) {
       filter.date = {};
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     if (filters.nextAssessmentDate) {
       filter.nextAssessmentDate = new Date(filters.nextAssessmentDate);
     }
-    
+
     const children = await getRiskGroupChildModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return children;
   }
 
@@ -188,17 +188,17 @@ export class RiskGroupChildrenService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const children = await getRiskGroupChildModel().find({
       nextAssessmentDate: {
         $gte: today,
         $lte: futureDate
       }
     })
-    .populate('childId', 'fullName iin')
-    .populate('doctor', 'fullName role')
-    .sort({ nextAssessmentDate: 1 });
-    
+      .populate('childId', 'fullName iin')
+      .populate('doctor', 'fullName role')
+      .sort({ nextAssessmentDate: 1 });
+
     return children;
   }
 
@@ -208,12 +208,12 @@ export class RiskGroupChildrenService {
       { status },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!child) {
       throw new Error('Запись ребенка из группы риска не найдена');
     }
-    
+
     return child;
   }
 
@@ -223,12 +223,12 @@ export class RiskGroupChildrenService {
       { recommendations },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!child) {
       throw new Error('Запись ребенка из группы риска не найдена');
     }
-    
+
     return child;
   }
 
@@ -244,7 +244,7 @@ export class RiskGroupChildrenService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const riskFactorStats = await getRiskGroupChildModel().aggregate([
       {
         $unwind: '$riskFactors'
@@ -259,9 +259,9 @@ export class RiskGroupChildrenService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const total = await getRiskGroupChildModel().countDocuments();
-    
+
     return {
       total,
       byStatus: stats.reduce((acc, stat) => {

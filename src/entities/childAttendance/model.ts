@@ -8,10 +8,10 @@ export interface IChildAttendance extends Document {
   status: 'present' | 'absent' | 'late' | 'sick' | 'vacation';
   actualStart?: Date;
   actualEnd?: Date;
-   notes?: string;
-  markedBy: mongoose.Types.ObjectId; // Teacher or admin who marked attendance
+  notes?: string;
+  markedBy: mongoose.Types.ObjectId;
   createdAt: Date;
- updatedAt: Date;
+  updatedAt: Date;
 }
 
 const ChildAttendanceSchema: Schema = new Schema({
@@ -54,24 +54,24 @@ const ChildAttendanceSchema: Schema = new Schema({
 });
 
 
-// Виртуальные поля
-ChildAttendanceSchema.virtual('duration').get(function(this: IChildAttendance) {
+
+ChildAttendanceSchema.virtual('duration').get(function (this: IChildAttendance) {
   if (!this.actualStart || !this.actualEnd) return 0;
   return this.actualEnd.getTime() - this.actualStart.getTime();
 });
 
-// Методы
-ChildAttendanceSchema.methods.isLate = function(scheduledTime: string = '08:00') {
+
+ChildAttendanceSchema.methods.isLate = function (scheduledTime: string = '08:00') {
   if (!this.actualStart || this.status !== 'present') return false;
-  
+
   const [hours, minutes] = scheduledTime.split(':').map(Number);
   const scheduled = new Date(this.date);
   scheduled.setHours(hours, minutes, 0, 0);
-  
+
   return this.actualStart > scheduled;
 };
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createChildAttendanceModel = createModelFactory<IChildAttendance>(
   'ChildAttendance',
   ChildAttendanceSchema,
@@ -79,5 +79,5 @@ const createChildAttendanceModel = createModelFactory<IChildAttendance>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createChildAttendanceModel;

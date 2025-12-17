@@ -3,7 +3,7 @@ import ChildPayment, { IChildPayment } from './model';
 import Child from '../children/model';
 import User from '../users/model';
 
-// Отложенное создание моделей
+
 let ChildPaymentModel: any = null;
 let ChildModel: any = null;
 let UserModel: any = null;
@@ -30,12 +30,12 @@ const getUserModel = () => {
 };
 
 export const createChildPayment = async (paymentData: Partial<IChildPayment>): Promise<IChildPayment> => {
-  // Валидация: проверяем, что либо childId, либо userId присутствует
+
   if (!paymentData.childId && !paymentData.userId) {
     throw new Error('Either childId or userId must be specified');
   }
 
-  // Проверяем существование ребенка или пользователя
+
   if (paymentData.childId) {
     const child = await getChildModel().findById(paymentData.childId);
     if (!child) {
@@ -64,12 +64,12 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
     query.userId = new mongoose.Types.ObjectId(filters.userId);
   }
   if (filters.period) {
-    // Поддержка фильтрации по новому формату period
+
     if (typeof filters.period === 'object' && filters.period.start && filters.period.end) {
       query['period.start'] = { $gte: new Date(filters.period.start) };
       query['period.end'] = { $lte: new Date(filters.period.end) };
     } else {
-      // Поддержка старого формата для совместимости
+
       query.period = filters.period;
     }
   }
@@ -97,13 +97,13 @@ export const getChildPaymentById = async (id: string): Promise<IChildPayment | n
 
 export const updateChildPayment = async (id: string, updateData: Partial<IChildPayment>): Promise<IChildPayment | null> => {
   const childPaymentModel = getChildPaymentModel();
-  // Проверяем, существует ли оплата
+
   const existingPayment = await childPaymentModel.findById(id);
   if (!existingPayment) {
     throw new Error('Child payment not found');
   }
 
-  // Если обновляем childId или userId, проверяем их существование
+
   if (updateData.childId) {
     const child = await getChildModel().findById(updateData.childId);
     if (!child) {
@@ -127,7 +127,7 @@ export const deleteChildPayment = async (id: string): Promise<boolean> => {
   return !!result;
 };
 
-// Функция для получения оплаты по периоду и ребенку/пользователю
+
 export const getChildPaymentByPeriod = async (
   period: {
     start: string;
@@ -142,7 +142,7 @@ export const getChildPaymentByPeriod = async (
     'period.end': new Date(period.end)
   };
 
- if (childId) {
+  if (childId) {
     query.childId = new mongoose.Types.ObjectId(childId);
   } else if (userId) {
     query.userId = new mongoose.Types.ObjectId(userId);

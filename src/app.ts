@@ -1,14 +1,14 @@
-// ...existing code...
+
 import helminthJournalRoutes from './entities/medician/helminthJournal/route';
 import tubPositiveJournalRoutes from './entities/medician/tubPositiveJournal/route';
 import infectiousDiseasesJournalRoutes from './entities/medician/infectiousDiseasesJournal/route';
 import contactInfectionJournalRoutes from './entities/medician/contactInfectionJournal/route';
 import riskGroupChildrenRoutes from './entities/medician/riskGroupChildren/route';
 import childHealthPassportRoutes from './entities/medician/childHealthPassport/route';
-import rentRoutes from './entities/rent/route'; // Добавляем маршрут для аренды
+import rentRoutes from './entities/rent/route';
 import express from 'express';
 import cors from 'cors';
-// import cookieParser from 'cookie-parser'; // ❌ полностью убираем поддержку cookies
+
 import organolepticJournalRoutes from './entities/food/organolepticJournal/route';
 import perishableBrakRoutes from './entities/food/perishableBrak/route';
 import productCertificateRoutes from './entities/food/productCertificates/route';
@@ -47,23 +47,23 @@ import path from 'path';
 const app = express();
 
 
-// const allowedOriginsFromEnv = process.env.CORS_ALLOWED_ORIGINS;
-// const allowedOrigins = allowedOriginsFromEnv ? allowedOriginsFromEnv.split(',') : ['http://localhost:3000', 'http://localhost:3001', 'https://aldamiram.vercel.app'];
+
+
 
 app.use(cors());
 
-// app.use(cookieParser()); // ❌ полностью убираем middleware для парсинга cookies
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Создаем директорию для загрузки файлов, если она не существует
+
 
 const uploadDir = path.join(__dirname, '..', 'uploads', 'documents');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Routes
+
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/groups', groupRoutes);
@@ -72,7 +72,7 @@ app.use('/child-attendance', childAttendanceRoutes);
 app.use('/attendance', staffAttendanceTrackingRoutes);
 app.use('/staff-time-tracking', staffAttendanceTrackingRoutes);
 app.use('/payroll', payrollRoutes);
-app.use('/rent', rentRoutes); // Добавляем маршрут для аренды
+app.use('/rent', rentRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/documents', documentsRoutes);
 app.use('/reports', reportsRoutes);
@@ -106,7 +106,7 @@ app.use('/holidays', holidayRoutes);
 app.use('/telegram', telegramRoutes);
 app.use('/export', exportRoutes);
 
-// Health check
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -115,7 +115,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint
+
 app.get('/', (req, res) => {
   res.json({
     message: 'Kindergarten Management System API',
@@ -129,31 +129,31 @@ app.get('/', (req, res) => {
   });
 });
 
-// Тестовый endpoint для проверки Sentry
+
 app.get('/sentry-test', (req, res) => {
-  // Отправляем тестовое сообщение в Sentry
+
   const Sentry = require('./sentry').default;
   Sentry.captureMessage('Sentry тестовое сообщение из бэкенда');
-  
-  // Вызываем тестовую ошибку
+
+
   throw new Error('Sentry тестовая ошибка из бэкенда');
 });
 
-// Error handling middleware
+
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
-  
-  // Отправляем ошибку в Sentry
+
+
   const Sentry = require('./sentry').default;
   Sentry.captureException(err);
-  
+
   res.status(500).json({
     error: 'Internal server error',
     message: err.message
   });
 });
 
-// 404 handler
+
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Route not found',

@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
 import { ContactInfectionJournalService } from './service';
 
-// Отложенное создание экземпляра сервиса
+
 let contactInfectionJournalService: ContactInfectionJournalService | null = null;
 
 const getContactInfectionJournalService = (): ContactInfectionJournalService => {
   if (!contactInfectionJournalService) {
     contactInfectionJournalService = new ContactInfectionJournalService();
   }
- return contactInfectionJournalService;
+  return contactInfectionJournalService;
 };
 
 export const getAllContactInfectionJournals = async (req: Request, res: Response) => {
@@ -16,9 +16,9 @@ export const getAllContactInfectionJournals = async (req: Request, res: Response
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { childId, date, doctorId, status, infectionType, startDate, endDate, nextAppointmentDate, isolationEndDate, contactsTraced } = req.query;
-    
+
     const journals = await getContactInfectionJournalService().getAll({
       childId: childId as string,
       date: date as string,
@@ -31,7 +31,7 @@ export const getAllContactInfectionJournals = async (req: Request, res: Response
       isolationEndDate: isolationEndDate as string,
       contactsTraced: contactsTraced === 'true' ? true : contactsTraced === 'false' ? false : undefined
     });
-    
+
     res.json(journals);
   } catch (err) {
     console.error('Error fetching contact infection journals:', err);
@@ -44,7 +44,7 @@ export const getContactInfectionJournalById = async (req: Request, res: Response
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getContactInfectionJournalService().getById(req.params.id);
     res.json(journal);
   } catch (err: any) {
@@ -58,7 +58,7 @@ export const createContactInfectionJournal = async (req: Request, res: Response)
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getContactInfectionJournalService().create(req.body, req.user.id as string);
     res.status(201).json(journal);
   } catch (err: any) {
@@ -72,7 +72,7 @@ export const updateContactInfectionJournal = async (req: Request, res: Response)
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getContactInfectionJournalService().update(req.params.id, req.body);
     res.json(journal);
   } catch (err: any) {
@@ -86,7 +86,7 @@ export const deleteContactInfectionJournal = async (req: Request, res: Response)
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const result = await getContactInfectionJournalService().delete(req.params.id);
     res.json(result);
   } catch (err: any) {
@@ -100,10 +100,10 @@ export const getContactInfectionJournalsByChildId = async (req: Request, res: Re
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { childId } = req.params;
     const { date, doctorId, status, infectionType, startDate, endDate, nextAppointmentDate, isolationEndDate, contactsTraced } = req.query;
-    
+
     const journals = await getContactInfectionJournalService().getByChildId(childId, {
       date: date as string,
       doctorId: doctorId as string,
@@ -115,7 +115,7 @@ export const getContactInfectionJournalsByChildId = async (req: Request, res: Re
       isolationEndDate: isolationEndDate as string,
       contactsTraced: contactsTraced === 'true' ? true : contactsTraced === 'false' ? false : undefined
     });
-    
+
     res.json(journals);
   } catch (err: any) {
     console.error('Error fetching contact infection journals by child ID:', err);
@@ -128,10 +128,10 @@ export const getContactInfectionJournalsByDoctorId = async (req: Request, res: R
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { doctorId } = req.params;
     const { childId, status, infectionType, startDate, endDate, nextAppointmentDate, isolationEndDate, contactsTraced } = req.query;
-    
+
     const journals = await getContactInfectionJournalService().getByDoctorId(doctorId, {
       childId: childId as string,
       status: status as string,
@@ -142,7 +142,7 @@ export const getContactInfectionJournalsByDoctorId = async (req: Request, res: R
       isolationEndDate: isolationEndDate as string,
       contactsTraced: contactsTraced === 'true' ? true : contactsTraced === 'false' ? false : undefined
     });
-    
+
     res.json(journals);
   } catch (err: any) {
     console.error('Error fetching contact infection journals by doctor ID:', err);
@@ -155,10 +155,10 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { days } = req.query;
     const daysNum = days ? parseInt(days as string) : 7;
-    
+
     const journals = await getContactInfectionJournalService().getUpcomingAppointments(daysNum);
     res.json(journals);
   } catch (err: any) {
@@ -172,13 +172,13 @@ export const updateContactInfectionJournalStatus = async (req: Request, res: Res
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { status } = req.body;
-    
+
     if (!status) {
       return res.status(400).json({ error: 'Не указан статус' });
     }
-    
+
     const journal = await getContactInfectionJournalService().updateStatus(req.params.id, status);
     res.json(journal);
   } catch (err: any) {
@@ -192,13 +192,13 @@ export const addContactInfectionJournalRecommendations = async (req: Request, re
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { recommendations } = req.body;
-    
+
     if (!recommendations) {
       return res.status(400).json({ error: 'Не указаны рекомендации' });
     }
-    
+
     const journal = await getContactInfectionJournalService().addRecommendations(req.params.id, recommendations);
     res.json(journal);
   } catch (err: any) {
@@ -212,7 +212,7 @@ export const traceContacts = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const journal = await getContactInfectionJournalService().traceContacts(req.params.id);
     res.json(journal);
   } catch (err: any) {
@@ -226,7 +226,7 @@ export const getContactInfectionJournalStatistics = async (req: Request, res: Re
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const stats = await getContactInfectionJournalService().getStatistics();
     res.json(stats);
   } catch (err: any) {

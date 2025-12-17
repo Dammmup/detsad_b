@@ -164,7 +164,7 @@ const ProductCertificateSchema = new Schema<IProductCertificate>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createProductCertificateModel = createModelFactory<IProductCertificate>(
   'ProductCertificate',
   ProductCertificateSchema,
@@ -172,5 +172,5 @@ const createProductCertificateModel = createModelFactory<IProductCertificate>(
   'food'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createProductCertificateModel;

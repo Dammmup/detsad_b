@@ -1,36 +1,36 @@
 import MedicalJournal from './model';
 import { IMedicalJournal } from './model';
 
-// Отложенное создание модели
+
 let MedicalJournalModel: any = null;
 
 const getMedicalJournalModel = () => {
   if (!MedicalJournalModel) {
     MedicalJournalModel = MedicalJournal();
   }
- return MedicalJournalModel;
+  return MedicalJournalModel;
 };
 
 export class MedicalJournalsService {
   async getAll(filters: { childId?: string, type?: string, doctorId?: string, status?: string, fromDate?: string, toDate?: string }) {
     const filter: any = {};
-    
+
     if (filters.childId) filter.childId = filters.childId;
     if (filters.type) filter.type = filters.type;
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
-    
+
     if (filters.fromDate || filters.toDate) {
       filter.date = {};
       if (filters.fromDate) filter.date.$gte = new Date(filters.fromDate);
       if (filters.toDate) filter.date.$lte = new Date(filters.toDate);
     }
-    
+
     const journals = await getMedicalJournalModel().find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
@@ -38,16 +38,16 @@ export class MedicalJournalsService {
     const journal = await getMedicalJournalModel().findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
-    
+
     if (!journal) {
       throw new Error('Медицинская запись не найдена');
     }
-    
+
     return journal;
   }
 
   async create(journalData: Partial<IMedicalJournal>) {
-    // Проверяем обязательные поля
+
     if (!journalData.childId) {
       throw new Error('Не указан ребенок');
     }
@@ -63,15 +63,15 @@ export class MedicalJournalsService {
     if (!journalData.doctor) {
       throw new Error('Не указан врач');
     }
-    
+
     const medicalJournalModel = getMedicalJournalModel();
     const journal = new medicalJournalModel(journalData);
     await journal.save();
-    
+
     const populatedJournal = await medicalJournalModel.findById(journal._id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
-    
+
     return populatedJournal;
   }
 
@@ -81,22 +81,22 @@ export class MedicalJournalsService {
       data,
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!updatedJournal) {
       throw new Error('Медицинская запись не найдена');
     }
-    
+
     return updatedJournal;
   }
 
   async delete(id: string) {
     const result = await getMedicalJournalModel().findByIdAndDelete(id);
-    
+
     if (!result) {
       throw new Error('Медицинская запись не найдена');
     }
-    
+
     return { message: 'Медицинская запись успешно удалена' };
   }
 
@@ -105,7 +105,7 @@ export class MedicalJournalsService {
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return journals;
   }
 
@@ -113,17 +113,17 @@ export class MedicalJournalsService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const journals = await getMedicalJournalModel().find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
       }
     })
-    .populate('childId', 'fullName iin')
-    .populate('doctor', 'fullName role')
-    .sort({ nextAppointmentDate: 1 });
-    
+      .populate('childId', 'fullName iin')
+      .populate('doctor', 'fullName role')
+      .sort({ nextAppointmentDate: 1 });
+
     return journals;
   }
 
@@ -133,12 +133,12 @@ export class MedicalJournalsService {
       { status },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!journal) {
       throw new Error('Медицинская запись не найдена');
     }
-    
+
     return journal;
   }
 
@@ -148,12 +148,12 @@ export class MedicalJournalsService {
       { recommendations },
       { new: true }
     ).populate('childId', 'fullName iin')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!journal) {
       throw new Error('Медицинская запись не найдена');
     }
-    
+
     return journal;
   }
 
@@ -169,9 +169,9 @@ export class MedicalJournalsService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const total = await getMedicalJournalModel().countDocuments();
-    
+
     return {
       total,
       byType: stats.reduce((acc, stat) => {

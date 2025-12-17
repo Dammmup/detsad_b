@@ -11,8 +11,8 @@ export interface ITubPositiveJournal extends Document {
   status: 'pending' | 'completed' | 'reviewed';
   nextAppointmentDate?: Date;
   recommendations?: string;
- createdAt: Date;
- updatedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
@@ -21,7 +21,7 @@ const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
     ref: 'User',
     required: true,
     index: true
- },
+  },
   date: {
     type: Date,
     required: true,
@@ -53,7 +53,7 @@ const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
     type: Date,
     index: true
   },
- recommendations: {
+  recommendations: {
     type: String,
     maxlength: [30, 'Рекомендации не могут превышать 300 символов']
   }
@@ -61,7 +61,7 @@ const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createTubPositiveJournalModel = createModelFactory<ITubPositiveJournal>(
   'TubPositiveJournal',
   TubPositiveJournalSchema,
@@ -69,5 +69,5 @@ const createTubPositiveJournalModel = createModelFactory<ITubPositiveJournal>(
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createTubPositiveJournalModel;

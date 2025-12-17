@@ -12,8 +12,8 @@ export interface IMedicalJournal extends Document {
   status: 'pending' | 'completed' | 'reviewed';
   nextAppointmentDate?: Date;
   recommendations?: string;
- createdAt: Date;
- updatedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const MedicalJournalSchema = new Schema<IMedicalJournal>({
@@ -32,7 +32,7 @@ const MedicalJournalSchema = new Schema<IMedicalJournal>({
     type: Date,
     required: true,
     index: true
- },
+  },
   result: {
     type: String,
     required: true
@@ -55,7 +55,7 @@ const MedicalJournalSchema = new Schema<IMedicalJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createMedicalJournalModel = createModelFactory<IMedicalJournal>(
   'MedicalJournal',
   MedicalJournalSchema,
@@ -63,5 +63,5 @@ const createMedicalJournalModel = createModelFactory<IMedicalJournal>(
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createMedicalJournalModel;

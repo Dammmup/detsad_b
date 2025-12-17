@@ -5,19 +5,19 @@ const groupService = new GroupService();
 
 export const getAllGroups = async (req: Request, res: Response) => {
   try {
-    // Admin sees all groups, teachers see only their groups
-    // Check if teacherId query parameter is provided, otherwise use logged-in user's ID
+
+
     const teacherId = req.query.teacherId as string;
     const filter = req.user?.role === 'admin' || req.user?.role === 'director' || req.user?.role === 'owner'
       ? undefined
       : (teacherId || req.user?.id);
     const groups = await groupService.getAll(filter, req.user?.role);
-    
-    // Временно убираем populate teacher, чтобы избежать ошибок с моделью
+
+
     console.log('📋 Загружен список групп:', groups.length, 'групп(ы)');
     console.log('📋 Фильтр: ', filter);
     console.log('📋 teacherId из query: ', teacherId);
-    
+
     res.json(groups);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -32,18 +32,18 @@ export const getAllGroups = async (req: Request, res: Response) => {
 export const getGroupById = async (req: Request, res: Response) => {
   try {
     const group = await groupService.getById(req.params.id);
-    
+
     if (!group) {
       return res.status(404).json({ error: 'Группа не найдена' });
     }
-    
+
     console.log('📄 Загружена группа:', group.name);
-    
+
     res.json(group);
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     console.error(`Error in GET /groups/${req.params.id}:`, errorMessage);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Ошибка при получении данных группы',
       details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
     });
@@ -54,12 +54,12 @@ export const createGroup = async (req: Request, res: Response) => {
   try {
     console.log('📥 Получен запрос на создание группы:', req.body);
     console.log('👤 Текущий пользователь:', req.user);
-    
+
     const group = await groupService.create(req.body, req.user?.id as string);
-    
+
     console.log('✅ Группа успешно создана:', group.name);
     res.status(201).json(group);
-    
+
   } catch (err) {
     const error = err as Error;
     console.error('❌ Ошибка создания группы:', error.message);
@@ -73,14 +73,14 @@ export const updateGroup = async (req: Request, res: Response) => {
     if (!group) {
       return res.status(404).json({ error: 'Группа не найдена' });
     }
-    
-    // Проверка прав доступа (только админ или создатель группы)
+
+
     if (req.user?.role !== 'admin' && group.createdBy && group.createdBy.toString() !== req.user?.id) {
       return res.status(403).json({ error: 'Недостаточно прав для редактирования группы' });
     }
 
     const updatedGroup = await groupService.update(req.params.id, req.body);
-    
+
     res.json(updatedGroup);
   } catch (err) {
     const error = err as Error;
@@ -94,8 +94,8 @@ export const deleteGroup = async (req: Request, res: Response) => {
     if (!group) {
       return res.status(404).json({ error: 'Группа не найдена' });
     }
-    
-    // Проверка прав доступа (только админ или создатель группы)
+
+
     if (
       req.user?.role !== 'admin' &&
       (!group.createdBy || group.createdBy.toString() !== req.user?.id)
@@ -109,7 +109,7 @@ export const deleteGroup = async (req: Request, res: Response) => {
     } else {
       res.status(50).json({ error: 'Ошибка при удалении группы' });
     }
- } catch (err) {
+  } catch (err) {
     const error = err as Error;
     res.status(500).json({ error: error.message });
   }

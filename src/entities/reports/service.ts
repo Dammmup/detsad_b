@@ -4,7 +4,7 @@ import { PayrollService } from '../payroll/service';
 import Children from '../children/model';
 import ChildAttendance from '../childAttendance/model';
 
-// Отложенное создание модели
+
 let ReportModel: any = null;
 
 const getReportModel = () => {
@@ -41,7 +41,7 @@ export class ReportsService {
   }
 
   async create(reportData: Partial<IReport>) {
-    // Проверяем обязательные поля
+
     if (!reportData.title) {
       throw new Error('Не указано название отчета');
     }
@@ -92,7 +92,7 @@ export class ReportsService {
       throw new Error('Отчет не найден');
     }
 
-    // Обновляем данные отчета
+
     report.data = data;
     report.filters = filters;
     report.generatedAt = new Date();
@@ -113,7 +113,7 @@ export class ReportsService {
       throw new Error('Отчет не найден');
     }
 
-    // Обновляем статус и получателей
+
     report.recipients = recipients;
     report.sentAt = new Date();
     report.status = 'sent';
@@ -151,20 +151,20 @@ export class ReportsService {
 
 
 
-  // Метод для получения сводки по зарплатам
+
   async getSalarySummary(month: string, userId?: string) {
     const payrollService = new PayrollService();
 
-    // Получаем все зарплаты за указанный месяц
+
     const payrolls = await payrollService.getAllWithUsers({
       period: month,
       status: undefined
     });
 
-    // Формируем сводку, исключая записи с null staffId
+
     const validPayrolls = payrolls.filter(p => p.staffId !== null);
 
-    // Если указан userId, фильтруем только по этому пользователю
+
     const userFilteredPayrolls = userId
       ? validPayrolls.filter(item =>
         item.staffId &&
@@ -176,6 +176,7 @@ export class ReportsService {
       totalEmployees: userFilteredPayrolls.length,
       totalAccruals: userFilteredPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
       totalPenalties: userFilteredPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalAdvance: userFilteredPayrolls.reduce((sum, p) => sum + (p.advance || 0), 0),
       totalPayout: userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
       averageSalary: userFilteredPayrolls.length > 0
         ? userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / userFilteredPayrolls.length
@@ -185,17 +186,17 @@ export class ReportsService {
     return summary;
   }
 
-  // Метод для получения сводки по зарплатам по диапазону дат
+
   async getSalarySummaryByDateRange(startDate: string, endDate: string, userId?: string) {
     const payrollService = new PayrollService();
 
-    // Получаем все зарплаты за указанный период
+
     const payrolls = await payrollService.getAllWithUsers({
       period: undefined,
       status: undefined
     });
 
-    // Фильтруем данные по диапазону дат, исключая записи с null staffId
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     const validPayrolls = payrolls.filter(p => p.staffId !== null);
@@ -204,7 +205,7 @@ export class ReportsService {
       return itemDate >= start && itemDate <= end;
     });
 
-    // Если указан userId, фильтруем только по этому пользователю
+
     const userFilteredPayrolls = userId
       ? filteredPayrolls.filter(item =>
         item.staffId &&
@@ -212,11 +213,12 @@ export class ReportsService {
       )
       : filteredPayrolls;
 
-    // Формируем сводку
+
     const summary = {
       totalEmployees: userFilteredPayrolls.length,
       totalAccruals: userFilteredPayrolls.reduce((sum, p) => sum + (p.baseSalary || 0), 0),
       totalPenalties: userFilteredPayrolls.reduce((sum, p) => sum + (p.penalties || 0), 0),
+      totalAdvance: userFilteredPayrolls.reduce((sum, p) => sum + (p.advance || 0), 0),
       totalPayout: userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0),
       averageSalary: userFilteredPayrolls.length > 0
         ? userFilteredPayrolls.reduce((sum, p) => sum + (p.total || 0), 0) / userFilteredPayrolls.length
@@ -226,7 +228,7 @@ export class ReportsService {
     return summary;
   }
 
-  // Метод для получения сводки по детям
+
   async getChildrenSummary(groupId?: string) {
     const filter: any = { active: true };
     if (groupId) {
@@ -256,7 +258,7 @@ export class ReportsService {
     return summary;
   }
 
-  // Метод для получения сводки по посещаемости
+
   async getAttendanceSummary(startDate: string, endDate: string, groupId?: string) {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -273,13 +275,13 @@ export class ReportsService {
       .populate('childId', 'fullName')
       .populate('groupId', 'name');
 
-    // Группируем посещаемость по статусам
+
     const statusCounts = attendanceRecords.reduce((acc, record) => {
       acc[record.status] = (acc[record.status] || 0) + 1;
       return acc;
     }, {} as { [key: string]: number });
 
-    // Рассчитываем среднюю посещаемость
+
     const childrenIds = [...new Set(attendanceRecords.map(r => (r.childId as any)._id.toString()))];
     const totalPossibleAttendances = childrenIds.length * (Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 24)));
     const totalPresentAttendances = statusCounts.present || 0;

@@ -6,7 +6,7 @@ import { sendMessage } from './controller';
 import FormData from 'form-data';
 import { UIStateService } from '../uiState/service';
 
-const QWEN3_API_URL = process.env.QWEN3_API_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
+const QWEN3_API_URL = process.env.QWEN3_API_URL || 'https://api.qwen3.com/v1/chat/completions';
 const QWEN3_API_KEY = process.env.QWEN3_API_KEY || 'sk-5aeb0fdc7fa446c391b6d51363102e79';
 
 export class Qwen3ChatService {
@@ -18,12 +18,12 @@ export class Qwen3ChatService {
     try {
       const promptPath = path.join(__dirname, 'assistant-prompt.md');
       const dataAccessPromptPath = path.join(__dirname, 'data-access-prompt.md');
-      
+
       const systemPrompt = fs.readFileSync(promptPath, 'utf-8');
       const dataAccessPrompt = fs.readFileSync(dataAccessPromptPath, 'utf-8');
-      
+
       const combinedSystemPrompt = `${systemPrompt}\n\n${dataAccessPrompt}`;
-      
+
       let uiContext = '';
       if (request.sessionId) {
         try {
@@ -35,9 +35,9 @@ export class Qwen3ChatService {
           console.warn('Не удалось получить состояние UI:', error);
         }
       }
-      
+
       const enhancedSystemPrompt = combinedSystemPrompt + uiContext;
-      
+
       const messages = await Promise.all(request.messages.map(async msg => {
         if (msg.sender === 'user') {
           if (request.image) {
@@ -67,9 +67,9 @@ export class Qwen3ChatService {
         }
       }));
 
-      // Add system prompt at the beginning
+
       messages.unshift({ role: 'system', content: enhancedSystemPrompt });
-      
+
       const response = await axios.post(
         QWEN3_API_URL,
         {

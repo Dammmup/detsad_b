@@ -12,7 +12,7 @@ export interface IInfectiousDiseasesJournal extends Document {
   attachments?: string[];
   status: 'pending' | 'completed' | 'reviewed';
   nextAppointmentDate?: Date;
- recommendations?: string;
+  recommendations?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,7 +28,7 @@ const InfectiousDiseasesJournalSchema = new Schema<IInfectiousDiseasesJournal>({
     type: Date,
     required: true,
     index: true
- },
+  },
   disease: {
     type: String,
     required: true,
@@ -74,7 +74,7 @@ const InfectiousDiseasesJournalSchema = new Schema<IInfectiousDiseasesJournal>({
   timestamps: true
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createInfectiousDiseasesJournalModel = createModelFactory<IInfectiousDiseasesJournal>(
   'InfectiousDiseasesJournal',
   InfectiousDiseasesJournalSchema,
@@ -82,5 +82,5 @@ const createInfectiousDiseasesJournalModel = createModelFactory<IInfectiousDisea
   'medical'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createInfectiousDiseasesJournalModel;

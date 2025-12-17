@@ -5,23 +5,23 @@ import jwt from 'jsonwebtoken';
 const authService = new AuthService();
 
 export const getCurrentUser = async (req: Request, res: Response) => {
-  // Получаем токен из заголовка Authorization
+
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Токен не предоставлен в заголовке Authorization' });
   }
-  
+
   const token = authHeader.substring(7);
-  
+
   if (!token) {
     return res.status(401).json({ error: 'Токен не предоставлен' });
   }
-  
+
   try {
-    // Валидируем токен и получаем информацию о пользователе
+
     const result = await authService.validateToken(token);
-    
+
     if (result.valid && result.user) {
       res.json({
         id: result.user.id,

@@ -8,9 +8,9 @@ export const getAllMenuItems = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { category, dayOfWeek, weekNumber, isAvailable, createdBy } = req.query;
-    
+
     const menuItems = await menuItemsService.getAll({
       category: category as string,
       dayOfWeek: dayOfWeek !== undefined ? parseInt(dayOfWeek as string) : undefined,
@@ -18,7 +18,7 @@ export const getAllMenuItems = async (req: Request, res: Response) => {
       isAvailable: isAvailable !== undefined ? (isAvailable === 'true') : undefined,
       createdBy: createdBy as string
     });
-    
+
     res.json(menuItems);
   } catch (err) {
     console.error('Error fetching menu items:', err);
@@ -31,7 +31,7 @@ export const getMenuItemById = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const menuItem = await menuItemsService.getById(req.params.id);
     res.json(menuItem);
   } catch (err: any) {
@@ -45,13 +45,13 @@ export const createMenuItem = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
-    // Добавляем создателя из аутентифицированного пользователя
+
+
     const menuItemData = {
       ...req.body,
       createdBy: req.user.id
     };
-    
+
     const menuItem = await menuItemsService.create(menuItemData);
     res.status(201).json(menuItem);
   } catch (err: any) {
@@ -65,7 +65,7 @@ export const updateMenuItem = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const menuItem = await menuItemsService.update(req.params.id, req.body);
     res.json(menuItem);
   } catch (err: any) {
@@ -79,7 +79,7 @@ export const deleteMenuItem = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const result = await menuItemsService.delete(req.params.id);
     res.json(result);
   } catch (err: any) {
@@ -93,20 +93,20 @@ export const getMenuItemsByCategoryAndDay = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { category } = req.params;
     const { dayOfWeek, weekNumber } = req.query;
-    
+
     if (dayOfWeek === undefined) {
       return res.status(400).json({ error: 'Не указан день недели' });
     }
-    
+
     const menuItems = await menuItemsService.getByCategoryAndDay(
       category,
       parseInt(dayOfWeek as string),
       weekNumber !== undefined ? parseInt(weekNumber as string) : undefined
     );
-    
+
     res.json(menuItems);
   } catch (err: any) {
     console.error('Error fetching menu items by category and day:', err);
@@ -119,13 +119,13 @@ export const getWeeklyMenu = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { weekNumber } = req.query;
-    
+
     if (weekNumber === undefined) {
       return res.status(400).json({ error: 'Не указан номер недели' });
     }
-    
+
     const weeklyMenu = await menuItemsService.getWeeklyMenu(parseInt(weekNumber as string));
     res.json(weeklyMenu);
   } catch (err: any) {
@@ -139,7 +139,7 @@ export const toggleMenuItemAvailability = async (req: Request, res: Response) =>
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const menuItem = await menuItemsService.toggleAvailability(req.params.id);
     res.json(menuItem);
   } catch (err: any) {
@@ -153,13 +153,13 @@ export const searchMenuItems = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { q, category } = req.query;
-    
+
     if (!q) {
       return res.status(400).json({ error: 'Не указан поисковый запрос' });
     }
-    
+
     const menuItems = await menuItemsService.searchByName(q as string, category as string);
     res.json(menuItems);
   } catch (err: any) {
@@ -173,9 +173,9 @@ export const getMenuItemsByAllergen = async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const { allergen } = req.params;
-    
+
     const menuItems = await menuItemsService.getByAllergen(allergen);
     res.json(menuItems);
   } catch (err: any) {
@@ -189,7 +189,7 @@ export const getMenuNutritionalStatistics = async (req: Request, res: Response) 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const stats = await menuItemsService.getNutritionalStatistics();
     res.json(stats);
   } catch (err: any) {

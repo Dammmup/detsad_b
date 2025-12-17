@@ -3,7 +3,7 @@ import { ObjectId } from 'mongoose';
 export interface IPayrollEntity {
   id?: string;
   staffId: ObjectId;
-  period: string; // Format: YYYY-MM
+  period: string;
   baseSalary: number;
   bonuses: number;
   deductions: number;
@@ -12,11 +12,11 @@ export interface IPayrollEntity {
   status: 'draft' | 'approved' | 'paid';
   paymentDate?: Date;
   accruals?: number;
-  baseSalaryType: string; // 'fixed', 'hourly', 'daily', 'monthly'
+  baseSalaryType: string;
   shiftRate?: number;
   workedDays?: number;
   workedShifts?: number;
-  history?: any[]; // Payment history
+  history?: any[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -25,7 +25,7 @@ export class PayrollEntity {
   id?: string;
   staffId: ObjectId;
   period: string;
- baseSalary: number;
+  baseSalary: number;
   bonuses: number;
   deductions: number;
   advance: number;
@@ -34,7 +34,7 @@ export class PayrollEntity {
   paymentDate?: Date;
   accruals: number;
   baseSalaryType: string;
- shiftRate: number;
+  shiftRate: number;
   workedDays: number;
   workedShifts: number;
   history: any[];
@@ -43,7 +43,7 @@ export class PayrollEntity {
 
   constructor(data: IPayrollEntity) {
     this.validate(data);
-    
+
     this.id = data.id;
     this.staffId = data.staffId;
     this.period = data.period;
@@ -68,38 +68,38 @@ export class PayrollEntity {
     if (!data.staffId) {
       throw new Error('ID сотрудника обязателен');
     }
-    
+
     if (!data.period) {
       throw new Error('Период начисления обязателен');
     }
-    
-    // Проверяем формат периода (YYYY-MM)
+
+
     const periodRegex = /^\d{4}-\d{2}$/;
     if (!periodRegex.test(data.period)) {
       throw new Error('Некорректный формат периода. Используйте формат YYYY-MM');
     }
-    
+
     if (data.baseSalary !== undefined && data.baseSalary < 0) {
       throw new Error('Базовая зарплата не может быть отрицательной');
     }
-    
+
     if (data.bonuses !== undefined && data.bonuses < 0) {
       throw new Error('Бонусы не могут быть отрицательными');
     }
-    
+
     if (data.deductions !== undefined && data.deductions < 0) {
       throw new Error('Вычеты не могут быть отрицательными');
     }
-    
+
     if (data.advance !== undefined && data.advance < 0) {
       throw new Error('Аванс не может быть отрицательным');
     }
-    
+
     const validStatuses = ['draft', 'approved', 'paid'];
     if (data.status && !validStatuses.includes(data.status)) {
       throw new Error(`Недопустимый статус. Допустимые значения: ${validStatuses.join(', ')}`);
     }
-    
+
     const validSalaryTypes = ['fixed', 'hourly', 'daily', 'monthly'];
     if (data.baseSalaryType && !validSalaryTypes.includes(data.baseSalaryType)) {
       throw new Error(`Недопустимый тип оплаты. Допустимые значения: ${validSalaryTypes.join(', ')}`);
@@ -122,7 +122,7 @@ export class PayrollEntity {
     if (data.shiftRate !== undefined) this.shiftRate = data.shiftRate;
     if (data.workedDays !== undefined) this.workedDays = data.workedDays;
     if (data.workedShifts !== undefined) this.workedShifts = data.workedShifts;
-    
+
     this.total = this.calculateTotal();
     this.updatedAt = new Date();
   }
@@ -154,7 +154,7 @@ export class PayrollEntity {
     return this.total;
   }
 
- public getGrossSalary(): number {
+  public getGrossSalary(): number {
     return this.baseSalary + this.bonuses;
   }
 

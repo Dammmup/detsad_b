@@ -4,24 +4,24 @@ import { IUser } from '../users/model';
 import { createModelFactory } from '../../config/database';
 
 export interface IChildPayment extends Document {
-  childId?: mongoose.Types.ObjectId; // Ссылка на ребенка, если оплата от ребенка
-  userId?: mongoose.Types.ObjectId; // Ссылка на пользователя, если оплата от другого пользователя
+  childId?: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
   period: {
     start: Date;
     end: Date;
-  }; // период оплаты в виде объекта с датами начала и конца
-  amount: number; // Сумма оплаты
-  total: number; // Общая сумма к оплате
-  status: 'active' | 'overdue' | 'paid' | 'draft'; // Статус оплаты
- latePenalties?: number; // Штрафы за просрочку
-  absencePenalties?: number; // Штрафы за неявки
-  penalties?: number; // Общие штрафы
- latePenaltyRate?: number; // Ставка штрафа за просрочку
- accruals?: number; // Надбавки
-  deductions?: number; // Вычеты
-  comments?: string; // Комментарии
-  paidAmount?: number; // Оплаченная сумма
-  paymentDate?: Date; // Дата оплаты
+  };
+  amount: number;
+  total: number;
+  status: 'active' | 'overdue' | 'paid' | 'draft';
+  latePenalties?: number;
+  absencePenalties?: number;
+  penalties?: number;
+  latePenaltyRate?: number;
+  accruals?: number;
+  deductions?: number;
+  comments?: string;
+  paidAmount?: number;
+  paymentDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,15 +73,15 @@ const ChildPaymentSchema = new Schema<IChildPayment>({
   timestamps: true
 });
 
-// Валидация: либо childId, либо userId должен быть указан
-ChildPaymentSchema.pre('validate', function(next) {
+
+ChildPaymentSchema.pre('validate', function (next) {
   if (!this.childId && !this.userId) {
     this.invalidate('childId', 'Either childId or userId must be specified');
   }
   next();
 });
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createChildPaymentModel = createModelFactory<IChildPayment>(
   'ChildPayment',
   ChildPaymentSchema,
@@ -89,5 +89,5 @@ const createChildPaymentModel = createModelFactory<IChildPayment>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createChildPaymentModel;

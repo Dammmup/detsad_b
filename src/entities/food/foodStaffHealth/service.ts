@@ -1,8 +1,8 @@
 import FoodStaffHealth from './model';
 import { IFoodStaffHealth } from './model';
-import User from '../../users/model'; // Using the user model
+import User from '../../users/model';
 
-// Отложенное создание моделей
+
 let FoodStaffHealthModel: any = null;
 let UserModel: any = null;
 
@@ -23,13 +23,13 @@ const getUserModel = () => {
 export class FoodStaffHealthService {
   async getAll(filters: { staffId?: string, date?: string, doctorId?: string, status?: string, healthStatus?: string, vaccinationStatus?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
-    
+
     if (filters.staffId) filter.staffId = filters.staffId;
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
     if (filters.healthStatus) filter.healthStatus = filters.healthStatus;
     if (filters.vaccinationStatus) filter.vaccinationStatus = filters.vaccinationStatus;
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -37,12 +37,12 @@ export class FoodStaffHealthService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const records = await getFoodStaffHealthModel().find(filter)
       .populate('staffId', 'fullName role')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return records;
   }
 
@@ -50,16 +50,16 @@ export class FoodStaffHealthService {
     const record = await getFoodStaffHealthModel().findById(id)
       .populate('staffId', 'fullName role')
       .populate('doctor', 'fullName role');
-    
+
     if (!record) {
       throw new Error('Запись здоровья сотрудника не найдена');
     }
-    
+
     return record;
   }
 
   async create(recordData: Partial<IFoodStaffHealth>, userId: string) {
-    // Проверяем обязательные поля
+
     if (!recordData.staffId) {
       throw new Error('Не указан сотрудник');
     }
@@ -90,31 +90,31 @@ export class FoodStaffHealthService {
     if (!recordData.doctor) {
       throw new Error('Не указан врач');
     }
-    
-    // Проверяем существование сотрудника
+
+
     const staff = await getUserModel().findById(recordData.staffId);
     if (!staff) {
       throw new Error('Сотрудник не найден');
     }
-    
-    // Проверяем существование врача
+
+
     const doctor = await getUserModel().findById(recordData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
-    
+
     const foodStaffHealthModel = getFoodStaffHealthModel();
     const record = new foodStaffHealthModel({
       ...recordData,
-      doctor: userId // Врач - текущий пользователь
+      doctor: userId
     });
-    
+
     await record.save();
-    
+
     const populatedRecord = await foodStaffHealthModel.findById(record._id)
       .populate('staffId', 'fullName role')
       .populate('doctor', 'fullName role');
-    
+
     return populatedRecord;
   }
 
@@ -124,33 +124,33 @@ export class FoodStaffHealthService {
       data,
       { new: true }
     ).populate('staffId', 'fullName role')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!updatedRecord) {
       throw new Error('Запись здоровья сотрудника не найдена');
     }
-    
+
     return updatedRecord;
   }
 
   async delete(id: string) {
     const result = await getFoodStaffHealthModel().findByIdAndDelete(id);
-    
+
     if (!result) {
       throw new Error('Запись здоровья сотрудника не найдена');
     }
-    
+
     return { message: 'Запись здоровья сотрудника успешно удалена' };
   }
 
   async getByStaffId(staffId: string, filters: { date?: string, doctorId?: string, status?: string, healthStatus?: string, vaccinationStatus?: string, startDate?: string, endDate?: string }) {
     const filter: any = { staffId };
-    
+
     if (filters.doctorId) filter.doctor = filters.doctorId;
     if (filters.status) filter.status = filters.status;
     if (filters.healthStatus) filter.healthStatus = filters.healthStatus;
     if (filters.vaccinationStatus) filter.vaccinationStatus = filters.vaccinationStatus;
-    
+
     if (filters.date) {
       filter.date = new Date(filters.date);
     } else if (filters.startDate || filters.endDate) {
@@ -158,34 +158,34 @@ export class FoodStaffHealthService {
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const records = await getFoodStaffHealthModel().find(filter)
       .populate('staffId', 'fullName role')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return records;
   }
 
   async getByDoctorId(doctorId: string, filters: { staffId?: string, status?: string, healthStatus?: string, vaccinationStatus?: string, startDate?: string, endDate?: string }) {
     const filter: any = { doctor: doctorId };
-    
+
     if (filters.staffId) filter.staffId = filters.staffId;
     if (filters.status) filter.status = filters.status;
     if (filters.healthStatus) filter.healthStatus = filters.healthStatus;
     if (filters.vaccinationStatus) filter.vaccinationStatus = filters.vaccinationStatus;
-    
+
     if (filters.startDate || filters.endDate) {
       filter.date = {};
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
-    
+
     const records = await getFoodStaffHealthModel().find(filter)
       .populate('staffId', 'fullName role')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
-    
+
     return records;
   }
 
@@ -193,7 +193,7 @@ export class FoodStaffHealthService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const records = await getFoodStaffHealthModel().find({
       nextMedicalCommissionDate: {
         $gte: today,
@@ -201,10 +201,10 @@ export class FoodStaffHealthService {
       },
       status: { $ne: 'completed' }
     })
-    .populate('staffId', 'fullName role')
-    .populate('doctor', 'fullName role')
-    .sort({ nextMedicalCommissionDate: 1 });
-    
+      .populate('staffId', 'fullName role')
+      .populate('doctor', 'fullName role')
+      .sort({ nextMedicalCommissionDate: 1 });
+
     return records;
   }
 
@@ -212,7 +212,7 @@ export class FoodStaffHealthService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const records = await getFoodStaffHealthModel().find({
       nextSanitaryMinimumDate: {
         $gte: today,
@@ -220,10 +220,10 @@ export class FoodStaffHealthService {
       },
       status: { $ne: 'completed' }
     })
-    .populate('staffId', 'fullName role')
-    .populate('doctor', 'fullName role')
-    .sort({ nextSanitaryMinimumDate: 1 });
-    
+      .populate('staffId', 'fullName role')
+      .populate('doctor', 'fullName role')
+      .sort({ nextSanitaryMinimumDate: 1 });
+
     return records;
   }
 
@@ -231,7 +231,7 @@ export class FoodStaffHealthService {
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
-    
+
     const records = await getFoodStaffHealthModel().find({
       nextVaccinationDate: {
         $gte: today,
@@ -239,10 +239,10 @@ export class FoodStaffHealthService {
       },
       vaccinationStatus: { $ne: 'up_to_date' }
     })
-    .populate('staffId', 'fullName role')
-    .populate('doctor', 'fullName role')
-    .sort({ nextVaccinationDate: 1 });
-    
+      .populate('staffId', 'fullName role')
+      .populate('doctor', 'fullName role')
+      .sort({ nextVaccinationDate: 1 });
+
     return records;
   }
 
@@ -252,12 +252,12 @@ export class FoodStaffHealthService {
       { status },
       { new: true }
     ).populate('staffId', 'fullName role')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!record) {
       throw new Error('Запись здоровья сотрудника не найдена');
     }
-    
+
     return record;
   }
 
@@ -267,12 +267,12 @@ export class FoodStaffHealthService {
       { recommendations },
       { new: true }
     ).populate('staffId', 'fullName role')
-     .populate('doctor', 'fullName role');
-    
+      .populate('doctor', 'fullName role');
+
     if (!record) {
       throw new Error('Запись здоровья сотрудника не найдена');
     }
-    
+
     return record;
   }
 
@@ -288,7 +288,7 @@ export class FoodStaffHealthService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const vaccinationStats = await getFoodStaffHealthModel().aggregate([
       {
         $group: {
@@ -300,7 +300,7 @@ export class FoodStaffHealthService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const statusStats = await getFoodStaffHealthModel().aggregate([
       {
         $group: {
@@ -312,9 +312,9 @@ export class FoodStaffHealthService {
         $sort: { count: -1 }
       }
     ]);
-    
+
     const total = await getFoodStaffHealthModel().countDocuments();
-    
+
     return {
       total,
       byHealthStatus: healthStats.reduce((acc, stat) => {

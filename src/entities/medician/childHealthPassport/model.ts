@@ -141,7 +141,7 @@ const ChildHealthPassportSchema = new Schema<IChildHealthPassport>({
 });
 
 
-// Создаем фабрику модели для отложенного создания модели после подключения к базе данных
+
 const createChildHealthPassportModel = createModelFactory<IChildHealthPassport>(
   'ChildHealthPassport',
   ChildHealthPassportSchema,
@@ -149,5 +149,5 @@ const createChildHealthPassportModel = createModelFactory<IChildHealthPassport>(
   'default'
 );
 
-// Экспортируем фабрику, которая будет создавать модель после подключения
+
 export default createChildHealthPassportModel;

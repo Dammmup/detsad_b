@@ -5,16 +5,16 @@ import { authenticate } from '../../middlewares/authenticate';
 const router: Router = express.Router();
 const mainEventsService = new MainEventsService();
 
-// Получить все события
+
 router.get('/', authenticate, async (req, res) => {
   try {
     const { enabled } = req.query;
     const filters: any = {};
-    
+
     if (enabled !== undefined) {
       filters.enabled = enabled === 'true';
     }
-    
+
     const mainEvents = await mainEventsService.getAll(filters);
     res.json(mainEvents);
   } catch (error: any) {
@@ -22,7 +22,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// Получить событие по ID
+
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.getById(req.params.id);
@@ -32,7 +32,7 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Создать новое событие
+
 router.post('/', authenticate, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.create(req.body);
@@ -42,7 +42,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// Обновить событие
+
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.update(req.params.id, req.body);
@@ -52,7 +52,7 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Удалить событие
+
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const result = await mainEventsService.delete(req.params.id);
@@ -62,7 +62,7 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Переключить активность события
+
 router.patch('/:id/toggle-enabled', authenticate, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.toggleEnabled(req.params.id, req.body.enabled);
@@ -72,7 +72,7 @@ router.patch('/:id/toggle-enabled', authenticate, async (req, res) => {
   }
 });
 
-// Выполнить ручной экспорт для события
+
 router.post('/:id/export', authenticate, async (req, res) => {
   try {
     const result = await mainEventsService.executeScheduledExport(req.params.id);
@@ -82,7 +82,7 @@ router.post('/:id/export', authenticate, async (req, res) => {
   }
 });
 
-// Выполнить проверку и выполнение всех активных событий
+
 router.post('/execute-scheduled', authenticate, async (req, res) => {
   try {
     const results = await mainEventsService.checkAndExecuteScheduledEvents();
