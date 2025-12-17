@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { MantouxJournalService } from './service';
+import { AuthenticatedRequest } from '../../../types/express';
 
 
 let mantouxJournalService: MantouxJournalService | null = null;
@@ -11,7 +12,7 @@ const getMantouxJournalService = (): MantouxJournalService => {
   return mantouxJournalService;
 };
 
-export const getAllMantouxJournals = async (req: Request, res: Response) => {
+export const getAllMantouxJournals = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -36,7 +37,7 @@ export const getAllMantouxJournals = async (req: Request, res: Response) => {
   }
 };
 
-export const getMantouxJournalById = async (req: Request, res: Response) => {
+export const getMantouxJournalById = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -50,7 +51,7 @@ export const getMantouxJournalById = async (req: Request, res: Response) => {
   }
 };
 
-export const createMantouxJournal = async (req: Request, res: Response) => {
+export const createMantouxJournal = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -64,7 +65,7 @@ export const createMantouxJournal = async (req: Request, res: Response) => {
   }
 };
 
-export const updateMantouxJournal = async (req: Request, res: Response) => {
+export const updateMantouxJournal = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -78,7 +79,7 @@ export const updateMantouxJournal = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteMantouxJournal = async (req: Request, res: Response) => {
+export const deleteMantouxJournal = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -92,7 +93,7 @@ export const deleteMantouxJournal = async (req: Request, res: Response) => {
   }
 };
 
-export const getMantouxJournalsByChildId = async (req: Request, res: Response) => {
+export const getMantouxJournalsByChildId = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -117,7 +118,7 @@ export const getMantouxJournalsByChildId = async (req: Request, res: Response) =
   }
 };
 
-export const getMantouxJournalsByDoctorId = async (req: Request, res: Response) => {
+export const getMantouxJournalsByDoctorId = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -141,7 +142,7 @@ export const getMantouxJournalsByDoctorId = async (req: Request, res: Response) 
   }
 };
 
-export const getUpcomingAppointments = async (req: Request, res: Response) => {
+export const getUpcomingAppointments = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -158,7 +159,7 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
   }
 };
 
-export const updateMantouxJournalStatus = async (req: Request, res: Response) => {
+export const updateMantouxJournalStatus = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -167,7 +168,7 @@ export const updateMantouxJournalStatus = async (req: Request, res: Response) =>
     const { status } = req.body;
 
     if (!status) {
-      return res.status(400).json({ error: 'Не указан статус' });
+      return res.status(40).json({ error: 'Не указан статус' });
     }
 
     const journal = await getMantouxJournalService().updateStatus(req.params.id, status);
@@ -178,7 +179,7 @@ export const updateMantouxJournalStatus = async (req: Request, res: Response) =>
   }
 };
 
-export const addMantouxJournalRecommendations = async (req: Request, res: Response) => {
+export const addMantouxJournalRecommendations = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -198,7 +199,7 @@ export const addMantouxJournalRecommendations = async (req: Request, res: Respon
   }
 };
 
-export const getMantouxJournalStatistics = async (req: Request, res: Response) => {
+export const getMantouxJournalStatistics = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

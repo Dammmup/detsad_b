@@ -58,11 +58,11 @@ export const initializeTaskScheduler = () => {
   });
 
 
-  cron.schedule('0 10 * * *', async () => {
+  cron.schedule('0 11 * * *', async () => {
     try {
       const now = new Date();
       const timeInAstana = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
-      if (timeInAstana.getHours() === 10) {
+      if (timeInAstana.getHours() === 11) {
         const shifts = await Shift().find({ date: now.toISOString().split('T')[0] });
         const attendanceRecords = await StaffAttendanceTracking().find({
           date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 59, 999)) },
@@ -71,7 +71,7 @@ export const initializeTaskScheduler = () => {
         const users = await User().find({
           _id: { $in: shifts.map(shift => shift.staffId) }
         });
-        await sendLogToTelegram(`В 10:00 по времени Астаны: отмечен приход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
+        await sendLogToTelegram(`В 11:00 по времени Астаны: отмечен приход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
       }
     } catch (error) {
       console.error('Ошибка при отправке уведомления о приходе сотрудников:', error);

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { SomaticJournalService } from './service';
+import { AuthenticatedRequest } from '../../../types/express';
 
 
 let somaticJournalService: SomaticJournalService | null = null;
@@ -11,7 +12,7 @@ const getSomaticJournalService = (): SomaticJournalService => {
   return somaticJournalService;
 };
 
-export const getAllSomaticJournals = async (req: Request, res: Response) => {
+export const getAllSomaticJournals = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -35,7 +36,7 @@ export const getAllSomaticJournals = async (req: Request, res: Response) => {
   }
 };
 
-export const getSomaticJournalById = async (req: Request, res: Response) => {
+export const getSomaticJournalById = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -49,7 +50,7 @@ export const getSomaticJournalById = async (req: Request, res: Response) => {
   }
 };
 
-export const createSomaticJournal = async (req: Request, res: Response) => {
+export const createSomaticJournal = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -63,7 +64,7 @@ export const createSomaticJournal = async (req: Request, res: Response) => {
   }
 };
 
-export const updateSomaticJournal = async (req: Request, res: Response) => {
+export const updateSomaticJournal = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -77,7 +78,7 @@ export const updateSomaticJournal = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteSomaticJournal = async (req: Request, res: Response) => {
+export const deleteSomaticJournal = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -91,7 +92,7 @@ export const deleteSomaticJournal = async (req: Request, res: Response) => {
   }
 };
 
-export const getSomaticJournalsByChildId = async (req: Request, res: Response) => {
+export const getSomaticJournalsByChildId = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -115,7 +116,7 @@ export const getSomaticJournalsByChildId = async (req: Request, res: Response) =
   }
 };
 
-export const getSomaticJournalsByDoctorId = async (req: Request, res: Response) => {
+export const getSomaticJournalsByDoctorId = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -138,7 +139,7 @@ export const getSomaticJournalsByDoctorId = async (req: Request, res: Response) 
   }
 };
 
-export const getUpcomingAppointments = async (req: Request, res: Response) => {
+export const getUpcomingAppointments = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -155,7 +156,7 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
   }
 };
 
-export const updateSomaticJournalStatus = async (req: Request, res: Response) => {
+export const updateSomaticJournalStatus = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -175,7 +176,7 @@ export const updateSomaticJournalStatus = async (req: Request, res: Response) =>
   }
 };
 
-export const addSomaticJournalRecommendations = async (req: Request, res: Response) => {
+export const addSomaticJournalRecommendations = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -195,7 +196,7 @@ export const addSomaticJournalRecommendations = async (req: Request, res: Respon
   }
 };
 
-export const getSomaticJournalStatistics = async (req: Request, res: Response) => {
+export const getSomaticJournalStatistics = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

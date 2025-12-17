@@ -20,7 +20,7 @@ export interface IMantouxJournal extends Document {
 const MantouxJournalSchema = new Schema<IMantouxJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },
@@ -79,7 +79,7 @@ const createMantouxJournalModel = createModelFactory<IMantouxJournal>(
   'MantouxJournal',
   MantouxJournalSchema,
   'mantoux_journals',
-  'medical'
+  'default'
 );
 
 

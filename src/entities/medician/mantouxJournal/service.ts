@@ -1,10 +1,24 @@
 import MantouxJournal from './model';
 import { IMantouxJournal } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
+interface IMantouxJournalInput extends Partial<Omit<IMantouxJournal, 'reactionSize'>> {
+  year?: string;
+  mm?: number;
+  fio?: string;
+  address?: string;
+  atr?: string;
+  birthdate?: string;
+  diagnosis?: string;
+  has063?: boolean;
+  reactionSize: number;
+  // reactionSize теперь обязательное поле через основной интерфейс
+}
 
 const getMantouxJournalModel = () => MantouxJournal();
 const getUserModel = () => User();
+const getChildModel = () => Child();
 
 export class MantouxJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, reactionType?: string, startDate?: string, endDate?: string }) {
@@ -43,14 +57,23 @@ export class MantouxJournalService {
     return journal;
   }
 
-  async create(journalData: Partial<IMantouxJournal>, userId: string) {
+  async create(journalData: IMantouxJournalInput, userId: string) {
 
     if (!journalData.childId) {
       throw new Error('Не указан ребенок');
     }
+
+    // Если дата не указана, но указан год, используем текущую дату или дату начала года
     if (!journalData.date) {
-      throw new Error('Не указана дата');
+      if (journalData.year) {
+        // Если есть год, создаем дату с этим годом и текущим месяцем/днем
+        journalData.date = new Date(`${journalData.year}-01-01`);
+      } else {
+        // Если нет ни даты, ни года, используем текущую дату
+        journalData.date = new Date();
+      }
     }
+
     if (journalData.reactionSize === undefined) {
       throw new Error('Не указан размер реакции');
     }
@@ -60,12 +83,14 @@ export class MantouxJournalService {
     if (!journalData.injectionSite) {
       throw new Error('Не указано место инъекции');
     }
+
     if (!journalData.doctor) {
-      throw new Error('Не указан врач');
+      // Используем userId как значение по умолчанию для врача
+      journalData.doctor = userId as any;
     }
 
 
-    const child = await getUserModel().findById(journalData.childId);
+    const child = await getChildModel().findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
@@ -78,7 +103,7 @@ export class MantouxJournalService {
 
     const journal = new (getMantouxJournalModel())({
       ...journalData,
-      doctor: userId
+      doctor: journalData.doctor || userId
     });
 
     await journal.save();
@@ -90,7 +115,12 @@ export class MantouxJournalService {
     return populatedJournal;
   }
 
-  async update(id: string, data: Partial<IMantouxJournal>) {
+  async update(id: string, data: IMantouxJournalInput) {
+    // Если дата не указана, но указан год, используем его
+    if (!data.date && data.year) {
+      data.date = new Date(`${data.year}-01-01`);
+    }
+
     const updatedJournal = await getMantouxJournalModel().findByIdAndUpdate(
       id,
       data,
