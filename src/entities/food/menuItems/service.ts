@@ -1,12 +1,13 @@
-import createMenuItemModel from './model';
-import { IMenuItem } from './model';
+
+
+import MenuItem, { IMenuItem } from './model';
 
 
 let MenuItemModel: any = null;
 
 const getMenuItemModel = () => {
   if (!MenuItemModel) {
-    MenuItemModel = createMenuItemModel();
+    MenuItemModel = MenuItem;
   }
   return MenuItemModel;
 };
@@ -21,7 +22,7 @@ export class MenuItemsService {
     if (filters.isAvailable !== undefined) filter.isAvailable = filters.isAvailable;
     if (filters.createdBy) filter.createdBy = filters.createdBy;
 
-    const menuItems = await getMenuItemModel().find(filter)
+    const menuItems = await MenuItem.find(filter)
       .populate('createdBy', 'fullName role')
       .sort({ weekNumber: 1, dayOfWeek: 1, category: 1 });
 
@@ -29,7 +30,7 @@ export class MenuItemsService {
   }
 
   async getById(id: string) {
-    const menuItem = await getMenuItemModel().findById(id)
+    const menuItem = await MenuItem.findById(id)
       .populate('createdBy', 'fullName role');
 
     if (!menuItem) {
@@ -57,17 +58,17 @@ export class MenuItemsService {
       throw new Error('Не указан создатель');
     }
 
-    const menuItem = new (getMenuItemModel())(menuItemData);
+    const menuItem = new MenuItem(menuItemData);
     await menuItem.save();
 
-    const populatedMenuItem = await getMenuItemModel().findById(menuItem._id)
+    const populatedMenuItem = await MenuItem.findById(menuItem._id)
       .populate('createdBy', 'fullName role');
 
     return populatedMenuItem;
   }
 
   async update(id: string, data: Partial<IMenuItem>) {
-    const updatedMenuItem = await getMenuItemModel().findByIdAndUpdate(
+    const updatedMenuItem = await MenuItem.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -81,7 +82,7 @@ export class MenuItemsService {
   }
 
   async delete(id: string) {
-    const result = await getMenuItemModel().findByIdAndDelete(id);
+    const result = await MenuItem.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Пункт меню не найден');
@@ -97,7 +98,7 @@ export class MenuItemsService {
       filter.weekNumber = weekNumber;
     }
 
-    const menuItems = await getMenuItemModel().find(filter)
+    const menuItems = await MenuItem.find(filter)
       .populate('createdBy', 'fullName role')
       .sort({ weekNumber: 1 });
 
@@ -105,7 +106,7 @@ export class MenuItemsService {
   }
 
   async getWeeklyMenu(weekNumber: number) {
-    const menu = await getMenuItemModel().find({ weekNumber })
+    const menu = await MenuItem.find({ weekNumber })
       .populate('createdBy', 'fullName role')
       .sort({ dayOfWeek: 1, category: 1 });
 
@@ -133,7 +134,7 @@ export class MenuItemsService {
   }
 
   async toggleAvailability(id: string) {
-    const menuItem = await getMenuItemModel().findById(id);
+    const menuItem = await MenuItem.findById(id);
 
     if (!menuItem) {
       throw new Error('Пункт меню не найден');
@@ -142,7 +143,7 @@ export class MenuItemsService {
     menuItem.isAvailable = !menuItem.isAvailable;
     await menuItem.save();
 
-    const populatedMenuItem = await getMenuItemModel().findById(menuItem._id)
+    const populatedMenuItem = await MenuItem.findById(menuItem._id)
       .populate('createdBy', 'fullName role');
 
     return populatedMenuItem;
@@ -157,7 +158,7 @@ export class MenuItemsService {
       filter.category = category;
     }
 
-    const menuItems = await getMenuItemModel().find(filter)
+    const menuItems = await MenuItem.find(filter)
       .populate('createdBy', 'fullName role')
       .sort({ name: 1 });
 
@@ -165,7 +166,7 @@ export class MenuItemsService {
   }
 
   async getByAllergen(allergen: string) {
-    const menuItems = await getMenuItemModel().find({
+    const menuItems = await MenuItem.find({
       allergens: { $in: [allergen] }
     })
       .populate('createdBy', 'fullName role')
@@ -175,7 +176,7 @@ export class MenuItemsService {
   }
 
   async getNutritionalStatistics() {
-    const stats = await getMenuItemModel().aggregate([
+    const stats = await MenuItem.aggregate([
       {
         $group: {
           _id: null,

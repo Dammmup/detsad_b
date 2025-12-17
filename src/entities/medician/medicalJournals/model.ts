@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IMedicalJournal extends Document {
   childId: mongoose.Types.ObjectId;
   type: 'somatic' | 'mantoux' | 'helminth' | 'infectious' | 'tubPositive' | 'riskGroup';
@@ -56,12 +54,4 @@ const MedicalJournalSchema = new Schema<IMedicalJournal>({
 });
 
 
-const createMedicalJournalModel = createModelFactory<IMedicalJournal>(
-  'MedicalJournal',
-  MedicalJournalSchema,
-  'medical_journals',
-  'medical'
-);
-
-
-export default createMedicalJournalModel;
+export default mongoose.model<IMedicalJournal>('MedicalJournal', MedicalJournalSchema, 'medical_journals');

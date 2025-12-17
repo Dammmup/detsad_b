@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IProductCertificate extends Document {
   productId: mongoose.Types.ObjectId;
   productName: string;
@@ -165,12 +163,4 @@ const ProductCertificateSchema = new Schema<IProductCertificate>({
 });
 
 
-const createProductCertificateModel = createModelFactory<IProductCertificate>(
-  'ProductCertificate',
-  ProductCertificateSchema,
-  'product_certificates',
-  'food'
-);
-
-
-export default createProductCertificateModel;
+export default mongoose.model<IProductCertificate>('ProductCertificate', ProductCertificateSchema, 'product_certificates');

@@ -5,11 +5,11 @@ import Child from '../children/model';
 
 export class GroupService {
   private get groupModel() {
-    return Group();
+    return Group;
   }
 
   private get childModel() {
-    return Child();
+    return Child;
   }
   async getAll(userId?: string, role?: string): Promise<any[]> {
 

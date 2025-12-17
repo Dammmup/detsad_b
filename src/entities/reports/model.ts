@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IReport extends Document {
   title: string;
   description?: string;
@@ -62,11 +60,4 @@ const ReportSchema = new Schema<IReport>({
 
 
 
-const createReportModel = createModelFactory<IReport>(
-  'Report',
-  ReportSchema,
-  'reports',
-  'default'
-);
-
-export default createReportModel;
+export default mongoose.model<IReport>('Report', ReportSchema, 'reports');

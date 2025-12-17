@@ -20,7 +20,7 @@ router.post('/webhook', async (req, res) => {
         const code = match[1];
         console.log(`Extracted code from message: "${code}"`);
 
-        const userModel = User();
+        const userModel = User;
         const user = await userModel.findOne({ telegramLinkCode: code });
         if (user) {
           console.log(`Valid code found. Linking chatId ${chatId} to user ${user._id}`);

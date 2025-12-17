@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IShift extends Document {
   staffId: mongoose.Types.ObjectId;
   date: string;
@@ -85,15 +83,7 @@ Shiftschema.methods.getScheduledMinutes = function () {
 };
 
 
-const createShiftModel = createModelFactory<IShift>(
-  'Shift',
-  Shiftschema,
-  'shifts',
-  'default'
-);
-
-
-export default createShiftModel;
+export default mongoose.model<IShift>('Shift', Shiftschema, 'shifts');
 
 
 import '../users/model';

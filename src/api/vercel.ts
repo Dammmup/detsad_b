@@ -3,38 +3,35 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Флаг для отслеживания инициализации
 let isInitialized = false;
 let appInstance: any = null;
 
-// Инициализация базы данных и загрузка приложения
 const initialize = async () => {
     if (isInitialized && appInstance) {
         return appInstance;
     }
 
     try {
-        console.log('🔄 Инициализация моделей для Vercel...');
+        console.log('🔄 Connecting to database for Vercel...');
 
-        // ВАЖНО: Сначала инициализируем модели
-        const { initializeModels } = await import('../config/modelRegistry');
-        await initializeModels();
+        // Подключаемся к БД
+        const { connectDB } = await import('../config/database');
+        await connectDB();
 
-        console.log('✅ Модели успешно инициализированы');
+        console.log('✅ Database connected');
 
-        // Только ПОСЛЕ инициализации импортируем app
+        // Импортируем app после подключения БД
         const { default: app } = await import('../app');
         appInstance = app;
         isInitialized = true;
 
         return appInstance;
     } catch (error) {
-        console.error('❌ Ошибка инициализации:', error);
+        console.error('❌ Initialization error:', error);
         throw error;
     }
 };
 
-// Экспорт для Vercel Serverless Function
 export default async function handler(req: Request, res: Response) {
     try {
         const app = await initialize();
@@ -42,7 +39,7 @@ export default async function handler(req: Request, res: Response) {
     } catch (error: any) {
         console.error('Handler error:', error);
         return res.status(500).json({
-            error: 'Database initialization failed',
+            error: 'Server initialization failed',
             message: error.message
         });
     }

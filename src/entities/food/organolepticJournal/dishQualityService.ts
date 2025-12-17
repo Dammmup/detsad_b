@@ -1,13 +1,9 @@
-import createDishQualityAssessmentModel, { IDishQualityAssessment } from './dishQualityModel';
+import DishQualityAssessment, { IDishQualityAssessment } from './dishQualityModel';
 import { MenuItemsService } from '../menuItems/service';
 
-let DishQualityModel: any = null;
 
 const getDishQualityModel = () => {
-    if (!DishQualityModel) {
-        DishQualityModel = createDishQualityAssessmentModel();
-    }
-    return DishQualityModel;
+    return DishQualityAssessment;
 };
 
 const menuItemsService = new MenuItemsService();

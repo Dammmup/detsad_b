@@ -1,8 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IChild } from '../children/model';
 import { IUser } from '../users/model';
-import { createModelFactory } from '../../config/database';
-
 export interface IChildPayment extends Document {
   childId?: mongoose.Types.ObjectId;
   userId?: mongoose.Types.ObjectId;
@@ -82,12 +80,4 @@ ChildPaymentSchema.pre('validate', function (next) {
 });
 
 
-const createChildPaymentModel = createModelFactory<IChildPayment>(
-  'ChildPayment',
-  ChildPaymentSchema,
-  'childPayments',
-  'default'
-);
-
-
-export default createChildPaymentModel;
+export default mongoose.model<IChildPayment>('ChildPayment', ChildPaymentSchema, 'childPayments');

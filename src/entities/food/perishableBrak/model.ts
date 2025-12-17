@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IPerishableBrak extends Document {
   productId: mongoose.Types.ObjectId;
   productName: string;
@@ -104,12 +102,4 @@ const PerishableBrakSchema = new Schema<IPerishableBrak>({
 });
 
 
-const createPerishableBrakModel = createModelFactory<IPerishableBrak>(
-  'PerishableBrak',
-  PerishableBrakSchema,
-  'perishable_braks',
-  'food'
-);
-
-
-export default createPerishableBrakModel;
+export default mongoose.model<IPerishableBrak>('PerishableBrak', PerishableBrakSchema, 'perishable_braks');

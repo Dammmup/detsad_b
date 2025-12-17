@@ -1,6 +1,4 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IMainEvent extends Document {
   name: string;
   description: string;
@@ -53,11 +51,4 @@ const MainEventSchema: Schema = new Schema({
 });
 
 
-const createMainEventModel = createModelFactory<IMainEvent>(
-  'MainEvent',
-  MainEventSchema,
-  'mainEvents',
-  'default'
-);
-
-export default createMainEventModel;
+export default mongoose.model<IMainEvent>('MainEvent', MainEventSchema, 'mainEvents');

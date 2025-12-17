@@ -148,13 +148,13 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
     let tenants;
     if (tenantIds && Array.isArray(tenantIds) && tenantIds.length > 0) {
 
-      tenants = await User().find({
+      tenants = await User.find({
         _id: { $in: tenantIds },
         role: { $ne: 'admin' }
       });
     } else {
 
-      tenants = await User().find({ role: { $ne: 'admin' } });
+      tenants = await User.find({ role: { $ne: 'admin' } });
     }
 
 

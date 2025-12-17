@@ -6,7 +6,7 @@ let MedicalJournalModel: any = null;
 
 const getMedicalJournalModel = () => {
   if (!MedicalJournalModel) {
-    MedicalJournalModel = MedicalJournal();
+    MedicalJournalModel = MedicalJournal;
   }
   return MedicalJournalModel;
 };
@@ -26,7 +26,7 @@ export class MedicalJournalsService {
       if (filters.toDate) filter.date.$lte = new Date(filters.toDate);
     }
 
-    const journals = await getMedicalJournalModel().find(filter)
+    const journals = await MedicalJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -35,7 +35,7 @@ export class MedicalJournalsService {
   }
 
   async getById(id: string) {
-    const journal = await getMedicalJournalModel().findById(id)
+    const journal = await MedicalJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -64,7 +64,7 @@ export class MedicalJournalsService {
       throw new Error('Не указан врач');
     }
 
-    const medicalJournalModel = getMedicalJournalModel();
+    const medicalJournalModel = MedicalJournal;
     const journal = new medicalJournalModel(journalData);
     await journal.save();
 
@@ -76,7 +76,7 @@ export class MedicalJournalsService {
   }
 
   async update(id: string, data: Partial<IMedicalJournal>) {
-    const updatedJournal = await getMedicalJournalModel().findByIdAndUpdate(
+    const updatedJournal = await MedicalJournal.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -91,7 +91,7 @@ export class MedicalJournalsService {
   }
 
   async delete(id: string) {
-    const result = await getMedicalJournalModel().findByIdAndDelete(id);
+    const result = await MedicalJournal.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Медицинская запись не найдена');
@@ -101,7 +101,7 @@ export class MedicalJournalsService {
   }
 
   async getByChildAndType(childId: string, type: string) {
-    const journals = await getMedicalJournalModel().find({ childId, type })
+    const journals = await MedicalJournal.find({ childId, type })
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -114,7 +114,7 @@ export class MedicalJournalsService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const journals = await getMedicalJournalModel().find({
+    const journals = await MedicalJournal.find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
@@ -128,7 +128,7 @@ export class MedicalJournalsService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await getMedicalJournalModel().findByIdAndUpdate(
+    const journal = await MedicalJournal.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -143,7 +143,7 @@ export class MedicalJournalsService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const journal = await getMedicalJournalModel().findByIdAndUpdate(
+    const journal = await MedicalJournal.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -158,7 +158,7 @@ export class MedicalJournalsService {
   }
 
   async getStatistics() {
-    const stats = await getMedicalJournalModel().aggregate([
+    const stats = await MedicalJournal.aggregate([
       {
         $group: {
           _id: '$type',
@@ -170,7 +170,7 @@ export class MedicalJournalsService {
       }
     ]);
 
-    const total = await getMedicalJournalModel().countDocuments();
+    const total = await MedicalJournal.countDocuments();
 
     return {
       total,

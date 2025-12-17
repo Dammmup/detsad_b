@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IOrganolepticJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -139,12 +137,4 @@ const OrganolepticJournalSchema = new Schema<IOrganolepticJournal>({
 });
 
 
-const createOrganolepticJournalModel = createModelFactory<IOrganolepticJournal>(
-  'OrganolepticJournal',
-  OrganolepticJournalSchema,
-  'organoleptic_journals',
-  'food'
-);
-
-
-export default createOrganolepticJournalModel;
+export default mongoose.model<IOrganolepticJournal>('OrganolepticJournal', OrganolepticJournalSchema, 'organoleptic_journals');

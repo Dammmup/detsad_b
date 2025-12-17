@@ -23,7 +23,7 @@ export class ChildAttendanceService {
         filter.groupId = filters.groupId;
       } else {
 
-        const teacherGroups = await Group().find({ teacherId: userId });
+        const teacherGroups = await Group.find({ teacherId: userId });
         filter.groupId = { $in: teacherGroups.map(g => g._id) };
       }
     } else if (filters.groupId) {
@@ -58,7 +58,7 @@ export class ChildAttendanceService {
       filter.status = filters.status;
     }
 
-    const attendance = await ChildAttendance().find(filter)
+    const attendance = await ChildAttendance.find(filter)
       .sort({ date: -1, childId: 1 });
 
     return attendance;
@@ -79,7 +79,7 @@ export class ChildAttendanceService {
 
 
     const dateObj = new Date(`${date}T0:00:00.000Z`);
-    const existingRecord = await ChildAttendance().findOne({
+    const existingRecord = await ChildAttendance.findOne({
       childId,
       date: dateObj
     });
@@ -98,14 +98,14 @@ export class ChildAttendanceService {
     let attendance;
     if (existingRecord) {
 
-      attendance = await ChildAttendance().findOneAndUpdate(
+      attendance = await ChildAttendance.findOneAndUpdate(
         { childId, date: dateObj },
         newAttendanceData,
         { new: true }
       );
     } else {
 
-      attendance = new (ChildAttendance())(newAttendanceData);
+      attendance = new ChildAttendance(newAttendanceData);
       await attendance.save();
     }
 
@@ -113,8 +113,8 @@ export class ChildAttendanceService {
 
 
       if (this.adminChatId) {
-        const child = await Child().findById(childId);
-        const group = await Group().findById(groupId);
+        const child = await Child.findById(childId);
+        const group = await Group.findById(groupId);
         const statusMap: any = {
           present: 'присутствует',
           absent: 'отсутствует',
@@ -133,8 +133,8 @@ export class ChildAttendanceService {
 
 
       if (this.adminChatId) {
-        const child = await Child().findById(childId);
-        const group = await Group().findById(groupId);
+        const child = await Child.findById(childId);
+        const group = await Group.findById(groupId);
         const statusMap: any = {
           present: 'присутствует',
           absent: 'отсутствует',
@@ -195,7 +195,7 @@ export class ChildAttendanceService {
 
 
         const dateObj = new Date(`${date}T00:00:00.000Z`);
-        const existingRecord = await ChildAttendance().findOne({
+        const existingRecord = await ChildAttendance.findOne({
           childId: childObjectId,
           groupId: groupObjectId,
           date: dateObj
@@ -214,13 +214,13 @@ export class ChildAttendanceService {
 
         let attendance;
         if (existingRecord) {
-          attendance = await ChildAttendance().findByIdAndUpdate(
+          attendance = await ChildAttendance.findByIdAndUpdate(
             existingRecord._id,
             attendanceData,
             { new: true }
           );
         } else {
-          attendance = new (ChildAttendance())(attendanceData);
+          attendance = new ChildAttendance(attendanceData);
           await attendance.save();
         }
 
@@ -238,14 +238,14 @@ export class ChildAttendanceService {
     try {
 
       if (this.adminChatId && results.length > 0) {
-        const group = await Group().findById(groupId);
+        const group = await Group.findById(groupId);
         const statusMap: any = {
           present: 'присутствует',
           absent: 'отсутствует',
           sick: 'болеет',
           vacation: 'в отпуске'
         }
-        const childNames = await Child().find({ _id: { $in: results.map(r => r.childId) } }).select('fullName');
+        const childNames = await Child.find({ _id: { $in: results.map(r => r.childId) } }).select('fullName');
         const childNameMap = childNames.reduce((acc: any, child: any) => {
           acc[child._id.toString()] = child.fullName;
           return acc;
@@ -266,14 +266,14 @@ export class ChildAttendanceService {
 
 
       if (this.adminChatId && results.length > 0) {
-        const group = await Group().findById(groupId);
+        const group = await Group.findById(groupId);
         const statusMap: any = {
           present: 'присутствует',
           absent: 'отсутствует',
           sick: 'болеет',
           vacation: 'в отпуске'
         }
-        const childNames = await Child().find({ _id: { $in: results.map(r => r.childId) } }).select('fullName');
+        const childNames = await Child.find({ _id: { $in: results.map(r => r.childId) } }).select('fullName');
         const childNameMap = childNames.reduce((acc: any, child: any) => {
           acc[child._id.toString()] = child.fullName;
           return acc;
@@ -313,7 +313,7 @@ export class ChildAttendanceService {
       };
     }
 
-    const stats = await ChildAttendance().aggregate([
+    const stats = await ChildAttendance.aggregate([
       { $match: filter },
       {
         $group: {
@@ -323,7 +323,7 @@ export class ChildAttendanceService {
       }
     ]);
 
-    const totalRecords = await ChildAttendance().countDocuments(filter);
+    const totalRecords = await ChildAttendance.countDocuments(filter);
 
     const result = {
       total: totalRecords,
@@ -340,7 +340,7 @@ export class ChildAttendanceService {
   }
 
   async delete(id: string) {
-    const attendance = await ChildAttendance().findByIdAndDelete(id);
+    const attendance = await ChildAttendance.findByIdAndDelete(id);
 
     if (!attendance) {
       throw new Error('Запись не найдена');
@@ -350,8 +350,8 @@ export class ChildAttendanceService {
   }
 
   async debug() {
-    const totalRecords = await ChildAttendance().countDocuments();
-    const recentRecords = await ChildAttendance().find()
+    const totalRecords = await ChildAttendance.countDocuments();
+    const recentRecords = await ChildAttendance.find()
       .sort({ createdAt: -1 })
       .limit(5);
 
@@ -365,20 +365,20 @@ export class ChildAttendanceService {
 
   private async checkAttendancePermission(userId: string, groupId: string, date: string): Promise<boolean> {
 
-    const user = await User().findById(userId);
+    const user = await User.findById(userId);
     if (user && (user.role === 'admin' || user.role === 'manager')) {
       return true;
     }
 
 
-    const group = await Group().findById(groupId);
+    const group = await Group.findById(groupId);
     if (group && (group.teacherId?.toString() === userId || group.assistantId?.toString() === userId)) {
       return true;
     }
 
 
     const shiftDate = new Date(date).toISOString().split('T')[0];
-    const shift = await Shift().findOne({
+    const shift = await Shift.findOne({
       date: shiftDate,
       $or: [
         { staffId: new mongoose.Types.ObjectId(userId) },

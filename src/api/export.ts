@@ -28,7 +28,7 @@ router.post('/children', authMiddleware, authorizeRole(['admin', 'manager', 'tea
       query.groupId = filters.group;
     }
 
-    const children = await childrenApi().find(query).populate('groupId');
+    const children = await childrenApi.find(query).populate('groupId');
 
     if (format === 'excel') {
       const data = children.map((child: any) => ({
@@ -141,7 +141,7 @@ router.post('/groups', authMiddleware, authorizeRole(['admin', 'manager', 'teach
   try {
     const { format } = req.body;
 
-    const groups = await groupsApi().find({});
+    const groups = await groupsApi.find({});
 
     if (format === 'excel') {
       const data = groups.map((group: any) => ({
@@ -250,8 +250,8 @@ router.post('/children-attendance', authMiddleware, authorizeRole(['admin', 'man
       endDate
     }, (req as any).user.id, (req as any).user.role);
 
-    const children = await childrenApi().find(groupId ? { groupId } : {});
-    const groups = await groupsApi().find(groupId ? { _id: groupId } : {});
+    const children = await childrenApi.find(groupId ? { groupId } : {});
+    const groups = await groupsApi.find(groupId ? { _id: groupId } : {});
 
     const data = attendanceRecords.map((record: any) => {
       const child = children.find((c: any) => c._id.toString() === record.childId.toString());
@@ -407,7 +407,7 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
       query.role = 'tenant';
     }
 
-    const staff = await User().find(query);
+    const staff = await User.find(query);
 
     if (format === 'excel') {
       const data = staff.map((s: any) => ({
@@ -643,7 +643,7 @@ router.post('/staff-attendance-tracking', authMiddleware, authorizeRole(['admin'
 
     const attendanceRecords = await staffAttendanceTrackingService.getAll(filters);
 
-    const records = attendanceRecords.data.map((record: any) => ({
+    const records = (attendanceRecords as any[]).map((record: any) => ({
       staffName: record.staffId.fullName || 'Неизвестно',
       date: new Date(record.date).toLocaleDateString(),
       actualStart: record.actualStart ? new Date(record.actualStart).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '-',

@@ -26,7 +26,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   const timezone = settings?.timezone || 'Asia/Almaty';
 
 
-  const attendanceRecords = await StaffAttendanceTracking().find({
+  const attendanceRecords = await StaffAttendanceTracking.find({
     staffId,
     date: {
       $gte: startDate,
@@ -50,7 +50,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   }
 
 
-  const shifts = await Shift().find({
+  const shifts = await Shift.find({
     staffId,
     date: { $regex: new RegExp(`^${month}`) }
   });
@@ -206,7 +206,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
 
 
 
-    const staff = await User().find({
+    const staff = await User.find({
       role: { $ne: 'admin' },
       active: true
     });
@@ -233,7 +233,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       console.log(`🔍 Обработка сотрудника: ${employee.fullName}, ID: ${(employee as any)._id}`);
 
 
-      const existingPayrollCheck = await Payroll().findOne({
+      const existingPayrollCheck = await Payroll.findOne({
         staffId: (employee as any)._id,
         period: month
       });
@@ -274,7 +274,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       }
 
 
-      const existingPayroll = await Payroll().findOne({
+      const existingPayroll = await Payroll.findOne({
         staffId: (employee as any)._id,
         period: month
       });
@@ -333,7 +333,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
 
         await existingPayroll.save();
       } else {
-        const newPayroll = new (Payroll())({
+        const newPayroll = new Payroll({
           staffId: employee._id,
           period: month,
           accruals: accruals,
@@ -386,7 +386,7 @@ const clearAttendancePenalties = async (month: string) => {
 
 
 
-    await Payroll().updateMany(
+    await Payroll.updateMany(
       { period: month },
       {
         $set: {
@@ -404,7 +404,7 @@ const clearAttendancePenalties = async (month: string) => {
 
 
 
-    await StaffAttendanceTracking().updateMany(
+    await StaffAttendanceTracking.updateMany(
       {
         date: {
           $gte: new Date(`${month}-01`),
@@ -431,7 +431,7 @@ export const sendPayrollReports = async (month: string, recipients: string) => {
     console.log(`Отправка отчетов о зарплате за ${month} на ${recipients}`);
 
 
-    const payrolls = await Payroll().find({ period: month })
+    const payrolls = await Payroll.find({ period: month })
       .populate('staffId', 'fullName email');
 
 

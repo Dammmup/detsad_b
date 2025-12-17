@@ -4,7 +4,7 @@ import Group from '../groups/model';
 
 export class ChildService {
   private get childModel() {
-    return Child();
+    return Child;
   }
   async getAll(): Promise<IChild[]> {
     return await this.childModel.find().populate('groupId');
@@ -41,7 +41,7 @@ export class ChildService {
 
 export const getChildren = async (filters: any = {}): Promise<IChild[]> => {
 
-  const childModel = Child();
+  const childModel = Child;
 
   return await childModel.find(filters);
 

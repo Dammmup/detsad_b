@@ -8,14 +8,14 @@ let UserModel: any = null;
 
 const getOrganolepticJournalModel = () => {
   if (!OrganolepticJournalModel) {
-    OrganolepticJournalModel = OrganolepticJournal();
+    OrganolepticJournalModel = OrganolepticJournal;
   }
   return OrganolepticJournalModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -38,7 +38,7 @@ export class OrganolepticJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getOrganolepticJournalModel().find(filter)
+    const journals = await OrganolepticJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role')
       .sort({ date: -1 });
@@ -47,7 +47,7 @@ export class OrganolepticJournalService {
   }
 
   async getById(id: string) {
-    const journal = await getOrganolepticJournalModel().findById(id)
+    const journal = await OrganolepticJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role');
 
@@ -110,18 +110,18 @@ export class OrganolepticJournalService {
     }
 
 
-    const child = await getUserModel().findById(journalData.childId);
+    const child = await User.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
 
-    const inspector = await getUserModel().findById(journalData.inspector);
+    const inspector = await User.findById(journalData.inspector);
     if (!inspector) {
       throw new Error('Инспектор не найден');
     }
 
-    const organolepticModel = getOrganolepticJournalModel();
+    const organolepticModel = OrganolepticJournal;
     const journal = new organolepticModel({
       ...journalData,
       inspector: userId
@@ -137,7 +137,7 @@ export class OrganolepticJournalService {
   }
 
   async update(id: string, data: Partial<IOrganolepticJournal>) {
-    const updatedJournal = await getOrganolepticJournalModel().findByIdAndUpdate(
+    const updatedJournal = await OrganolepticJournal.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -152,7 +152,7 @@ export class OrganolepticJournalService {
   }
 
   async delete(id: string) {
-    const result = await getOrganolepticJournalModel().findByIdAndDelete(id);
+    const result = await OrganolepticJournal.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись органолептического контроля не найдена');
@@ -177,7 +177,7 @@ export class OrganolepticJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getOrganolepticJournalModel().find(filter)
+    const journals = await OrganolepticJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role')
       .sort({ date: -1 });
@@ -199,7 +199,7 @@ export class OrganolepticJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getOrganolepticJournalModel().find(filter)
+    const journals = await OrganolepticJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('inspector', 'fullName role')
       .sort({ date: -1 });
@@ -212,7 +212,7 @@ export class OrganolepticJournalService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const journals = await getOrganolepticJournalModel().find({
+    const journals = await OrganolepticJournal.find({
       nextInspectionDate: {
         $gte: today,
         $lte: futureDate
@@ -226,7 +226,7 @@ export class OrganolepticJournalService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await getOrganolepticJournalModel().findByIdAndUpdate(
+    const journal = await OrganolepticJournal.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -241,7 +241,7 @@ export class OrganolepticJournalService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const journal = await getOrganolepticJournalModel().findByIdAndUpdate(
+    const journal = await OrganolepticJournal.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -256,7 +256,7 @@ export class OrganolepticJournalService {
   }
 
   async getStatistics() {
-    const stats = await getOrganolepticJournalModel().aggregate([
+    const stats = await OrganolepticJournal.aggregate([
       {
         $group: {
           _id: '$status',
@@ -268,7 +268,7 @@ export class OrganolepticJournalService {
       }
     ]);
 
-    const productStats = await getOrganolepticJournalModel().aggregate([
+    const productStats = await OrganolepticJournal.aggregate([
       {
         $group: {
           _id: '$productName',
@@ -280,7 +280,7 @@ export class OrganolepticJournalService {
       }
     ]);
 
-    const supplierStats = await getOrganolepticJournalModel().aggregate([
+    const supplierStats = await OrganolepticJournal.aggregate([
       {
         $group: {
           _id: '$supplier',
@@ -292,7 +292,7 @@ export class OrganolepticJournalService {
       }
     ]);
 
-    const total = await getOrganolepticJournalModel().countDocuments();
+    const total = await OrganolepticJournal.countDocuments();
 
     return {
       total,

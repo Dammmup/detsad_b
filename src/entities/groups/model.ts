@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IGroup extends Document {
   name: string;
   description?: string;
@@ -86,12 +84,4 @@ const GroupSchema: Schema = new Schema({
 
 
 
-const createGroupModel = createModelFactory<IGroup>(
-  'Group',
-  GroupSchema,
-  'groups',
-  'default'
-);
-
-
-export default createGroupModel;
+export default mongoose.model<IGroup>('Group', GroupSchema, 'groups');

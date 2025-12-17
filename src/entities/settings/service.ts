@@ -1,63 +1,27 @@
 import {
-  createKindergartenSettingsModel,
-  createNotificationSettingsModel,
-  createSecuritySettingsModel,
-  createGeolocationSettingsModel,
+  KindergartenSettings,
+  NotificationSettings,
+  SecuritySettings,
+  GeolocationSettings,
   IKindergartenSettings,
   INotificationSettings,
   ISecuritySettings,
   IGeolocationSettings
 } from './model';
 
-
-let KindergartenSettingsModel: any = null;
-let NotificationSettingsModel: any = null;
-let SecuritySettingsModel: any = null;
-let GeolocationSettingsModel: any = null;
-
-const getKindergartenSettingsModel = () => {
-  if (!KindergartenSettingsModel) {
-    KindergartenSettingsModel = createKindergartenSettingsModel();
-  }
-  return KindergartenSettingsModel;
-};
-
-const getNotificationSettingsModel = () => {
-  if (!NotificationSettingsModel) {
-    NotificationSettingsModel = createNotificationSettingsModel();
-  }
-  return NotificationSettingsModel;
-};
-
-const getSecuritySettingsModel = () => {
-  if (!SecuritySettingsModel) {
-    SecuritySettingsModel = createSecuritySettingsModel();
-  }
-  return SecuritySettingsModel;
-};
-
-const getGeolocationSettingsModel = () => {
-  if (!GeolocationSettingsModel) {
-    GeolocationSettingsModel = createGeolocationSettingsModel();
-  }
-  return GeolocationSettingsModel;
-};
-
 export class SettingsService {
 
   async getKindergartenSettings() {
-    const settings = await getKindergartenSettingsModel().findOne();
+    const settings = await KindergartenSettings.findOne();
     return settings;
   }
 
   async updateKindergartenSettings(settingsData: Partial<IKindergartenSettings>) {
-    let settings = await getKindergartenSettingsModel().findOne();
+    let settings = await KindergartenSettings.findOne();
 
     if (!settings) {
-
-      settings = new (getKindergartenSettingsModel())(settingsData);
+      settings = new KindergartenSettings(settingsData);
     } else {
-
       Object.assign(settings, settingsData);
     }
 
@@ -65,20 +29,17 @@ export class SettingsService {
     return settings;
   }
 
-
   async getNotificationSettings() {
-    const settings = await getNotificationSettingsModel().findOne();
+    const settings = await NotificationSettings.findOne();
     return settings;
   }
 
   async updateNotificationSettings(settingsData: Partial<INotificationSettings>) {
-    let settings = await getNotificationSettingsModel().findOne();
+    let settings = await NotificationSettings.findOne();
 
     if (!settings) {
-
-      settings = new (getNotificationSettingsModel())(settingsData);
+      settings = new NotificationSettings(settingsData);
     } else {
-
       Object.assign(settings, settingsData);
     }
 
@@ -86,20 +47,17 @@ export class SettingsService {
     return settings;
   }
 
-
   async getSecuritySettings() {
-    const settings = await getSecuritySettingsModel().findOne();
+    const settings = await SecuritySettings.findOne();
     return settings;
   }
 
   async updateSecuritySettings(settingsData: Partial<ISecuritySettings>) {
-    let settings = await getSecuritySettingsModel().findOne();
+    let settings = await SecuritySettings.findOne();
 
     if (!settings) {
-
-      settings = new (getSecuritySettingsModel())(settingsData);
+      settings = new SecuritySettings(settingsData);
     } else {
-
       Object.assign(settings, settingsData);
     }
 
@@ -107,20 +65,17 @@ export class SettingsService {
     return settings;
   }
 
-
   async getGeolocationSettings() {
-    const settings = await getGeolocationSettingsModel().findOne();
+    const settings = await GeolocationSettings.findOne();
     return settings;
   }
 
   async updateGeolocationSettings(settingsData: Partial<IGeolocationSettings>) {
-    let settings = await getGeolocationSettingsModel().findOne();
+    let settings = await GeolocationSettings.findOne();
 
     if (!settings) {
-
-      settings = new (getGeolocationSettingsModel())(settingsData);
+      settings = new GeolocationSettings(settingsData);
     } else {
-
       Object.assign(settings, settingsData);
     }
 
@@ -129,16 +84,14 @@ export class SettingsService {
   }
 
   async updateCoordinates(latitude: number, longitude: number) {
-    let settings = await GeolocationSettingsModel().findOne();
+    let settings = await GeolocationSettings.findOne();
 
     if (!settings) {
-
-      settings = new (getGeolocationSettingsModel())({
+      settings = new GeolocationSettings({
         coordinates: { latitude, longitude },
         radius: 100
       });
     } else {
-
       settings.coordinates = { latitude, longitude };
     }
 
@@ -147,11 +100,10 @@ export class SettingsService {
   }
 
   async updateRadius(radius: number) {
-    let settings = await GeolocationSettingsModel().findOne();
+    let settings = await GeolocationSettings.findOne();
 
     if (!settings) {
-
-      settings = new (getGeolocationSettingsModel())({
+      settings = new GeolocationSettings({
         coordinates: {
           latitude: 43.222,
           longitude: 76.851
@@ -159,7 +111,6 @@ export class SettingsService {
         radius
       });
     } else {
-
       settings.radius = radius;
     }
 
@@ -169,44 +120,34 @@ export class SettingsService {
 
   async isNonWorkingDay(dateStr: string): Promise<boolean> {
     try {
-
       const settings = await this.getKindergartenSettings();
 
       if (!settings) {
-
-
         const date = new Date(dateStr);
         const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
         return dayOfWeek === 'sat' || dayOfWeek === 'sun';
       }
 
-
       const date = new Date(dateStr);
-
-
       const kindergartenSettings = settings as IKindergartenSettings;
+
       if (kindergartenSettings.holidays && kindergartenSettings.holidays.includes(dateStr)) {
         return true;
       }
 
-
       const dayOfWeekNumber = date.getDay();
       const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayOfWeekNumber];
 
-
       if (settings.workingDays) {
-
         const isWorkingDay = settings.workingDays.some(workingDay =>
           workingDay.toLowerCase() === dayOfWeek
         );
         return !isWorkingDay;
       } else {
-
         return dayOfWeek === 'sat' || dayOfWeek === 'sun';
       }
     } catch (error) {
       console.error('Ошибка при проверке нерабочего дня:', error);
-
       return false;
     }
   }

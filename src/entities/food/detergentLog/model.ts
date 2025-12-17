@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IDetergentLog extends Document {
   productId: mongoose.Types.ObjectId;
   productName: string;
@@ -115,12 +113,4 @@ const DetergentLogSchema = new Schema<IDetergentLog>({
 });
 
 
-const createDetergentLogModel = createModelFactory<IDetergentLog>(
-  'DetergentLog',
-  DetergentLogSchema,
-  'detergent_logs',
-  'food'
-);
-
-
-export default createDetergentLogModel;
+export default mongoose.model<IDetergentLog>('DetergentLog', DetergentLogSchema, 'detergent_logs');

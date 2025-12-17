@@ -1,7 +1,7 @@
 import ProductCertificate from './model';
 import { IProductCertificate } from './model';
 import User from '../../users/model';
-import createProductModel from '../products/model';
+import Product from '../products/model';
 
 
 let ProductCertificateModel: any = null;
@@ -9,14 +9,14 @@ let UserModel: any = null;
 
 const getProductCertificateModel = () => {
   if (!ProductCertificateModel) {
-    ProductCertificateModel = ProductCertificate();
+    ProductCertificateModel = ProductCertificate;
   }
   return ProductCertificateModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -26,7 +26,7 @@ let ProductModel: any = null;
 
 const getProductModel = () => {
   if (!ProductModel) {
-    ProductModel = createProductModel();
+    ProductModel = Product;
   }
   return ProductModel;
 };
@@ -54,7 +54,7 @@ export class ProductCertificatesService {
       if (filters.expiryEndDate) filter.expiryDate.$lte = new Date(filters.expiryEndDate);
     }
 
-    const certificates = await getProductCertificateModel().find(filter)
+    const certificates = await ProductCertificate.find(filter)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('approvedBy', 'fullName role')
@@ -64,7 +64,7 @@ export class ProductCertificatesService {
   }
 
   async getById(id: string) {
-    const certificate = await getProductCertificateModel().findById(id)
+    const certificate = await ProductCertificate.findById(id)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('approvedBy', 'fullName role');
@@ -134,18 +134,18 @@ export class ProductCertificatesService {
     }
 
 
-    const product = await getProductModel().findById(certificateData.productId);
+    const product = await Product.findById(certificateData.productId);
     if (!product) {
       throw new Error('Продукт не найден');
     }
 
 
-    const inspector = await getUserModel().findById(certificateData.inspector);
+    const inspector = await User.findById(certificateData.inspector);
     if (!inspector) {
       throw new Error('Инспектор не найден');
     }
 
-    const productCertificateModel = getProductCertificateModel();
+    const productCertificateModel = ProductCertificate;
     const certificate = new productCertificateModel({
       ...certificateData,
       inspector: userId
@@ -162,7 +162,7 @@ export class ProductCertificatesService {
   }
 
   async update(id: string, data: Partial<IProductCertificate>) {
-    const updatedCertificate = await getProductCertificateModel().findByIdAndUpdate(
+    const updatedCertificate = await ProductCertificate.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -178,7 +178,7 @@ export class ProductCertificatesService {
   }
 
   async delete(id: string) {
-    const result = await getProductCertificateModel().findByIdAndDelete(id);
+    const result = await ProductCertificate.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Сертификат продукта не найден');
@@ -209,7 +209,7 @@ export class ProductCertificatesService {
       if (filters.expiryEndDate) filter.expiryDate.$lte = new Date(filters.expiryEndDate);
     }
 
-    const certificates = await getProductCertificateModel().find(filter)
+    const certificates = await ProductCertificate.find(filter)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('approvedBy', 'fullName role')
@@ -241,7 +241,7 @@ export class ProductCertificatesService {
       if (filters.expiryEndDate) filter.expiryDate.$lte = new Date(filters.expiryEndDate);
     }
 
-    const certificates = await getProductCertificateModel().find(filter)
+    const certificates = await ProductCertificate.find(filter)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('approvedBy', 'fullName role')
@@ -255,7 +255,7 @@ export class ProductCertificatesService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const certificates = await getProductCertificateModel().find({
+    const certificates = await ProductCertificate.find({
       expiryDate: {
         $gte: today,
         $lte: futureDate
@@ -271,7 +271,7 @@ export class ProductCertificatesService {
   }
 
   async approve(id: string, approvedBy: string) {
-    const certificate = await getProductCertificateModel().findByIdAndUpdate(
+    const certificate = await ProductCertificate.findByIdAndUpdate(
       id,
       {
         status: 'approved',
@@ -291,7 +291,7 @@ export class ProductCertificatesService {
   }
 
   async reject(id: string, rejectedBy: string, rejectionReason: string) {
-    const certificate = await getProductCertificateModel().findByIdAndUpdate(
+    const certificate = await ProductCertificate.findByIdAndUpdate(
       id,
       {
         status: 'rejected',
@@ -312,7 +312,7 @@ export class ProductCertificatesService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'approved' | 'rejected' | 'expired') {
-    const certificate = await getProductCertificateModel().findByIdAndUpdate(
+    const certificate = await ProductCertificate.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -328,7 +328,7 @@ export class ProductCertificatesService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const certificate = await getProductCertificateModel().findByIdAndUpdate(
+    const certificate = await ProductCertificate.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -344,7 +344,7 @@ export class ProductCertificatesService {
   }
 
   async getStatistics() {
-    const stats = await getProductCertificateModel().aggregate([
+    const stats = await ProductCertificate.aggregate([
       {
         $group: {
           _id: '$status',
@@ -356,7 +356,7 @@ export class ProductCertificatesService {
       }
     ]);
 
-    const categoryStats = await getProductCertificateModel().aggregate([
+    const categoryStats = await ProductCertificate.aggregate([
       {
         $group: {
           _id: '$productCategory',
@@ -368,7 +368,7 @@ export class ProductCertificatesService {
       }
     ]);
 
-    const issuerStats = await getProductCertificateModel().aggregate([
+    const issuerStats = await ProductCertificate.aggregate([
       {
         $group: {
           _id: '$issuer',
@@ -380,7 +380,7 @@ export class ProductCertificatesService {
       }
     ]);
 
-    const total = await getProductCertificateModel().countDocuments();
+    const total = await ProductCertificate.countDocuments();
 
     return {
       total,

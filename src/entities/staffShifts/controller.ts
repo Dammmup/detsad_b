@@ -165,8 +165,8 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
     const result = await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData);
-    const shift = await Shift().findById(shiftId);
-    const user = await User().findById(req.user.id);
+    const shift = await Shift.findById(shiftId);
+    const user = await User.findById(req.user.id);
     if (user && shift) {
       await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену за ${shift.date}`);
     } else if (user) {
@@ -195,8 +195,8 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
     const result = await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData);
-    const shift = await Shift().findById(shiftId);
-    const user = await User().findById(req.user.id);
+    const shift = await Shift.findById(shiftId);
+    const user = await User.findById(req.user.id);
     if (user && shift) {
       await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены за ${shift.date}`);
     } else if (user) {

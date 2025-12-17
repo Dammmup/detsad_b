@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 
 export interface IKindergartenSettings extends Document {
   name: string;
@@ -21,7 +19,6 @@ export interface IKindergartenSettings extends Document {
   updatedAt: Date;
 }
 
-
 export interface INotificationSettings extends Document {
   telegram_chat_id: string;
   emailNotifications: boolean;
@@ -34,7 +31,6 @@ export interface INotificationSettings extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
 
 export interface ISecuritySettings extends Document {
   passwordPolicy: {
@@ -52,7 +48,6 @@ export interface ISecuritySettings extends Document {
   updatedAt: Date;
 }
 
-
 export interface IGeolocationSettings extends Document {
   enabled: boolean;
   coordinates: {
@@ -66,7 +61,6 @@ export interface IGeolocationSettings extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
 
 const KindergartenSettingsSchema = new Schema<IKindergartenSettings>({
   name: { type: String, required: true },
@@ -87,7 +81,6 @@ const KindergartenSettingsSchema = new Schema<IKindergartenSettings>({
   timestamps: true
 });
 
-
 const NotificationSettingsSchema = new Schema<INotificationSettings>({
   telegram_chat_id: { type: String, default: null },
   emailNotifications: { type: Boolean, default: true },
@@ -100,7 +93,6 @@ const NotificationSettingsSchema = new Schema<INotificationSettings>({
 }, {
   timestamps: true
 });
-
 
 const SecuritySettingsSchema = new Schema<ISecuritySettings>({
   passwordPolicy: {
@@ -118,7 +110,6 @@ const SecuritySettingsSchema = new Schema<ISecuritySettings>({
   timestamps: true
 });
 
-
 const GeolocationSettingsSchema = new Schema<IGeolocationSettings>({
   enabled: { type: Boolean, default: false },
   coordinates: {
@@ -133,31 +124,7 @@ const GeolocationSettingsSchema = new Schema<IGeolocationSettings>({
   timestamps: true
 });
 
-
-export const createKindergartenSettingsModel = createModelFactory<IKindergartenSettings>(
-  'KindergartenSettings',
-  KindergartenSettingsSchema,
-  'kindergarten_settings',
-  'default'
-);
-
-export const createNotificationSettingsModel = createModelFactory<INotificationSettings>(
-  'NotificationSettings',
-  NotificationSettingsSchema,
-  'notification_settings',
-  'default'
-);
-
-export const createSecuritySettingsModel = createModelFactory<ISecuritySettings>(
-  'SecuritySettings',
-  SecuritySettingsSchema,
-  'security_settings',
-  'default'
-);
-
-export const createGeolocationSettingsModel = createModelFactory<IGeolocationSettings>(
-  'GeolocationSettings',
-  GeolocationSettingsSchema,
-  'geolocation_settings',
-  'default'
-);
+export const KindergartenSettings = mongoose.model<IKindergartenSettings>('KindergartenSettings', KindergartenSettingsSchema, 'kindergarten_settings');
+export const NotificationSettings = mongoose.model<INotificationSettings>('NotificationSettings', NotificationSettingsSchema, 'notification_settings');
+export const SecuritySettings = mongoose.model<ISecuritySettings>('SecuritySettings', SecuritySettingsSchema, 'security_settings');
+export const GeolocationSettings = mongoose.model<IGeolocationSettings>('GeolocationSettings', GeolocationSettingsSchema, 'geolocation_settings');

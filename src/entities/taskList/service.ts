@@ -1,5 +1,5 @@
-import { ITask } from './model';
-import { getTaskListModel, getUserModel } from '../../config/models';
+import Task, { ITask } from './model';
+import User from '../users/model';
 
 export class TaskListService {
   async getAll(filters: { assignedTo?: string, assignedBy?: string, status?: string, priority?: string, category?: string, dueDate?: string, startDate?: string, endDate?: string }, userId?: string) {
@@ -29,7 +29,7 @@ export class TaskListService {
       if (filters.endDate) filter.dueDate.$lte = new Date(filters.endDate);
     }
 
-    const tasks = await getTaskListModel().find(filter)
+    const tasks = await Task.find(filter)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('assignedToSpecificUser', 'fullName role')
@@ -41,7 +41,7 @@ export class TaskListService {
   }
 
   async getById(id: string) {
-    const task = await getTaskListModel().findById(id)
+    const task = await Task.findById(id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('assignedToSpecificUser', 'fullName role')
@@ -68,33 +68,33 @@ export class TaskListService {
     }
 
 
-    const assignedToUser = await getUserModel().findById(taskData.assignedTo);
+    const assignedToUser = await User.findById(taskData.assignedTo);
     if (!assignedToUser) {
       throw new Error('Исполнитель задачи не найден');
     }
 
 
     if (taskData.assignedToSpecificUser) {
-      const specificUser = await getUserModel().findById(taskData.assignedToSpecificUser);
+      const specificUser = await User.findById(taskData.assignedToSpecificUser);
       if (!specificUser) {
         throw new Error('Указанный пользователь для назначения не найден');
       }
     }
 
 
-    const assignedByUser = await getUserModel().findById(userId);
+    const assignedByUser = await User.findById(userId);
     if (!assignedByUser) {
       throw new Error('Автор задачи не найден');
     }
 
-    const task = new (getTaskListModel())({
+    const task = new Task({
       ...taskData,
       assignedBy: userId
     });
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('assignedToSpecificUser', 'fullName role')
@@ -105,7 +105,7 @@ export class TaskListService {
   }
 
   async update(id: string, data: Partial<ITask>) {
-    const updatedTask = await getTaskListModel().findByIdAndUpdate(
+    const updatedTask = await Task.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -122,7 +122,7 @@ export class TaskListService {
   }
 
   async delete(id: string) {
-    const result = await getTaskListModel().findByIdAndDelete(id);
+    const result = await Task.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Задача не найдена');
@@ -132,7 +132,7 @@ export class TaskListService {
   }
 
   async markAsCompleted(id: string, completedBy: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -150,7 +150,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -160,7 +160,7 @@ export class TaskListService {
   }
 
   async markAsCancelled(id: string, cancelledBy: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -178,7 +178,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -188,7 +188,7 @@ export class TaskListService {
   }
 
   async markAsInProgress(id: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -199,7 +199,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -209,7 +209,7 @@ export class TaskListService {
   }
 
   async updatePriority(id: string, priority: 'low' | 'medium' | 'high' | 'urgent') {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -220,7 +220,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -230,7 +230,7 @@ export class TaskListService {
   }
 
   async addAttachment(id: string, attachment: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -244,7 +244,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -254,7 +254,7 @@ export class TaskListService {
   }
 
   async removeAttachment(id: string, attachment: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -267,7 +267,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -277,7 +277,7 @@ export class TaskListService {
   }
 
   async addNote(id: string, note: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -291,7 +291,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')
@@ -318,7 +318,7 @@ export class TaskListService {
       ];
     }
 
-    const tasks = await getTaskListModel().find(filter)
+    const tasks = await Task.find(filter)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .sort({ dueDate: 1 });
@@ -327,7 +327,7 @@ export class TaskListService {
   }
 
   async getTasksByUser(userId: string) {
-    const tasks = await getTaskListModel().find({
+    const tasks = await Task.find({
       $or: [
         { assignedTo: userId },
         { assignedBy: userId },
@@ -343,7 +343,7 @@ export class TaskListService {
   }
 
   async getTaskStatistics() {
-    const stats = await getTaskListModel().aggregate([
+    const stats = await Task.aggregate([
       {
         $group: {
           _id: '$status',
@@ -355,7 +355,7 @@ export class TaskListService {
       }
     ]);
 
-    const priorityStats = await getTaskListModel().aggregate([
+    const priorityStats = await Task.aggregate([
       {
         $group: {
           _id: '$priority',
@@ -367,7 +367,7 @@ export class TaskListService {
       }
     ]);
 
-    const categoryStats = await getTaskListModel().aggregate([
+    const categoryStats = await Task.aggregate([
       {
         $group: {
           _id: '$category',
@@ -379,8 +379,8 @@ export class TaskListService {
       }
     ]);
 
-    const total = await getTaskListModel().countDocuments();
-    const overdue = await getTaskListModel().countDocuments({
+    const total = await Task.countDocuments();
+    const overdue = await Task.countDocuments({
       dueDate: { $lt: new Date() },
       status: { $ne: 'completed' },
       $and: [{ status: { $ne: 'cancelled' } }]
@@ -405,7 +405,7 @@ export class TaskListService {
   }
 
   async toggleStatus(id: string, userId: string) {
-    const task = await getTaskListModel().findById(id);
+    const task = await Task.findById(id);
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -426,7 +426,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await getTaskListModel().findById(task._id)
+    const populatedTask = await Task.findById(task._id)
       .populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('assignedToSpecificUser', 'fullName role')

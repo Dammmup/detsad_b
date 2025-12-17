@@ -4,11 +4,11 @@ import User from '../../users/model';
 
 export class ContactInfectionJournalService {
   private get journalModel() {
-    return ContactInfectionJournal();
+    return ContactInfectionJournal;
   }
 
   private get userModel() {
-    return User();
+    return User;
   }
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, infectionType?: string, startDate?: string, endDate?: string, nextAppointmentDate?: string, isolationEndDate?: string, contactsTraced?: boolean }) {
     const filter: any = {};

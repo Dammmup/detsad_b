@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface ILocation {
   name: string;
   radius: number;
@@ -238,12 +236,4 @@ StaffAttendanceTrackingSchema.post('save', async function (this: IStaffAttendanc
 
 
 
-const createStaffAttendanceTrackingModel = createModelFactory<IStaffAttendanceTracking>(
-  'StaffAttendanceTracking',
-  StaffAttendanceTrackingSchema,
-  'staff_attendance_tracking',
-  'default'
-);
-
-
-export default createStaffAttendanceTrackingModel;
+export default mongoose.model<IStaffAttendanceTracking>('StaffAttendanceTracking', StaffAttendanceTrackingSchema, 'staff_attendance_tracking');

@@ -13,7 +13,7 @@ export const generateDocument = async (req: Request, res: Response) => {
 
     let user = null;
     if (childId) {
-      user = await Child().findById(childId);
+      user = await Child.findById(childId);
       if (!user) {
         return res.status(404).json({ error: 'Ребенок не найден' });
       }

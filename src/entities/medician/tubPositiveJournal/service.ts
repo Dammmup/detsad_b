@@ -3,9 +3,6 @@ import { ITubPositiveJournal } from './model';
 import User from '../../../entities/users/model';
 
 
-const getTubPositiveJournalModel = () => TubPositiveJournal();
-const getUserModel = () => User();
-
 export class TubPositiveJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
@@ -22,7 +19,7 @@ export class TubPositiveJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getTubPositiveJournalModel().find(filter)
+    const journals = await TubPositiveJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -31,7 +28,7 @@ export class TubPositiveJournalService {
   }
 
   async getById(id: string) {
-    const journal = await getTubPositiveJournalModel().findById(id)
+    const journal = await TubPositiveJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -58,25 +55,25 @@ export class TubPositiveJournalService {
     }
 
 
-    const child = await getUserModel().findById(journalData.childId);
+    const child = await User.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
 
-    const doctor = await getUserModel().findById(journalData.doctor);
+    const doctor = await User.findById(journalData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
 
-    const journal = new (getTubPositiveJournalModel())({
+    const journal = new TubPositiveJournal({
       ...journalData,
       doctor: userId
     });
 
     await journal.save();
 
-    const populatedJournal = await getTubPositiveJournalModel().findById(journal._id)
+    const populatedJournal = await TubPositiveJournal.findById(journal._id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -84,7 +81,7 @@ export class TubPositiveJournalService {
   }
 
   async update(id: string, data: Partial<ITubPositiveJournal>) {
-    const updatedJournal = await getTubPositiveJournalModel().findByIdAndUpdate(
+    const updatedJournal = await TubPositiveJournal.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -99,7 +96,7 @@ export class TubPositiveJournalService {
   }
 
   async delete(id: string) {
-    const result = await getTubPositiveJournalModel().findByIdAndDelete(id);
+    const result = await TubPositiveJournal.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись туберкулеза не найдена');
@@ -122,7 +119,7 @@ export class TubPositiveJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getTubPositiveJournalModel().find(filter)
+    const journals = await TubPositiveJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -142,7 +139,7 @@ export class TubPositiveJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getTubPositiveJournalModel().find(filter)
+    const journals = await TubPositiveJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -155,7 +152,7 @@ export class TubPositiveJournalService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const journals = await getTubPositiveJournalModel().find({
+    const journals = await TubPositiveJournal.find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
@@ -169,7 +166,7 @@ export class TubPositiveJournalService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await getTubPositiveJournalModel().findByIdAndUpdate(
+    const journal = await TubPositiveJournal.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -184,7 +181,7 @@ export class TubPositiveJournalService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const journal = await getTubPositiveJournalModel().findByIdAndUpdate(
+    const journal = await TubPositiveJournal.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -199,7 +196,7 @@ export class TubPositiveJournalService {
   }
 
   async getStatistics() {
-    const stats = await getTubPositiveJournalModel().aggregate([
+    const stats = await TubPositiveJournal.aggregate([
       {
         $group: {
           _id: '$status',
@@ -211,7 +208,7 @@ export class TubPositiveJournalService {
       }
     ]);
 
-    const total = await getTubPositiveJournalModel().countDocuments();
+    const total = await TubPositiveJournal.countDocuments();
 
     return {
       total,

@@ -27,7 +27,7 @@ export class ChildHealthPassportService {
       filter['doctorExaminations.date'] = new Date(filters.doctorExaminationDate);
     }
 
-    const passports = await ChildHealthPassport().find(filter)
+    const passports = await ChildHealthPassport.find(filter)
       .populate('childId', 'fullName iin')
       .sort({ nextExaminationDate: -1 });
 
@@ -35,7 +35,7 @@ export class ChildHealthPassportService {
   }
 
   async getById(id: string) {
-    const passport = await ChildHealthPassport().findById(id)
+    const passport = await ChildHealthPassport.findById(id)
       .populate('childId', 'fullName iin');
 
     if (!passport) {
@@ -64,26 +64,26 @@ export class ChildHealthPassportService {
     }
 
 
-    const child = await User().findById(passportData.childId);
+    const child = await User.findById(passportData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-    const passport = new (ChildHealthPassport())({
+    const passport = new ChildHealthPassport({
       ...passportData,
       childId: userId
     });
 
     await passport.save();
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async update(id: string, data: Partial<IChildHealthPassport>) {
-    const updatedPassport = await ChildHealthPassport().findByIdAndUpdate(
+    const updatedPassport = await ChildHealthPassport.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -97,7 +97,7 @@ export class ChildHealthPassportService {
   }
 
   async delete(id: string) {
-    const result = await ChildHealthPassport().findByIdAndDelete(id);
+    const result = await ChildHealthPassport.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -129,7 +129,7 @@ export class ChildHealthPassportService {
       filter['doctorExaminations.date'] = new Date(filters.doctorExaminationDate);
     }
 
-    const passports = await ChildHealthPassport().find(filter)
+    const passports = await ChildHealthPassport.find(filter)
       .populate('childId', 'fullName iin')
       .sort({ nextExaminationDate: -1 });
 
@@ -137,7 +137,7 @@ export class ChildHealthPassportService {
   }
 
   async addVaccination(id: string, vaccination: { vaccine: string, date: Date, nextDate?: Date, notes?: string }) {
-    const passport = await ChildHealthPassport().findById(id);
+    const passport = await ChildHealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -146,14 +146,14 @@ export class ChildHealthPassportService {
     passport.vaccinationHistory.push(vaccination);
     await passport.save();
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async addDoctorExamination(id: string, examination: { doctor: string, date: Date, result: string, notes?: string }) {
-    const passport = await ChildHealthPassport().findById(id);
+    const passport = await ChildHealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -162,14 +162,14 @@ export class ChildHealthPassportService {
     passport.doctorExaminations.push(examination);
     await passport.save();
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async addChronicDisease(id: string, disease: string) {
-    const passport = await ChildHealthPassport().findById(id);
+    const passport = await ChildHealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -180,14 +180,14 @@ export class ChildHealthPassportService {
       await passport.save();
     }
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async addAllergy(id: string, allergy: string) {
-    const passport = await ChildHealthPassport().findById(id);
+    const passport = await ChildHealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -198,14 +198,14 @@ export class ChildHealthPassportService {
       await passport.save();
     }
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async removeChronicDisease(id: string, disease: string) {
-    const passport = await ChildHealthPassport().findById(id);
+    const passport = await ChildHealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -214,14 +214,14 @@ export class ChildHealthPassportService {
     passport.chronicDiseases = passport.chronicDiseases.filter(d => d !== disease);
     await passport.save();
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async removeAllergy(id: string, allergy: string) {
-    const passport = await ChildHealthPassport().findById(id);
+    const passport = await ChildHealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт ребенка не найден');
@@ -230,7 +230,7 @@ export class ChildHealthPassportService {
     passport.allergies = passport.allergies.filter(a => a !== allergy);
     await passport.save();
 
-    const populatedPassport = await ChildHealthPassport().findById(passport._id)
+    const populatedPassport = await ChildHealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
@@ -241,7 +241,7 @@ export class ChildHealthPassportService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const passports = await ChildHealthPassport().find({
+    const passports = await ChildHealthPassport.find({
       nextExaminationDate: {
         $gte: today,
         $lte: futureDate
@@ -254,7 +254,7 @@ export class ChildHealthPassportService {
   }
 
   async updateStatus(id: string, status: 'active' | 'inactive' | 'archived') {
-    const passport = await ChildHealthPassport().findByIdAndUpdate(
+    const passport = await ChildHealthPassport.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -268,7 +268,7 @@ export class ChildHealthPassportService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const passport = await ChildHealthPassport().findByIdAndUpdate(
+    const passport = await ChildHealthPassport.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -282,7 +282,7 @@ export class ChildHealthPassportService {
   }
 
   async getStatistics() {
-    const stats = await ChildHealthPassport().aggregate([
+    const stats = await ChildHealthPassport.aggregate([
       {
         $group: {
           _id: '$status',
@@ -294,7 +294,7 @@ export class ChildHealthPassportService {
       }
     ]);
 
-    const bloodTypeStats = await ChildHealthPassport().aggregate([
+    const bloodTypeStats = await ChildHealthPassport.aggregate([
       {
         $group: {
           _id: '$bloodType',
@@ -306,7 +306,7 @@ export class ChildHealthPassportService {
       }
     ]);
 
-    const rhesusStats = await ChildHealthPassport().aggregate([
+    const rhesusStats = await ChildHealthPassport.aggregate([
       {
         $group: {
           _id: '$rhesusFactor',
@@ -318,7 +318,7 @@ export class ChildHealthPassportService {
       }
     ]);
 
-    const total = await ChildHealthPassport().countDocuments();
+    const total = await ChildHealthPassport.countDocuments();
 
     return {
       total,

@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IChildAttendance extends Document {
   childId: mongoose.Types.ObjectId;
   groupId: mongoose.Types.ObjectId;
@@ -72,12 +70,4 @@ ChildAttendanceSchema.methods.isLate = function (scheduledTime: string = '08:00'
 };
 
 
-const createChildAttendanceModel = createModelFactory<IChildAttendance>(
-  'ChildAttendance',
-  ChildAttendanceSchema,
-  'childattendances',
-  'default'
-);
-
-
-export default createChildAttendanceModel;
+export default mongoose.model<IChildAttendance>('ChildAttendance', ChildAttendanceSchema, 'childattendances');

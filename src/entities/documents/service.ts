@@ -1,4 +1,5 @@
 import createDocumentModel from './model';
+import Document from './model';
 import { IDocument } from './model';
 
 
@@ -6,7 +7,7 @@ let DocumentModel: any = null;
 
 const getDocumentModel = () => {
   if (!DocumentModel) {
-    DocumentModel = createDocumentModel();
+    DocumentModel = Document;
   }
   return DocumentModel;
 };
@@ -22,7 +23,7 @@ export class DocumentsService {
       filter.tags = { $in: filters.tags };
     }
 
-    const documents = await getDocumentModel().find(filter)
+    const documents = await Document.find(filter)
       .populate('owner', 'fullName role')
       .sort({ createdAt: -1 });
 
@@ -30,7 +31,7 @@ export class DocumentsService {
   }
 
   async getById(id: string) {
-    const document = await getDocumentModel().findById(id)
+    const document = await Document.findById(id)
       .populate('owner', 'fullName role');
 
     if (!document) {
@@ -64,17 +65,17 @@ export class DocumentsService {
       throw new Error('Не указана категория документа');
     }
 
-    const document = new (getDocumentModel())(documentData);
+    const document = new Document(documentData);
     await document.save();
 
-    const populatedDocument = await getDocumentModel().findById(document._id)
+    const populatedDocument = await Document.findById(document._id)
       .populate('owner', 'fullName role');
 
     return populatedDocument;
   }
 
   async update(id: string, data: Partial<IDocument>) {
-    const updatedDocument = await getDocumentModel().findByIdAndUpdate(
+    const updatedDocument = await Document.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -88,7 +89,7 @@ export class DocumentsService {
   }
 
   async delete(id: string) {
-    const result = await getDocumentModel().findByIdAndDelete(id);
+    const result = await Document.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Документ не найден');
@@ -110,7 +111,7 @@ export class DocumentsService {
     if (filters.ownerId) searchFilter.owner = filters.ownerId;
     if (filters.category) searchFilter.category = filters.category;
 
-    const documents = await getDocumentModel().find(searchFilter)
+    const documents = await Document.find(searchFilter)
       .populate('owner', 'fullName role')
       .sort({ createdAt: -1 });
 
@@ -127,7 +128,7 @@ export class DocumentsService {
       filter.isPublic = true;
     }
 
-    const documents = await getDocumentModel().find(filter)
+    const documents = await Document.find(filter)
       .populate('owner', 'fullName role')
       .sort({ createdAt: -1 });
 

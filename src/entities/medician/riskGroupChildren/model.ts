@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IRiskGroupChild extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -64,12 +62,4 @@ const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
 });
 
 
-const createRiskGroupChildModel = createModelFactory<IRiskGroupChild>(
-  'RiskGroupChild',
-  RiskGroupChildSchema,
-  'risk_group_children',
-  'medical'
-);
-
-
-export default createRiskGroupChildModel;
+export default mongoose.model<IRiskGroupChild>('RiskGroupChild', RiskGroupChildSchema, 'risk_group_children');

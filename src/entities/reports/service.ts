@@ -1,4 +1,5 @@
 import createReportModel from './model';
+import Report from './model';
 import { IReport } from './model';
 import { PayrollService } from '../payroll/service';
 import Children from '../children/model';
@@ -9,7 +10,7 @@ let ReportModel: any = null;
 
 const getReportModel = () => {
   if (!ReportModel) {
-    ReportModel = createReportModel();
+    ReportModel = Report;
   }
   return ReportModel;
 };
@@ -22,7 +23,7 @@ export class ReportsService {
     if (filters.status) filter.status = filters.status;
     if (filters.generatedById) filter.generatedBy = filters.generatedById;
 
-    const reports = await getReportModel().find(filter)
+    const reports = await Report.find(filter)
       .populate('generatedBy', 'fullName role')
       .sort({ generatedAt: -1 });
 
@@ -30,7 +31,7 @@ export class ReportsService {
   }
 
   async getById(id: string) {
-    const report = await getReportModel().findById(id)
+    const report = await Report.findById(id)
       .populate('generatedBy', 'fullName role');
 
     if (!report) {
@@ -52,17 +53,17 @@ export class ReportsService {
       throw new Error('Не указан автор отчета');
     }
 
-    const report = new (getReportModel())(reportData);
+    const report = new Report(reportData);
     await report.save();
 
-    const populatedReport = await getReportModel().findById(report._id)
+    const populatedReport = await Report.findById(report._id)
       .populate('generatedBy', 'fullName role');
 
     return populatedReport;
   }
 
   async update(id: string, data: Partial<IReport>) {
-    const updatedReport = await getReportModel().findByIdAndUpdate(
+    const updatedReport = await Report.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -76,7 +77,7 @@ export class ReportsService {
   }
 
   async delete(id: string) {
-    const result = await getReportModel().findByIdAndDelete(id);
+    const result = await Report.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Отчет не найден');
@@ -86,7 +87,7 @@ export class ReportsService {
   }
 
   async generateReport(id: string, data: any, filters: any) {
-    const report = await getReportModel().findById(id);
+    const report = await Report.findById(id);
 
     if (!report) {
       throw new Error('Отчет не найден');
@@ -100,14 +101,14 @@ export class ReportsService {
 
     await report.save();
 
-    const populatedReport = await getReportModel().findById(report._id)
+    const populatedReport = await Report.findById(report._id)
       .populate('generatedBy', 'fullName role');
 
     return populatedReport;
   }
 
   async sendReport(id: string, recipients: string[]) {
-    const report = await getReportModel().findById(id);
+    const report = await Report.findById(id);
 
     if (!report) {
       throw new Error('Отчет не найден');
@@ -120,7 +121,7 @@ export class ReportsService {
 
     await report.save();
 
-    const populatedReport = await getReportModel().findById(report._id)
+    const populatedReport = await Report.findById(report._id)
       .populate('generatedBy', 'fullName role');
 
     return populatedReport;
@@ -133,7 +134,7 @@ export class ReportsService {
       filter.generatedBy = generatedById;
     }
 
-    const reports = await getReportModel().find(filter)
+    const reports = await Report.find(filter)
       .populate('generatedBy', 'fullName role')
       .sort({ generatedAt: -1 });
 
@@ -141,7 +142,7 @@ export class ReportsService {
   }
 
   async getRecentReports(limit: number = 10) {
-    const reports = await getReportModel().find({})
+    const reports = await Report.find({})
       .populate('generatedBy', 'fullName role')
       .sort({ generatedAt: -1 })
       .limit(limit);
@@ -235,7 +236,7 @@ export class ReportsService {
       filter.groupId = groupId;
     }
 
-    const children = await Children().find(filter)
+    const children = await Children.find(filter)
       .populate('groupId', 'name');
 
     const summary = {
@@ -271,7 +272,7 @@ export class ReportsService {
       filter.groupId = groupId;
     }
 
-    const attendanceRecords = await ChildAttendance().find(filter)
+    const attendanceRecords = await ChildAttendance.find(filter)
       .populate('childId', 'fullName')
       .populate('groupId', 'name');
 

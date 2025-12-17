@@ -1,5 +1,7 @@
 import { IPayroll } from './model';
-import { getPayrollModel, getUserModel, getStaffAttendanceTrackingModel } from '../../config/models';
+import User from '../users/model';
+import Payroll from './model';
+import StaffAttendanceTracking from '../staffAttendanceTracking/model';
 import { sendTelegramNotification } from '../../utils/telegramNotify';
 import {
   calculatePenalties,
@@ -9,7 +11,7 @@ import {
 
 export class PayrollService {
   async getPayrollBreakdown(id: string) {
-    return getPayrollModel().findById(id).populate('staffId', 'fullName role');
+    return Payroll.findById(id).populate('staffId', 'fullName role');
   }
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
     const filter: any = {};
@@ -19,7 +21,7 @@ export class PayrollService {
     if (targetPeriod) filter.period = targetPeriod;
     if (filters.status) filter.status = filters.status;
 
-    return getPayrollModel().find(filter)
+    return Payroll.find(filter)
       .populate('staffId', 'fullName role')
       .sort({ period: -1 });
   }
@@ -36,7 +38,7 @@ export class PayrollService {
 
 
 
-    const users = await getUserModel().find(userFilter)
+    const users = await User.find(userFilter)
       .select('_id fullName role iin uniqNumber')
       .sort({ fullName: 1 });
 
@@ -46,7 +48,7 @@ export class PayrollService {
     if (filters.staffId) {
       payrollFilter.staffId = filters.staffId;
     }
-    payrollRecords = await getPayrollModel().find(payrollFilter)
+    payrollRecords = await Payroll.find(payrollFilter)
       .populate('staffId', 'fullName role')
       .sort({ createdAt: -1 });
 
@@ -98,7 +100,7 @@ export class PayrollService {
               if (dayOfWeek !== 0 && dayOfWeek !== 6) workingDaysInPeriod++;
             }
           }
-          const attendanceRecords = await getStaffAttendanceTrackingModel().find({
+          const attendanceRecords = await StaffAttendanceTracking.find({
             staffId: user._id,
             date: { $gte: startDate, $lte: endDate }
           });
@@ -135,7 +137,7 @@ export class PayrollService {
         const periodEndDate = new Date(periodStartDate.getFullYear(), periodStartDate.getMonth() + 1, 0);
         periodEndDate.setHours(23, 59, 59, 999);
 
-        const attendanceRecordsForDetails = await getStaffAttendanceTrackingModel().find({
+        const attendanceRecordsForDetails = await StaffAttendanceTracking.find({
           staffId: user._id,
           date: { $gte: periodStartDate, $lte: periodEndDate }
         }).sort({ date: 1 });
@@ -192,7 +194,7 @@ export class PayrollService {
   }
 
   async getById(id: string, userId?: string) {
-    const payroll = await getPayrollModel().findById(id)
+    const payroll = await Payroll.findById(id)
       .populate('staffId', 'fullName role');
 
     if (!payroll) {
@@ -221,7 +223,7 @@ export class PayrollService {
     await this.ensurePayrollForUser(userId, period);
 
 
-    const payroll = await getPayrollModel().findOne({ staffId: userId, period })
+    const payroll = await Payroll.findOne({ staffId: userId, period })
       .populate('staffId', 'fullName role');
 
     return payroll;
@@ -240,10 +242,10 @@ export class PayrollService {
       total
     };
 
-    const payroll = new (getPayrollModel())(newPayrollData);
+    const payroll = new Payroll(newPayrollData);
     await payroll.save();
 
-    const populatedPayroll = await getPayrollModel().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
+    const populatedPayroll = await Payroll.findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
 
     if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
       let msg = `Ваша зарплата за период ${populatedPayroll.period}:\n` +
@@ -259,7 +261,7 @@ export class PayrollService {
   }
 
   async update(id: string, data: Partial<IPayroll>, userId: string) {
-    const payroll = await getPayrollModel().findById(id);
+    const payroll = await Payroll.findById(id);
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
@@ -287,7 +289,7 @@ export class PayrollService {
         if (payroll.staffId && payroll.period) {
           try {
             const staffId = typeof payroll.staffId === 'object' ? (payroll.staffId as any)._id : payroll.staffId;
-            const staff = await getUserModel().findById(staffId);
+            const staff = await User.findById(staffId);
 
             if (staff) {
               const safeRate = (data.latePenaltyRate !== undefined) ? Number(data.latePenaltyRate) : 13;
@@ -340,7 +342,7 @@ export class PayrollService {
 
     await payroll.save();
 
-    const updatedPayroll = await getPayrollModel().findById(payroll._id)
+    const updatedPayroll = await Payroll.findById(payroll._id)
       .populate('staffId', 'fullName role telegramChatId');
 
     if (!updatedPayroll) {
@@ -361,7 +363,7 @@ export class PayrollService {
   }
 
   async delete(id: string) {
-    const result = await getPayrollModel().findByIdAndDelete(id);
+    const result = await Payroll.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Зарплата не найдена');
@@ -371,7 +373,7 @@ export class PayrollService {
   }
 
   async approve(id: string) {
-    const payroll = await getPayrollModel().findByIdAndUpdate(
+    const payroll = await Payroll.findByIdAndUpdate(
       id,
       {
         status: 'approved',
@@ -388,7 +390,7 @@ export class PayrollService {
   }
 
   async markAsPaid(id: string) {
-    const payroll = await getPayrollModel().findByIdAndUpdate(
+    const payroll = await Payroll.findByIdAndUpdate(
       id,
       {
         status: 'paid',
@@ -405,7 +407,7 @@ export class PayrollService {
   }
 
   async addFine(payrollId: string, fineData: { amount: number; reason: string; type: string; notes?: string }) {
-    const payroll = await getPayrollModel().findById(payrollId);
+    const payroll = await Payroll.findById(payrollId);
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
@@ -437,11 +439,11 @@ export class PayrollService {
 
     await payroll.save();
 
-    return getPayrollModel().findById(payroll._id).populate('staffId', 'fullName role');
+    return Payroll.findById(payroll._id).populate('staffId', 'fullName role');
   }
 
   async getFines(payrollId: string) {
-    const payroll = await getPayrollModel().findById(payrollId);
+    const payroll = await Payroll.findById(payrollId);
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
@@ -450,7 +452,7 @@ export class PayrollService {
   }
 
   async removeFine(payrollId: string, fineIndex: number) {
-    const payroll = await getPayrollModel().findById(payrollId);
+    const payroll = await Payroll.findById(payrollId);
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
@@ -472,11 +474,11 @@ export class PayrollService {
 
     await payroll.save();
 
-    return getPayrollModel().findById(payroll._id).populate('staffId', 'fullName role');
+    return Payroll.findById(payroll._id).populate('staffId', 'fullName role');
   }
 
   async getTotalFines(payrollId: string) {
-    const payroll = await getPayrollModel().findById(payrollId);
+    const payroll = await Payroll.findById(payrollId);
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
@@ -489,9 +491,9 @@ export class PayrollService {
       console.log(`Checking payroll for user: ${staffId}, period: ${period}`);
 
 
-      let existing = await getPayrollModel().findOne({ staffId, period });
+      let existing = await Payroll.findOne({ staffId, period });
 
-      const staff = await getUserModel().findById(staffId);
+      const staff = await User.findById(staffId);
       if (!staff) {
         console.error(`User not found: ${staffId}`);
         throw new Error('User not found');
@@ -611,7 +613,7 @@ export class PayrollService {
         return { message: 'Payroll exists (locked)', created: 0 };
       }
 
-      const newPayroll = new (getPayrollModel())({
+      const newPayroll = new Payroll({
         staffId: staff._id,
         period: period,
         baseSalary: baseSalary,
@@ -649,13 +651,13 @@ export class PayrollService {
     try {
       console.log(`Проверка наличия расчетных листов для периода: ${period}`);
 
-      const allStaff = await getUserModel().find({
+      const allStaff = await User.find({
         role: { $ne: 'admin' },
         active: true
       });
 
 
-      const existingPayrolls = await getPayrollModel().find({ period });
+      const existingPayrolls = await Payroll.find({ period });
       const existingStaffIds = existingPayrolls.map(p => p.staffId?.toString());
 
 
@@ -766,7 +768,7 @@ export class PayrollService {
         const total = Math.max(0, accruals - totalPenalties);
 
 
-        const newPayroll = new (getPayrollModel())({
+        const newPayroll = new Payroll({
           staffId: staff._id,
           period: period,
           baseSalary: baseSalary,

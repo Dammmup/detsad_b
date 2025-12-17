@@ -532,7 +532,7 @@ export const exportChildrenReport = async (req: AuthenticatedRequest, res: Respo
     }
 
 
-    const children = await Child().find(filter)
+    const children = await Child.find(filter)
       .populate('groupId', 'name description')
       .select('fullName birthday parentName parentPhone gender clinic bloodGroup rhesus allergy dispensary diagnosis');
 
@@ -780,7 +780,7 @@ export const exportAttendanceReport = async (req: AuthenticatedRequest, res: Res
     }
 
 
-    const attendanceRecords = await ChildAttendance().find(filter)
+    const attendanceRecords = await ChildAttendance.find(filter)
       .populate('childId', 'fullName')
       .populate('groupId', 'name');
 
@@ -798,7 +798,7 @@ export const exportAttendanceReport = async (req: AuthenticatedRequest, res: Res
     const childIds = [...new Set(attendanceRecords.map(record =>
       (record.childId as any)._id.toString()
     ))];
-    const children = await Child().find({ _id: { $in: childIds } })
+    const children = await Child.find({ _id: { $in: childIds } })
       .populate('groupId', 'name');
 
 

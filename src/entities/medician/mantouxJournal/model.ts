@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IMantouxJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -115,12 +113,4 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
 });
 
 
-const createMantouxJournalModel = createModelFactory<IMantouxJournal>(
-  'MantouxJournal',
-  MantouxJournalSchema,
-  'mantoux_journals',
-  'default'
-);
-
-
-export default createMantouxJournalModel;
+export default mongoose.model<IMantouxJournal>('MantouxJournal', MantouxJournalSchema, 'mantoux_journals');

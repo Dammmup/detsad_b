@@ -1,7 +1,7 @@
 import FoodStockLog from './model';
 import { IFoodStockLog } from './model';
 import User from '../../users/model';
-import createProductModel from '../products/model';
+import Product from '../products/model';
 
 
 let FoodStockLogModel: any = null;
@@ -9,14 +9,14 @@ let UserModel: any = null;
 
 const getFoodStockLogModel = () => {
   if (!FoodStockLogModel) {
-    FoodStockLogModel = FoodStockLog();
+    FoodStockLogModel = FoodStockLog;
   }
   return FoodStockLogModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -26,7 +26,7 @@ let ProductModel: any = null;
 
 const getProductModel = () => {
   if (!ProductModel) {
-    ProductModel = createProductModel();
+    ProductModel = Product;
   }
   return ProductModel;
 };
@@ -54,7 +54,7 @@ export class FoodStockLogService {
       if (filters.expirationEndDate) filter.expirationDate.$lte = new Date(filters.expirationEndDate);
     }
 
-    const logs = await getFoodStockLogModel().find(filter)
+    const logs = await FoodStockLog.find(filter)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role')
       .sort({ deliveryDate: -1 });
@@ -63,7 +63,7 @@ export class FoodStockLogService {
   }
 
   async getById(id: string) {
-    const log = await getFoodStockLogModel().findById(id)
+    const log = await FoodStockLog.findById(id)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role');
 
@@ -114,18 +114,18 @@ export class FoodStockLogService {
     }
 
 
-    const product = await getProductModel().findById(logData.productId);
+    const product = await Product.findById(logData.productId);
     if (!product) {
       throw new Error('Продукт не найден');
     }
 
 
-    const receiver = await getUserModel().findById(logData.receiver);
+    const receiver = await User.findById(logData.receiver);
     if (!receiver) {
       throw new Error('Ответственный не найден');
     }
 
-    const foodStockLogModel = getFoodStockLogModel();
+    const foodStockLogModel = FoodStockLog;
     const log = new foodStockLogModel({
       ...logData,
       receiver: userId
@@ -141,7 +141,7 @@ export class FoodStockLogService {
   }
 
   async update(id: string, data: Partial<IFoodStockLog>) {
-    const updatedLog = await getFoodStockLogModel().findByIdAndUpdate(
+    const updatedLog = await FoodStockLog.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -156,7 +156,7 @@ export class FoodStockLogService {
   }
 
   async delete(id: string) {
-    const result = await getFoodStockLogModel().findByIdAndDelete(id);
+    const result = await FoodStockLog.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись продуктового склада не найдена');
@@ -186,7 +186,7 @@ export class FoodStockLogService {
       if (filters.expirationEndDate) filter.expirationDate.$lte = new Date(filters.expirationEndDate);
     }
 
-    const logs = await getFoodStockLogModel().find(filter)
+    const logs = await FoodStockLog.find(filter)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role')
       .sort({ deliveryDate: -1 });
@@ -216,7 +216,7 @@ export class FoodStockLogService {
       if (filters.expirationEndDate) filter.expirationDate.$lte = new Date(filters.expirationEndDate);
     }
 
-    const logs = await getFoodStockLogModel().find(filter)
+    const logs = await FoodStockLog.find(filter)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role')
       .sort({ deliveryDate: -1 });
@@ -229,7 +229,7 @@ export class FoodStockLogService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const logs = await getFoodStockLogModel().find({
+    const logs = await FoodStockLog.find({
       expirationDate: {
         $gte: today,
         $lte: futureDate
@@ -244,7 +244,7 @@ export class FoodStockLogService {
   }
 
   async updateStatus(id: string, status: 'received' | 'stored' | 'used' | 'disposed') {
-    const log = await getFoodStockLogModel().findByIdAndUpdate(
+    const log = await FoodStockLog.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -259,7 +259,7 @@ export class FoodStockLogService {
   }
 
   async markAsUsed(id: string, usageDate: Date, usagePerson: string) {
-    const log = await getFoodStockLogModel().findByIdAndUpdate(
+    const log = await FoodStockLog.findByIdAndUpdate(
       id,
       {
         status: 'used',
@@ -278,7 +278,7 @@ export class FoodStockLogService {
   }
 
   async markAsDisposed(id: string, disposalDate: Date, disposalMethod: string) {
-    const log = await getFoodStockLogModel().findByIdAndUpdate(
+    const log = await FoodStockLog.findByIdAndUpdate(
       id,
       {
         status: 'disposed',
@@ -297,7 +297,7 @@ export class FoodStockLogService {
   }
 
   async addNotes(id: string, notes: string) {
-    const log = await getFoodStockLogModel().findByIdAndUpdate(
+    const log = await FoodStockLog.findByIdAndUpdate(
       id,
       { notes },
       { new: true }
@@ -312,7 +312,7 @@ export class FoodStockLogService {
   }
 
   async getStatistics() {
-    const stats = await getFoodStockLogModel().aggregate([
+    const stats = await FoodStockLog.aggregate([
       {
         $group: {
           _id: '$status',
@@ -324,7 +324,7 @@ export class FoodStockLogService {
       }
     ]);
 
-    const supplierStats = await getFoodStockLogModel().aggregate([
+    const supplierStats = await FoodStockLog.aggregate([
       {
         $group: {
           _id: '$supplier',
@@ -336,7 +336,7 @@ export class FoodStockLogService {
       }
     ]);
 
-    const total = await getFoodStockLogModel().countDocuments();
+    const total = await FoodStockLog.countDocuments();
 
     return {
       total,

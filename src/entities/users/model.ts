@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
 
 export interface IUser extends Document {
   phone: string;
@@ -100,13 +99,4 @@ const UserSchema: Schema = new Schema({
   timestamps: true
 });
 
-
-const createUserModel = createModelFactory<IUser>(
-  'User',
-  UserSchema,
-  'users',
-  'default'
-);
-
-
-export default createUserModel;
+export default mongoose.model<IUser>('User', UserSchema, 'users');

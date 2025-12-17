@@ -1,7 +1,7 @@
 import DetergentLog from './model';
 import { IDetergentLog } from './model';
 import User from '../../users/model';
-import createProductModel from '../products/model';
+import Product from '../products/model';
 
 
 let DetergentLogModel: any = null;
@@ -9,14 +9,14 @@ let UserModel: any = null;
 
 const getDetergentLogModel = () => {
   if (!DetergentLogModel) {
-    DetergentLogModel = DetergentLog();
+    DetergentLogModel = DetergentLog;
   }
   return DetergentLogModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -26,7 +26,7 @@ let ProductModel: any = null;
 
 const getProductModel = () => {
   if (!ProductModel) {
-    ProductModel = createProductModel();
+    ProductModel = Product;
   }
   return ProductModel;
 };
@@ -54,7 +54,7 @@ export class DetergentLogService {
       if (filters.expirationEndDate) filter.expirationDate.$lte = new Date(filters.expirationEndDate);
     }
 
-    const logs = await getDetergentLogModel().find(filter)
+    const logs = await DetergentLog.find(filter)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role')
       .sort({ deliveryDate: -1 });
@@ -63,7 +63,7 @@ export class DetergentLogService {
   }
 
   async getById(id: string) {
-    const log = await getDetergentLogModel().findById(id)
+    const log = await DetergentLog.findById(id)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role');
 
@@ -114,18 +114,18 @@ export class DetergentLogService {
     }
 
 
-    const product = await getProductModel().findById(logData.productId);
+    const product = await Product.findById(logData.productId);
     if (!product) {
       throw new Error('Продукт не найден');
     }
 
 
-    const receiver = await getUserModel().findById(logData.receiver);
+    const receiver = await User.findById(logData.receiver);
     if (!receiver) {
       throw new Error('Ответственный не найден');
     }
 
-    const detergentLogModel = getDetergentLogModel();
+    const detergentLogModel = DetergentLog;
     const log = new detergentLogModel({
       ...logData,
       receiver: userId
@@ -141,7 +141,7 @@ export class DetergentLogService {
   }
 
   async update(id: string, data: Partial<IDetergentLog>) {
-    const updatedLog = await getDetergentLogModel().findByIdAndUpdate(
+    const updatedLog = await DetergentLog.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -156,7 +156,7 @@ export class DetergentLogService {
   }
 
   async delete(id: string) {
-    const result = await getDetergentLogModel().findByIdAndDelete(id);
+    const result = await DetergentLog.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись моющего средства не найдена');
@@ -186,7 +186,7 @@ export class DetergentLogService {
       if (filters.expirationEndDate) filter.expirationDate.$lte = new Date(filters.expirationEndDate);
     }
 
-    const logs = await getDetergentLogModel().find(filter)
+    const logs = await DetergentLog.find(filter)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role')
       .sort({ deliveryDate: -1 });
@@ -216,7 +216,7 @@ export class DetergentLogService {
       if (filters.expirationEndDate) filter.expirationDate.$lte = new Date(filters.expirationEndDate);
     }
 
-    const logs = await getDetergentLogModel().find(filter)
+    const logs = await DetergentLog.find(filter)
       .populate('productId', 'name')
       .populate('receiver', 'fullName role')
       .sort({ deliveryDate: -1 });
@@ -229,7 +229,7 @@ export class DetergentLogService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const logs = await getDetergentLogModel().find({
+    const logs = await DetergentLog.find({
       expirationDate: {
         $gte: today,
         $lte: futureDate
@@ -244,7 +244,7 @@ export class DetergentLogService {
   }
 
   async updateStatus(id: string, status: 'received' | 'stored' | 'used' | 'disposed') {
-    const log = await getDetergentLogModel().findByIdAndUpdate(
+    const log = await DetergentLog.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -259,7 +259,7 @@ export class DetergentLogService {
   }
 
   async markAsUsed(id: string, usageDate: Date, usagePerson: string) {
-    const log = await getDetergentLogModel().findByIdAndUpdate(
+    const log = await DetergentLog.findByIdAndUpdate(
       id,
       {
         status: 'used',
@@ -278,7 +278,7 @@ export class DetergentLogService {
   }
 
   async markAsDisposed(id: string, disposalDate: Date, disposalMethod: string) {
-    const log = await getDetergentLogModel().findByIdAndUpdate(
+    const log = await DetergentLog.findByIdAndUpdate(
       id,
       {
         status: 'disposed',
@@ -297,7 +297,7 @@ export class DetergentLogService {
   }
 
   async addNotes(id: string, notes: string) {
-    const log = await getDetergentLogModel().findByIdAndUpdate(
+    const log = await DetergentLog.findByIdAndUpdate(
       id,
       { notes },
       { new: true }
@@ -312,7 +312,7 @@ export class DetergentLogService {
   }
 
   async getStatistics() {
-    const stats = await getDetergentLogModel().aggregate([
+    const stats = await DetergentLog.aggregate([
       {
         $group: {
           _id: '$status',
@@ -324,7 +324,7 @@ export class DetergentLogService {
       }
     ]);
 
-    const supplierStats = await getDetergentLogModel().aggregate([
+    const supplierStats = await DetergentLog.aggregate([
       {
         $group: {
           _id: '$supplier',
@@ -336,7 +336,7 @@ export class DetergentLogService {
       }
     ]);
 
-    const total = await getDetergentLogModel().countDocuments();
+    const total = await DetergentLog.countDocuments();
 
     return {
       total,

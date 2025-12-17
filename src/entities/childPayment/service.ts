@@ -10,21 +10,21 @@ let UserModel: any = null;
 
 const getChildPaymentModel = () => {
   if (!ChildPaymentModel) {
-    ChildPaymentModel = ChildPayment();
+    ChildPaymentModel = ChildPayment;
   }
   return ChildPaymentModel;
 };
 
 const getChildModel = () => {
   if (!ChildModel) {
-    ChildModel = Child();
+    ChildModel = Child;
   }
   return ChildModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -37,24 +37,24 @@ export const createChildPayment = async (paymentData: Partial<IChildPayment>): P
 
 
   if (paymentData.childId) {
-    const child = await getChildModel().findById(paymentData.childId);
+    const child = await Child.findById(paymentData.childId);
     if (!child) {
       throw new Error('Child not found');
     }
   } else if (paymentData.userId) {
-    const user = await getUserModel().findById(paymentData.userId);
+    const user = await User.findById(paymentData.userId);
     if (!user) {
       throw new Error('User not found');
     }
   }
 
-  const childPaymentModel = getChildPaymentModel();
+  const childPaymentModel = ChildPayment;
   const payment = new childPaymentModel(paymentData);
   return await payment.save();
 };
 
 export const getChildPayments = async (filters: any = {}): Promise<IChildPayment[]> => {
-  const childPaymentModel = getChildPaymentModel();
+  const childPaymentModel = ChildPayment;
   const query: any = {};
 
   if (filters.childId) {
@@ -89,14 +89,14 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
 };
 
 export const getChildPaymentById = async (id: string): Promise<IChildPayment | null> => {
-  const childPaymentModel = getChildPaymentModel();
+  const childPaymentModel = ChildPayment;
   return await childPaymentModel.findById(id)
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 };
 
 export const updateChildPayment = async (id: string, updateData: Partial<IChildPayment>): Promise<IChildPayment | null> => {
-  const childPaymentModel = getChildPaymentModel();
+  const childPaymentModel = ChildPayment;
 
   const existingPayment = await childPaymentModel.findById(id);
   if (!existingPayment) {
@@ -105,12 +105,12 @@ export const updateChildPayment = async (id: string, updateData: Partial<IChildP
 
 
   if (updateData.childId) {
-    const child = await getChildModel().findById(updateData.childId);
+    const child = await Child.findById(updateData.childId);
     if (!child) {
       throw new Error('Child not found');
     }
   } else if (updateData.userId) {
-    const user = await getUserModel().findById(updateData.userId);
+    const user = await User.findById(updateData.userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -122,7 +122,7 @@ export const updateChildPayment = async (id: string, updateData: Partial<IChildP
 };
 
 export const deleteChildPayment = async (id: string): Promise<boolean> => {
-  const childPaymentModel = getChildPaymentModel();
+  const childPaymentModel = ChildPayment;
   const result = await childPaymentModel.findByIdAndDelete(id);
   return !!result;
 };
@@ -136,7 +136,7 @@ export const getChildPaymentByPeriod = async (
   childId?: string,
   userId?: string
 ): Promise<IChildPayment | null> => {
-  const childPaymentModel = getChildPaymentModel();
+  const childPaymentModel = ChildPayment;
   const query: any = {
     'period.start': new Date(period.start),
     'period.end': new Date(period.end)

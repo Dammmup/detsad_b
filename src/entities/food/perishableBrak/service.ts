@@ -1,7 +1,7 @@
 import PerishableBrak from './model';
 import { IPerishableBrak } from './model';
 import User from '../../users/model';
-import createProductModel from '../products/model';
+import Product from '../products/model';
 
 
 let PerishableBrakModel: any = null;
@@ -9,14 +9,14 @@ let UserModel: any = null;
 
 const getPerishableBrakModel = () => {
   if (!PerishableBrakModel) {
-    PerishableBrakModel = PerishableBrak();
+    PerishableBrakModel = PerishableBrak;
   }
   return PerishableBrakModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -26,7 +26,7 @@ let ProductModel: any = null;
 
 const getProductModel = () => {
   if (!ProductModel) {
-    ProductModel = createProductModel();
+    ProductModel = Product;
   }
   return ProductModel;
 };
@@ -52,7 +52,7 @@ export class PerishableBrakService {
       if (filters.disposalEndDate) filter.disposalDate.$lte = new Date(filters.disposalEndDate);
     }
 
-    const braks = await getPerishableBrakModel().find(filter)
+    const braks = await PerishableBrak.find(filter)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('disposedBy', 'fullName role')
@@ -62,7 +62,7 @@ export class PerishableBrakService {
   }
 
   async getById(id: string) {
-    const brak = await getPerishableBrakModel().findById(id)
+    const brak = await PerishableBrak.findById(id)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('disposedBy', 'fullName role');
@@ -108,18 +108,18 @@ export class PerishableBrakService {
     }
 
 
-    const product = await getProductModel().findById(brakData.productId);
+    const product = await Product.findById(brakData.productId);
     if (!product) {
       throw new Error('Продукт не найден');
     }
 
 
-    const inspector = await getUserModel().findById(brakData.inspector);
+    const inspector = await User.findById(brakData.inspector);
     if (!inspector) {
       throw new Error('Инспектор не найден');
     }
 
-    const perishableBrakModel = getPerishableBrakModel();
+    const perishableBrakModel = PerishableBrak;
     const brak = new perishableBrakModel({
       ...brakData,
       inspector: userId
@@ -136,7 +136,7 @@ export class PerishableBrakService {
   }
 
   async update(id: string, data: Partial<IPerishableBrak>) {
-    const updatedBrak = await getPerishableBrakModel().findByIdAndUpdate(
+    const updatedBrak = await PerishableBrak.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -152,7 +152,7 @@ export class PerishableBrakService {
   }
 
   async delete(id: string) {
-    const result = await getPerishableBrakModel().findByIdAndDelete(id);
+    const result = await PerishableBrak.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись брака не найдена');
@@ -181,7 +181,7 @@ export class PerishableBrakService {
       if (filters.disposalEndDate) filter.disposalDate.$lte = new Date(filters.disposalEndDate);
     }
 
-    const braks = await getPerishableBrakModel().find(filter)
+    const braks = await PerishableBrak.find(filter)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('disposedBy', 'fullName role')
@@ -210,7 +210,7 @@ export class PerishableBrakService {
       if (filters.disposalEndDate) filter.disposalDate.$lte = new Date(filters.disposalEndDate);
     }
 
-    const braks = await getPerishableBrakModel().find(filter)
+    const braks = await PerishableBrak.find(filter)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('disposedBy', 'fullName role')
@@ -224,7 +224,7 @@ export class PerishableBrakService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const braks = await getPerishableBrakModel().find({
+    const braks = await PerishableBrak.find({
       expirationDate: {
         $gte: today,
         $lte: futureDate
@@ -240,7 +240,7 @@ export class PerishableBrakService {
   }
 
   async markAsDisposed(id: string, disposedBy: string, disposalDate?: Date) {
-    const brak = await getPerishableBrakModel().findById(id);
+    const brak = await PerishableBrak.findById(id);
 
     if (!brak) {
       throw new Error('Запись брака не найдена');
@@ -258,7 +258,7 @@ export class PerishableBrakService {
 
     await brak.save();
 
-    const populatedBrak = await getPerishableBrakModel().findById(brak._id)
+    const populatedBrak = await PerishableBrak.findById(brak._id)
       .populate('productId', 'name')
       .populate('inspector', 'fullName role')
       .populate('disposedBy', 'fullName role');
@@ -267,7 +267,7 @@ export class PerishableBrakService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'disposed' | 'reviewed') {
-    const brak = await getPerishableBrakModel().findByIdAndUpdate(
+    const brak = await PerishableBrak.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -283,7 +283,7 @@ export class PerishableBrakService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const brak = await getPerishableBrakModel().findByIdAndUpdate(
+    const brak = await PerishableBrak.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -299,7 +299,7 @@ export class PerishableBrakService {
   }
 
   async getStatistics() {
-    const stats = await getPerishableBrakModel().aggregate([
+    const stats = await PerishableBrak.aggregate([
       {
         $group: {
           _id: '$status',
@@ -311,7 +311,7 @@ export class PerishableBrakService {
       }
     ]);
 
-    const reasonStats = await getPerishableBrakModel().aggregate([
+    const reasonStats = await PerishableBrak.aggregate([
       {
         $group: {
           _id: '$reason',
@@ -323,7 +323,7 @@ export class PerishableBrakService {
       }
     ]);
 
-    const disposalMethodStats = await getPerishableBrakModel().aggregate([
+    const disposalMethodStats = await PerishableBrak.aggregate([
       {
         $group: {
           _id: '$disposalMethod',
@@ -335,7 +335,7 @@ export class PerishableBrakService {
       }
     ]);
 
-    const total = await getPerishableBrakModel().countDocuments();
+    const total = await PerishableBrak.countDocuments();
 
     return {
       total,

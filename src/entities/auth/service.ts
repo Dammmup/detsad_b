@@ -6,7 +6,7 @@ import { hashPassword, comparePassword } from '../../utils/hash';
 
 export class AuthService {
   private get userModel() {
-    return User();
+    return User;
   }
   private createJwtToken(user: any) {
     const secret = process.env.JWT_SECRET;

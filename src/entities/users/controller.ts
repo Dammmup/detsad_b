@@ -214,9 +214,9 @@ export const createUser = async (req: Request, res: Response) => {
     if (user.role !== 'admin' && user.role !== 'child') {
       try {
         const month = new Date().toISOString().slice(0, 7);
-        const exists = await Payroll().findOne({ staffId: user._id, period: month });
+        const exists = await Payroll.findOne({ staffId: user._id, period: month });
         if (!exists) {
-          await Payroll().create({
+          await Payroll.create({
             staffId: user._id,
             period: month,
             baseSalary: 180000,
@@ -485,10 +485,10 @@ export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Resp
     const period = req.body.period || new Date().toISOString().slice(0, 7);
 
 
-    let payroll = await Payroll().findOne({ staffId: req.params.id, period });
+    let payroll = await Payroll.findOne({ staffId: req.params.id, period });
 
     if (!payroll) {
-      payroll = new (Payroll())({
+      payroll = new Payroll({
         staffId: req.params.id,
         period,
         baseSalary: req.body.salary || req.body.baseSalary || 180000,
@@ -518,7 +518,7 @@ export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Resp
 
     res.json({
       message: 'Payroll settings updated',
-      payroll: await Payroll().findById(payroll._id).populate('staffId', 'fullName role')
+      payroll: await Payroll.findById(payroll._id).populate('staffId', 'fullName role')
     });
   } catch (err) {
     console.error('Error updating payroll settings:', err);
@@ -599,14 +599,14 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
     const finePeriod = period || new Date().toISOString().slice(0, 7);
 
 
-    let payroll = await Payroll().findOne({
+    let payroll = await Payroll.findOne({
       staffId: userId,
       period: finePeriod
     });
 
     if (!payroll) {
 
-      payroll = new (Payroll())({
+      payroll = new Payroll({
         staffId: userId,
         period: finePeriod,
         baseSalary: 0,
@@ -643,7 +643,7 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
 
     await payroll.save();
 
-    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
+    const populatedPayroll = await Payroll.findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
 
     if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
       let msg = `Вам добавлен Вычет за период ${populatedPayroll.period}:\n` +
@@ -677,7 +677,7 @@ export const getUserFines = async (req: AuthenticatedRequest, res: Response) => 
     }
 
 
-    const payrolls = await Payroll().find({ staffId: userId }).sort({ period: -1 });
+    const payrolls = await Payroll.find({ staffId: userId }).sort({ period: -1 });
 
 
     const allFines = [];
@@ -718,7 +718,7 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
     const { payrollId, fineIndex } = req.params;
 
 
-    const payroll = await Payroll().findById(payrollId);
+    const payroll = await Payroll.findById(payrollId);
     if (!payroll) {
       return res.status(404).json({ error: 'Payroll record not found' });
     }
@@ -741,7 +741,7 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
 
     await payroll.save();
 
-    const populatedPayroll = await Payroll().findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
+    const populatedPayroll = await Payroll.findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
 
     if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
       let msg = `С вас снят Вычет за период ${populatedPayroll.period}:\n` +
@@ -774,7 +774,7 @@ export const getUserTotalFines = async (req: AuthenticatedRequest, res: Response
     }
 
 
-    const payrolls = await Payroll().find({ staffId: userId });
+    const payrolls = await Payroll.find({ staffId: userId });
 
 
     let totalFines = 0;

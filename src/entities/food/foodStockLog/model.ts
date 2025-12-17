@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IFoodStockLog extends Document {
   productId: mongoose.Types.ObjectId;
   productName: string;
@@ -123,12 +121,4 @@ const FoodStockLogSchema = new Schema<IFoodStockLog>({
 });
 
 
-const createFoodStockLogModel = createModelFactory<IFoodStockLog>(
-  'FoodStockLog',
-  FoodStockLogSchema,
-  'food_stock_logs',
-  'food'
-);
-
-
-export default createFoodStockLogModel;
+export default mongoose.model<IFoodStockLog>('FoodStockLog', FoodStockLogSchema, 'food_stock_logs');

@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IPayroll extends Document {
   staffId?: mongoose.Types.ObjectId;
 
@@ -191,12 +189,4 @@ PayrollSchema.pre('save', function (next) {
 PayrollSchema.index({ staffId: 1, period: 1 }, { unique: true });
 
 
-const createPayrollModel = createModelFactory<IPayroll>(
-  'Payroll',
-  PayrollSchema,
-  'payrolls',
-  'default'
-);
-
-
-export default createPayrollModel;
+export default mongoose.model<IPayroll>('Payroll', PayrollSchema, 'payrolls');

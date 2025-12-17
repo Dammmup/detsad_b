@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IChildHealthPassport extends Document {
   childId: mongoose.Types.ObjectId;
   birthDate: Date;
@@ -142,12 +140,4 @@ const ChildHealthPassportSchema = new Schema<IChildHealthPassport>({
 
 
 
-const createChildHealthPassportModel = createModelFactory<IChildHealthPassport>(
-  'ChildHealthPassport',
-  ChildHealthPassportSchema,
-  'child_health_passports',
-  'default'
-);
-
-
-export default createChildHealthPassportModel;
+export default mongoose.model<IChildHealthPassport>('ChildHealthPassport', ChildHealthPassportSchema, 'child_health_passports');

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
+import User from '../users/model';
 import { AuthService } from './service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
-import { getModel } from '../../config/modelRegistry';
 
 const authService = new AuthService();
 
@@ -10,8 +10,7 @@ export const login = async (req: Request, res: Response) => {
   console.log('login:', phone, password);
   try {
     const result = await authService.login(phone, password);
-    const User = getModel<any>('User');
-    const user = await User.findOne({ phone: phone });
+        const user = await User.findOne({ phone: phone });
     if (user) {
       await sendLogToTelegram(`Пользователь ${user.fullName} вошёл в систему`);
     } else {

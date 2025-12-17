@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { connectDatabases, getConnection } from '../src/config/database';
+import { connectDB } from '../src/config/database';
 import StaffAttendanceTracking from '../src/entities/staffAttendanceTracking/model';
 import Shift from '../src/entities/staffShifts/model';
 
@@ -9,25 +9,21 @@ const recalculateLateMinutes = async () => {
         console.log('Начинаем подключение к базе данных...');
 
 
-        await connectDatabases();
+        await connectDB();
 
 
-        const dbConnection = getConnection('default');
+        const dbConnection = mongoose.connection;
 
         console.log('Подключение к базе данных установлено');
 
 
-        const StaffAttendanceModel = StaffAttendanceTracking();
-        const ShiftModel = Shift();
-
-        console.log('Получили модели');
 
 
-        const totalCount = await StaffAttendanceModel.countDocuments();
+        const totalCount = await StaffAttendanceTracking.countDocuments();
         console.log(`Всего записей в staff_attendance_tracking: ${totalCount}`);
 
 
-        const attendanceRecords = await StaffAttendanceModel.find({
+        const attendanceRecords = await StaffAttendanceTracking.find({
             actualStart: { $exists: true, $ne: null }
         });
 
@@ -44,11 +40,11 @@ const recalculateLateMinutes = async () => {
 
                 let shift;
                 if (record.shiftId) {
-                    shift = await ShiftModel.findById(record.shiftId);
+                    shift = await Shift.findById(record.shiftId);
                 } else {
 
                     if (record.date && record.staffId) {
-                        shift = await ShiftModel.findOne({
+                        shift = await Shift.findOne({
                             date: record.date,
                             staffId: record.staffId
                         });
@@ -100,7 +96,7 @@ const recalculateLateMinutes = async () => {
 
 
                 if (record.lateMinutes !== lateMinutes) {
-                    await StaffAttendanceModel.findByIdAndUpdate(record._id, {
+                    await StaffAttendanceTracking.findByIdAndUpdate(record._id, {
                         lateMinutes: lateMinutes
                     });
 

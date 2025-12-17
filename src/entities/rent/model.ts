@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
 import { IUser } from '../users/model';
 
 export interface IRent extends Document {
@@ -55,12 +54,4 @@ const RentSchema = new Schema<IRent>({
 });
 
 
-const createRentModel = createModelFactory<IRent>(
-  'Rent',
-  RentSchema,
-  'rents',
-  'default'
-);
-
-
-export default createRentModel;
+export default mongoose.model<IRent>('Rent', RentSchema, 'rents');

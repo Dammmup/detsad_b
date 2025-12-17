@@ -1,4 +1,5 @@
 import createMainEventModel, { IMainEvent } from './model';
+import MainEvent from './model';
 import EmailService from '../../services/emailService';
 import { IChildAttendance } from '../childAttendance/model';
 import { IChildPayment } from '../childPayment/model';
@@ -20,7 +21,7 @@ let MainEventModel: any = null;
 
 const getMainEventModel = () => {
   if (!MainEventModel) {
-    MainEventModel = createMainEventModel();
+    MainEventModel = MainEvent;
   }
   return MainEventModel;
 };
@@ -33,12 +34,12 @@ export class MainEventsService {
       filter.enabled = filters.enabled;
     }
 
-    return await getMainEventModel().find(filter)
+    return await MainEvent.find(filter)
       .sort({ createdAt: -1 });
   }
 
   async getById(id: string) {
-    const mainEvent = await getMainEventModel().findById(id);
+    const mainEvent = await MainEvent.findById(id);
 
     if (!mainEvent) {
       throw new Error('Событие не найдено');
@@ -48,14 +49,14 @@ export class MainEventsService {
   }
 
   async create(mainEventData: Partial<IMainEvent>) {
-    const mainEvent = new (getMainEventModel())(mainEventData);
+    const mainEvent = new MainEvent(mainEventData);
     await mainEvent.save();
 
     return mainEvent;
   }
 
   async update(id: string, data: Partial<IMainEvent>) {
-    const updatedMainEvent = await getMainEventModel().findByIdAndUpdate(
+    const updatedMainEvent = await MainEvent.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -69,7 +70,7 @@ export class MainEventsService {
   }
 
   async delete(id: string) {
-    const result = await getMainEventModel().findByIdAndDelete(id);
+    const result = await MainEvent.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Событие не найдено');
@@ -79,7 +80,7 @@ export class MainEventsService {
   }
 
   async toggleEnabled(id: string, enabled: boolean) {
-    const mainEvent = await getMainEventModel().findByIdAndUpdate(
+    const mainEvent = await MainEvent.findByIdAndUpdate(
       id,
       { enabled },
       { new: true }
@@ -94,7 +95,7 @@ export class MainEventsService {
 
 
   async executeScheduledExport(mainEventId: string) {
-    const mainEvent = await getMainEventModel().findById(mainEventId);
+    const mainEvent = await MainEvent.findById(mainEventId);
 
     if (!mainEvent) {
       throw new Error('Событие не найдено');
@@ -162,7 +163,7 @@ export class MainEventsService {
     const dayOfMonth = now.getDate();
 
 
-    const eventsToExecute = await getMainEventModel().find({
+    const eventsToExecute = await MainEvent.find({
       enabled: true,
       dayOfMonth: dayOfMonth
     });
@@ -202,7 +203,7 @@ export class MainEventsService {
     const dayOfMonth = now.getDate();
 
 
-    const eventsToExecute = await getMainEventModel().find({
+    const eventsToExecute = await MainEvent.find({
       enabled: true
     });
 
@@ -301,7 +302,7 @@ export class MainEventsService {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-    await ChildAttendance().deleteMany({
+    await ChildAttendance.deleteMany({
       date: {
         $gte: startOfDay,
         $lt: endOfDay
@@ -315,7 +316,7 @@ export class MainEventsService {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-    await ChildPayment().deleteMany({
+    await ChildPayment.deleteMany({
       createdAt: {
         $gte: startOfDay,
         $lt: endOfDay
@@ -328,7 +329,7 @@ export class MainEventsService {
     const today = new Date();
     const dateString = today.toISOString().split('T')[0];
 
-    await StaffShift().deleteMany({
+    await StaffShift.deleteMany({
       date: dateString
     });
   }
@@ -340,7 +341,7 @@ export class MainEventsService {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const period = `${year}-${month}`;
 
-    await Payroll().deleteMany({
+    await Payroll.deleteMany({
       period: period
     });
   }
@@ -352,7 +353,7 @@ export class MainEventsService {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const period = `${year}-${month}`;
 
-    await Rent().deleteMany({
+    await Rent.deleteMany({
       period: period
     });
   }

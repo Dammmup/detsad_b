@@ -1,15 +1,5 @@
-import createHealthPassportModel from './model';
-import { IHealthPassport } from './model';
+import HealthPassport, { IHealthPassport } from './model';
 
-
-let HealthPassportModel: any = null;
-
-const getHealthPassportModel = () => {
-  if (!HealthPassportModel) {
-    HealthPassportModel = createHealthPassportModel();
-  }
-  return HealthPassportModel;
-};
 
 export class HealthPassportService {
   async getAll(filters: { childId?: string, status?: string, bloodType?: string, rhesus?: string }) {
@@ -20,7 +10,7 @@ export class HealthPassportService {
     if (filters.bloodType) filter.bloodType = filters.bloodType;
     if (filters.rhesus) filter.rhesus = filters.rhesus;
 
-    const passports = await getHealthPassportModel().find(filter)
+    const passports = await HealthPassport.find(filter)
       .populate('childId', 'fullName iin')
       .sort({ createdAt: -1 });
 
@@ -28,7 +18,7 @@ export class HealthPassportService {
   }
 
   async getById(id: string) {
-    const passport = await getHealthPassportModel().findById(id)
+    const passport = await HealthPassport.findById(id)
       .populate('childId', 'fullName iin');
 
     if (!passport) {
@@ -39,7 +29,7 @@ export class HealthPassportService {
   }
 
   async getByChildId(childId: string) {
-    const passport = await getHealthPassportModel().findOne({ childId })
+    const passport = await HealthPassport.findOne({ childId })
       .populate('childId', 'fullName iin');
 
     return passport;
@@ -64,22 +54,22 @@ export class HealthPassportService {
     }
 
 
-    const existingPassport = await getHealthPassportModel().findOne({ childId: passportData.childId });
+    const existingPassport = await HealthPassport.findOne({ childId: passportData.childId });
     if (existingPassport) {
       throw new Error('Медицинский паспорт для этого ребенка уже существует');
     }
 
-    const passport = new (getHealthPassportModel())(passportData);
+    const passport = new HealthPassport(passportData);
     await passport.save();
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async update(id: string, data: Partial<IHealthPassport>) {
-    const updatedPassport = await getHealthPassportModel().findByIdAndUpdate(
+    const updatedPassport = await HealthPassport.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -93,7 +83,7 @@ export class HealthPassportService {
   }
 
   async delete(id: string) {
-    const result = await getHealthPassportModel().findByIdAndDelete(id);
+    const result = await HealthPassport.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Медицинский паспорт не найден');
@@ -103,7 +93,7 @@ export class HealthPassportService {
   }
 
   async addVaccination(id: string, vaccination: { vaccine: string, date: Date, nextDate?: Date, notes?: string }) {
-    const passport = await getHealthPassportModel().findById(id);
+    const passport = await HealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт не найден');
@@ -112,14 +102,14 @@ export class HealthPassportService {
     passport.vaccinationHistory.push(vaccination);
     await passport.save();
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async addDoctorExamination(id: string, examination: { doctor: string, date: Date, result: string, notes?: string }) {
-    const passport = await getHealthPassportModel().findById(id);
+    const passport = await HealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт не найден');
@@ -128,14 +118,14 @@ export class HealthPassportService {
     passport.doctorExaminations.push(examination);
     await passport.save();
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async addChronicDisease(id: string, disease: string) {
-    const passport = await getHealthPassportModel().findById(id);
+    const passport = await HealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт не найден');
@@ -146,14 +136,14 @@ export class HealthPassportService {
       await passport.save();
     }
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async addAllergy(id: string, allergy: string) {
-    const passport = await getHealthPassportModel().findById(id);
+    const passport = await HealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт не найден');
@@ -164,14 +154,14 @@ export class HealthPassportService {
       await passport.save();
     }
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async removeChronicDisease(id: string, disease: string) {
-    const passport = await getHealthPassportModel().findById(id);
+    const passport = await HealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт не найден');
@@ -180,14 +170,14 @@ export class HealthPassportService {
     passport.chronicDiseases = passport.chronicDiseases.filter(d => d !== disease);
     await passport.save();
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
   }
 
   async removeAllergy(id: string, allergy: string) {
-    const passport = await getHealthPassportModel().findById(id);
+    const passport = await HealthPassport.findById(id);
 
     if (!passport) {
       throw new Error('Медицинский паспорт не найден');
@@ -196,7 +186,7 @@ export class HealthPassportService {
     passport.allergies = passport.allergies.filter(a => a !== allergy);
     await passport.save();
 
-    const populatedPassport = await getHealthPassportModel().findById(passport._id)
+    const populatedPassport = await HealthPassport.findById(passport._id)
       .populate('childId', 'fullName iin');
 
     return populatedPassport;
@@ -207,7 +197,7 @@ export class HealthPassportService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const passports = await getHealthPassportModel().find({
+    const passports = await HealthPassport.find({
       'vaccinationHistory.nextDate': {
         $gte: today,
         $lte: futureDate
@@ -239,7 +229,7 @@ export class HealthPassportService {
   }
 
   async getStatistics() {
-    const stats = await getHealthPassportModel().aggregate([
+    const stats = await HealthPassport.aggregate([
       {
         $group: {
           _id: {
@@ -254,7 +244,7 @@ export class HealthPassportService {
       }
     ]);
 
-    const total = await getHealthPassportModel().countDocuments();
+    const total = await HealthPassport.countDocuments();
 
     return {
       total,

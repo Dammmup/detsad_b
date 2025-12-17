@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface IChild extends Document {
   fullName: string;
   iin?: string;
@@ -56,12 +54,4 @@ const ChildSchema = new Schema<IChild>({
 }, { timestamps: true });
 
 
-const createChildModel = createModelFactory<IChild>(
-  'Child',
-  ChildSchema,
-  'children',
-  'default'
-);
-
-
-export default createChildModel;
+export default mongoose.model<IChild>('Child', ChildSchema, 'children');

@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface ITubPositiveJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -62,12 +60,4 @@ const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
 });
 
 
-const createTubPositiveJournalModel = createModelFactory<ITubPositiveJournal>(
-  'TubPositiveJournal',
-  TubPositiveJournalSchema,
-  'tub_positive_journals',
-  'medical'
-);
-
-
-export default createTubPositiveJournalModel;
+export default mongoose.model<ITubPositiveJournal>('TubPositiveJournal', TubPositiveJournalSchema, 'tub_positive_journals');

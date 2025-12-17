@@ -3,9 +3,6 @@ import { IInfectiousDiseasesJournal } from './model';
 import User from '../../users/model';
 
 
-const getInfectiousDiseasesJournalModel = () => InfectiousDiseasesJournal();
-const getUserModel = () => User();
-
 export class InfectiousDiseasesJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, disease?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
@@ -23,7 +20,7 @@ export class InfectiousDiseasesJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getInfectiousDiseasesJournalModel().find(filter)
+    const journals = await InfectiousDiseasesJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -32,7 +29,7 @@ export class InfectiousDiseasesJournalService {
   }
 
   async getById(id: string) {
-    const journal = await getInfectiousDiseasesJournalModel().findById(id)
+    const journal = await InfectiousDiseasesJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -65,25 +62,25 @@ export class InfectiousDiseasesJournalService {
     }
 
 
-    const child = await getUserModel().findById(journalData.childId);
+    const child = await User.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
 
-    const doctor = await getUserModel().findById(journalData.doctor);
+    const doctor = await User.findById(journalData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
 
-    const journal = new (getInfectiousDiseasesJournalModel())({
+    const journal = new InfectiousDiseasesJournal({
       ...journalData,
       doctor: userId
     });
 
     await journal.save();
 
-    const populatedJournal = await getInfectiousDiseasesJournalModel().findById(journal._id)
+    const populatedJournal = await InfectiousDiseasesJournal.findById(journal._id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -91,7 +88,7 @@ export class InfectiousDiseasesJournalService {
   }
 
   async update(id: string, data: Partial<IInfectiousDiseasesJournal>) {
-    const updatedJournal = await getInfectiousDiseasesJournalModel().findByIdAndUpdate(
+    const updatedJournal = await InfectiousDiseasesJournal.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -106,7 +103,7 @@ export class InfectiousDiseasesJournalService {
   }
 
   async delete(id: string) {
-    const result = await getInfectiousDiseasesJournalModel().findByIdAndDelete(id);
+    const result = await InfectiousDiseasesJournal.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись инфекционного заболевания не найдена');
@@ -130,7 +127,7 @@ export class InfectiousDiseasesJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getInfectiousDiseasesJournalModel().find(filter)
+    const journals = await InfectiousDiseasesJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -151,7 +148,7 @@ export class InfectiousDiseasesJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getInfectiousDiseasesJournalModel().find(filter)
+    const journals = await InfectiousDiseasesJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -164,7 +161,7 @@ export class InfectiousDiseasesJournalService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const journals = await getInfectiousDiseasesJournalModel().find({
+    const journals = await InfectiousDiseasesJournal.find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
@@ -178,7 +175,7 @@ export class InfectiousDiseasesJournalService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await getInfectiousDiseasesJournalModel().findByIdAndUpdate(
+    const journal = await InfectiousDiseasesJournal.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -193,7 +190,7 @@ export class InfectiousDiseasesJournalService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const journal = await getInfectiousDiseasesJournalModel().findByIdAndUpdate(
+    const journal = await InfectiousDiseasesJournal.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -208,7 +205,7 @@ export class InfectiousDiseasesJournalService {
   }
 
   async getStatistics() {
-    const stats = await getInfectiousDiseasesJournalModel().aggregate([
+    const stats = await InfectiousDiseasesJournal.aggregate([
       {
         $group: {
           _id: '$disease',
@@ -220,7 +217,7 @@ export class InfectiousDiseasesJournalService {
       }
     ]);
 
-    const statusStats = await getInfectiousDiseasesJournalModel().aggregate([
+    const statusStats = await InfectiousDiseasesJournal.aggregate([
       {
         $group: {
           _id: '$status',
@@ -232,7 +229,7 @@ export class InfectiousDiseasesJournalService {
       }
     ]);
 
-    const total = await getInfectiousDiseasesJournalModel().countDocuments();
+    const total = await InfectiousDiseasesJournal.countDocuments();
 
     return {
       total,

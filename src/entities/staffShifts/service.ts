@@ -51,7 +51,7 @@ export class ShiftsService {
       };
     }
 
-    const shifts = await Shift().find(filter)
+    const shifts = await Shift.find(filter)
       .populate('staffId', 'fullName role')
       .populate('createdBy', 'fullName')
       .sort({ date: 1, createdAt: -1 });
@@ -129,7 +129,7 @@ export class ShiftsService {
     }
 
 
-    const existingShift = await Shift().findOne({
+    const existingShift = await Shift.findOne({
       staffId: newShiftData.staffId,
       date: newShiftData.date,
       _id: { $ne: newShiftData._id }
@@ -139,10 +139,10 @@ export class ShiftsService {
       throw new Error('У сотрудника уже есть смена в этот день');
     }
 
-    const shift = new (Shift())(newShiftData);
+    const shift = new Shift(newShiftData);
     await shift.save();
 
-    const populatedShift = await Shift().findById(shift._id)
+    const populatedShift = await Shift.findById(shift._id)
       .populate('staffId', 'fullName role')
       .populate('createdBy', 'fullName');
 
@@ -190,7 +190,7 @@ export class ShiftsService {
         }
 
 
-        const existingShift = await Shift().findOne({
+        const existingShift = await Shift.findOne({
           staffId: newShiftData.staffId,
           date: newShiftData.date,
           _id: { $ne: newShiftData._id }
@@ -217,10 +217,10 @@ export class ShiftsService {
           newShiftData.status = 'pending_approval';
         }
 
-        const shift = new (Shift())(newShiftData);
+        const shift = new Shift(newShiftData);
         await shift.save();
 
-        const populatedShift = await Shift().findById(shift._id)
+        const populatedShift = await Shift.findById(shift._id)
           .populate('staffId', 'fullName role')
           .populate('createdBy', 'fullName');
 
@@ -243,7 +243,7 @@ export class ShiftsService {
 
   async update(id: string, data: any) {
 
-    const shift = await Shift().findById(id);
+    const shift = await Shift.findById(id);
 
     if (!shift) {
       throw new Error('Смена не найдена');
@@ -261,7 +261,7 @@ export class ShiftsService {
         staffIdForQuery = new mongoose.Types.ObjectId(data.staffId);
       }
 
-      const existingShift = await Shift().findOne({
+      const existingShift = await Shift.findOne({
         staffId: staffIdForQuery,
         date: data.date,
         _id: { $ne: id }
@@ -340,7 +340,7 @@ export class ShiftsService {
   }
 
   async delete(id: string) {
-    const shift = await Shift().findByIdAndDelete(id);
+    const shift = await Shift.findByIdAndDelete(id);
 
     if (!shift) {
       throw new Error('Смена не найдена');
@@ -354,7 +354,7 @@ export class ShiftsService {
 
     if (shiftId) {
       try {
-        shift = await Shift().findById(shiftId);
+        shift = await Shift.findById(shiftId);
 
         if (shift && !shift.staffId.equals(new mongoose.Types.ObjectId(userId)) &&
           (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new mongoose.Types.ObjectId(userId))) &&
@@ -370,7 +370,7 @@ export class ShiftsService {
 
     if (!shift) {
       const today = new Date().toISOString().split('T')[0];
-      shift = await Shift().findOne({
+      shift = await Shift.findOne({
         date: today,
         $or: [
           { staffId: new mongoose.Types.ObjectId(userId) },
@@ -432,13 +432,13 @@ export class ShiftsService {
         shift.set('status', 'in_progress');
         await shift.save();
 
-        let timeTracking = await StaffAttendanceTracking().findOne({
+        let timeTracking = await StaffAttendanceTracking.findOne({
           staffId: userId,
           date: shift.date
         });
 
         if (!timeTracking) {
-          timeTracking = new (StaffAttendanceTracking())({
+          timeTracking = new StaffAttendanceTracking({
             staffId: userId,
             date: shift.date
           });
@@ -461,13 +461,13 @@ export class ShiftsService {
     await shift.save();
 
 
-    let timeTracking = await StaffAttendanceTracking().findOne({
+    let timeTracking = await StaffAttendanceTracking.findOne({
       staffId: userId,
       date: shift.date
     });
 
     if (!timeTracking) {
-      timeTracking = new (StaffAttendanceTracking())({
+      timeTracking = new StaffAttendanceTracking({
         staffId: userId,
         date: shift.date
       });
@@ -480,7 +480,7 @@ export class ShiftsService {
 
     if (lateMinutes > 0) {
 
-      const payroll = await Payroll().findOne({ staffId: userId });
+      const payroll = await Payroll.findOne({ staffId: userId });
       const penaltyRate = payroll?.penaltyDetails?.amount || 50;
 
       const penaltyAmount = lateMinutes * penaltyRate;
@@ -503,7 +503,7 @@ export class ShiftsService {
 
     if (shiftId) {
       try {
-        shift = await Shift().findById(shiftId);
+        shift = await Shift.findById(shiftId);
 
         if (shift && !shift.staffId.equals(new mongoose.Types.ObjectId(userId)) &&
           (!shift.alternativeStaffId || !shift.alternativeStaffId.equals(new mongoose.Types.ObjectId(userId))) &&
@@ -519,7 +519,7 @@ export class ShiftsService {
 
     if (!shift) {
       const today = new Date().toISOString().split('T')[0];
-      shift = await Shift().findOne({
+      shift = await Shift.findOne({
         date: today,
         $or: [
           { staffId: new mongoose.Types.ObjectId(userId) },
@@ -552,7 +552,7 @@ export class ShiftsService {
     await shift.save();
 
 
-    const timeTracking = await StaffAttendanceTracking().findOne({
+    const timeTracking = await StaffAttendanceTracking.findOne({
       staffId: userId,
       date: shift.date
     });
@@ -582,7 +582,7 @@ export class ShiftsService {
 
       if (earlyMinutes > 0) {
 
-        const payroll = await Payroll().findOne({ staffId: userId });
+        const payroll = await Payroll.findOne({ staffId: userId });
         const penaltyRate = payroll?.penaltyDetails?.amount || 500;
 
         const penaltyAmount = earlyMinutes * penaltyRate;
@@ -597,7 +597,7 @@ export class ShiftsService {
 
       if (lateMinutes > 0) {
 
-        const payroll = await Payroll().findOne({ staffId: userId });
+        const payroll = await Payroll.findOne({ staffId: userId });
         const penaltyRate = payroll?.penaltyDetails?.amount || 50;
 
         const penaltyAmount = lateMinutes * penaltyRate;
@@ -612,7 +612,7 @@ export class ShiftsService {
 
       const lateCheckoutMinutes = Math.max(0, Math.floor((actualEndTime.getTime() - shiftEndTime.getTime()) / (1000 * 60)));
       if (lateCheckoutMinutes > 0) {
-        const payroll = await Payroll().findOne({ staffId: userId });
+        const payroll = await Payroll.findOne({ staffId: userId });
         const penaltyRate = payroll?.penaltyDetails?.amount || 500;
         const penaltyAmount = lateCheckoutMinutes * penaltyRate;
         timeTracking.penalties.unauthorized = {
@@ -661,7 +661,7 @@ export class ShiftsService {
       };
     }
 
-    const records = await StaffAttendanceTracking().find(filter)
+    const records = await StaffAttendanceTracking.find(filter)
       .populate('staffId', 'fullName role')
       .populate('shiftId')
       .sort({ date: -1 });
@@ -670,7 +670,7 @@ export class ShiftsService {
   }
 
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {
-    const record = await StaffAttendanceTracking().findByIdAndUpdate(
+    const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
         penalties,
@@ -700,7 +700,7 @@ export class ShiftsService {
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
 
-      const shifts = await Shift().find({
+      const shifts = await Shift.find({
         date: todayStr,
         status: { $in: ['scheduled', 'in_progress'] }
       });
@@ -717,7 +717,7 @@ export class ShiftsService {
 
         if (timeSinceShiftStart >= 15) {
 
-          const timeTracking = await StaffAttendanceTracking().findOne({
+          const timeTracking = await StaffAttendanceTracking.findOne({
             staffId: shift.staffId,
             date: new Date(shift.date)
           });

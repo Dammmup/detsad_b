@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { createModelFactory } from '../../config/database';
 
 export interface IHoliday extends Document {
   name: string;
@@ -12,46 +11,39 @@ export interface IHoliday extends Document {
   updatedAt: Date;
 }
 
+const HolidaySchema = new Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  day: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 31
+  },
+  month: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 12
+  },
+  year: {
+    type: Number,
+    min: 2000,
+    max: 2100
+  },
+  isRecurring: {
+    type: Boolean,
+    default: true
+  },
+  description: {
+    type: String,
+    trim: true
+  }
+}, {
+  timestamps: true
+});
 
-const createHolidayModel = createModelFactory<IHoliday>(
-  'Holiday',
-  new Schema({
-    name: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    day: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 31
-    },
-    month: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 12
-    },
-    year: {
-      type: Number,
-      min: 2000,
-      max: 2100
-    },
-    isRecurring: {
-      type: Boolean,
-      default: true
-    },
-    description: {
-      type: String,
-      trim: true
-    }
-  }, {
-    timestamps: true
-  }),
-  'holidays',
-  'default'
-);
-
-
-export default createHolidayModel;
+export default mongoose.model<IHoliday>('Holiday', HolidaySchema, 'holidays');

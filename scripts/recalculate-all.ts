@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { connectDatabases, getConnection } from '../src/config/database';
+import { connectDB } from '../src/config/database';
 import StaffAttendanceTracking from '../src/entities/staffAttendanceTracking/model';
 import Shift from '../src/entities/staffShifts/model';
 import Payroll from '../src/entities/payroll/model';
@@ -11,10 +11,7 @@ const TIMEZONE_OFFSET = 5 * 60;
 
 
 const recalculateAllLateMinutes = async () => {
-    const StaffAttendanceModel = StaffAttendanceTracking();
-    const ShiftModel = Shift();
-
-    const attendanceRecords = await StaffAttendanceModel.find({
+    const attendanceRecords = await StaffAttendanceTracking.find({
         actualStart: { $exists: true, $ne: null }
     });
 
@@ -32,7 +29,7 @@ const recalculateAllLateMinutes = async () => {
                 String(recordDate.getDate()).padStart(2, '0')
             ].join('-');
 
-            const shift = await ShiftModel.findOne({
+            const shift = await Shift.findOne({
                 staffId: record.staffId,
                 date: dateStr
             });
@@ -59,7 +56,7 @@ const recalculateAllLateMinutes = async () => {
 
 
             if (record.lateMinutes !== lateMinutes) {
-                await StaffAttendanceModel.findByIdAndUpdate(record._id, { lateMinutes });
+                await StaffAttendanceTracking.findByIdAndUpdate(record._id, { lateMinutes });
                 updatedCount++;
                 console.log(`  ✓ ${dateStr}: ${record.lateMinutes} → ${lateMinutes} мин (actual: ${Math.floor(actualMinutes / 60)}:${String(actualMinutes % 60).padStart(2, '0')})`);
             }
@@ -74,11 +71,9 @@ const recalculateAllLateMinutes = async () => {
 
 
 const recalculateAllPayrolls = async () => {
-    const PayrollModel = Payroll();
-    const UserModel = User();
 
 
-    const payrolls = await PayrollModel.find();
+    const payrolls = await Payroll.find();
     const periods = [...new Set(payrolls.map(p => p.period))];
 
     console.log(`📊 Пересчёт payrolls для ${periods.length} периодов...`);
@@ -103,7 +98,7 @@ const recalculateAllPayrolls = async () => {
         console.log(`    Рабочих дней в месяце: ${workDaysInMonth}`);
 
 
-        const periodPayrolls = await PayrollModel.find({ period });
+        const periodPayrolls = await Payroll.find({ period });
 
         for (const payroll of periodPayrolls) {
             try {
@@ -116,7 +111,7 @@ const recalculateAllPayrolls = async () => {
                 if (!staffId) continue;
 
 
-                const staff = await UserModel.findById(staffId);
+                const staff = await User.findById(staffId);
                 if (!staff) continue;
 
                 const baseSalaryRaw = Number((staff as any).baseSalary);
@@ -227,8 +222,7 @@ const recalculateAll = async () => {
         console.log('='.repeat(50));
 
 
-        await connectDatabases();
-        const dbConnection = getConnection('default');
+        await connectDB();
         console.log('✅ Подключение к БД установлено\n');
 
 
@@ -245,7 +239,7 @@ const recalculateAll = async () => {
         console.log('🎉 Пересчёт завершён успешно!\n');
 
 
-        await dbConnection.close();
+        await mongoose.connection.close();
         console.log('✅ Соединение с БД закрыто');
         process.exit(0);
 

@@ -17,35 +17,35 @@ let PayrollModel: any = null;
 
 const getStaffAttendanceTrackingModel = () => {
   if (!StaffAttendanceTrackingModel) {
-    StaffAttendanceTrackingModel = StaffAttendanceTracking();
+    StaffAttendanceTrackingModel = StaffAttendanceTracking;
   }
   return StaffAttendanceTrackingModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
 
 const getGroupModel = () => {
   if (!GroupModel) {
-    GroupModel = Group();
+    GroupModel = Group;
   }
   return GroupModel;
 };
 
 const getShiftModel = () => {
   if (!ShiftModel) {
-    ShiftModel = Shift();
+    ShiftModel = Shift;
   }
   return ShiftModel;
 };
 
 const getPayrollModel = () => {
   if (!PayrollModel) {
-    PayrollModel = Payroll();
+    PayrollModel = Payroll;
   }
   return PayrollModel;
 };
@@ -88,7 +88,7 @@ export class StaffAttendanceTrackingService {
 
   async clockIn(userId: string, locationData: { latitude: number, longitude: number }, photo?: string, notes?: string) {
     try {
-      const user = await getUserModel().findById(userId);
+      const user = await User.findById(userId);
       if (user) {
         await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на работу`);
       }
@@ -101,7 +101,7 @@ export class StaffAttendanceTrackingService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const existingEntry = await getStaffAttendanceTrackingModel().findOne({
+    const existingEntry = await StaffAttendanceTracking.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
       date: { $gte: today, $lt: tomorrow }
     });
@@ -120,13 +120,13 @@ export class StaffAttendanceTrackingService {
     }
 
 
-    const user = await getUserModel().findById(userId);
+    const user = await User.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
 
-    const staffAttendanceTrackingModel = getStaffAttendanceTrackingModel();
+    const staffAttendanceTrackingModel = StaffAttendanceTracking;
     const attendanceRecord = new staffAttendanceTrackingModel({
       staffId: userId,
       date: new Date(),
@@ -147,13 +147,13 @@ export class StaffAttendanceTrackingService {
 
     const dateStr = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
 
-    const scheduledShift = await getShiftModel().findOne({
+    const scheduledShift = await Shift.findOne({
       staffId: userId,
       date: dateStr
     });
 
     if (scheduledShift && scheduledShift.startTime) {
-      attendanceRecord.shiftId = scheduledShift._id;
+      attendanceRecord.shiftId = scheduledShift._id as any;
 
       const actualStart = new Date();
       const [hours, minutes] = scheduledShift.startTime.split(':').map(Number);
@@ -168,7 +168,7 @@ export class StaffAttendanceTrackingService {
 
       if (latenessMinutes > 0) {
 
-        const payroll = await getPayrollModel().findOne({ staffId: userId });
+        const payroll = await Payroll.findOne({ staffId: userId });
         const penaltyRate = payroll?.penaltyDetails?.amount || 500;
 
         const penaltyAmount = latenessMinutes * penaltyRate;
@@ -226,7 +226,7 @@ export class StaffAttendanceTrackingService {
 
   async clockOut(userId: string, locationData: { latitude: number, longitude: number }, photo?: string, notes?: string) {
     try {
-      const user = await getUserModel().findById(userId);
+      const user = await User.findById(userId);
       if (user) {
         await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход с работы`);
       }
@@ -239,7 +239,7 @@ export class StaffAttendanceTrackingService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const attendanceRecord = await getStaffAttendanceTrackingModel().findOne({
+    const attendanceRecord = await StaffAttendanceTracking.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
       date: { $gte: today, $lt: tomorrow }
     });
@@ -372,7 +372,7 @@ export class StaffAttendanceTrackingService {
       filter.approvedAt = new Date(filters.approvedAt);
     }
 
-    const records = await getStaffAttendanceTrackingModel().find(filter)
+    const records = await StaffAttendanceTracking.find(filter)
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role')
       .sort({ date: -1 });
@@ -381,7 +381,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getById(id: string) {
-    const record = await getStaffAttendanceTrackingModel().findById(id)
+    const record = await StaffAttendanceTracking.findById(id)
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role');
 
@@ -415,14 +415,14 @@ export class StaffAttendanceTrackingService {
       }
     }
 
-    const record = new (getStaffAttendanceTrackingModel())({
+    const record = new StaffAttendanceTracking({
       ...recordData,
       approvedBy: userId
     });
 
     await record.save();
 
-    const populatedRecord = await getStaffAttendanceTrackingModel().findById(record._id)
+    const populatedRecord = await StaffAttendanceTracking.findById(record._id)
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role');
 
@@ -430,7 +430,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async update(id: string, data: Partial<IStaffAttendanceTracking>) {
-    const updatedRecord = await getStaffAttendanceTrackingModel().findByIdAndUpdate(
+    const updatedRecord = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -445,7 +445,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async delete(id: string) {
-    const result = await getStaffAttendanceTrackingModel().findByIdAndDelete(id);
+    const result = await StaffAttendanceTracking.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись посещаемости сотрудника не найдена');
@@ -473,7 +473,7 @@ export class StaffAttendanceTrackingService {
       filter.approvedAt = new Date(filters.approvedAt);
     }
 
-    const records = await getStaffAttendanceTrackingModel().find(filter)
+    const records = await StaffAttendanceTracking.find(filter)
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role')
       .sort({ date: -1 });
@@ -498,7 +498,7 @@ export class StaffAttendanceTrackingService {
       filter.approvedAt = new Date(filters.approvedAt);
     }
 
-    const records = await getStaffAttendanceTrackingModel().find(filter)
+    const records = await StaffAttendanceTracking.find(filter)
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role')
       .sort({ date: -1 });
@@ -522,13 +522,13 @@ export class StaffAttendanceTrackingService {
       if (filters.endDate) query.date.$lte = new Date(filters.endDate);
     }
 
-    const records = await getStaffAttendanceTrackingModel().find(query)
+    const records = await StaffAttendanceTracking.find(query)
       .populate('staffId', 'fullName role')
       .sort({ date: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await getStaffAttendanceTrackingModel().countDocuments(query);
+    const total = await StaffAttendanceTracking.countDocuments(query);
 
     return {
       records,
@@ -545,7 +545,7 @@ export class StaffAttendanceTrackingService {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       staffId: userId,
       date: { $gte: start, $lte: end }
     });
@@ -572,7 +572,7 @@ export class StaffAttendanceTrackingService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       date: {
         $gte: today,
         $lte: futureDate
@@ -587,13 +587,13 @@ export class StaffAttendanceTrackingService {
 
   async updateStatus(id: string, status: 'on_break' | 'overtime' | 'absent' | 'active' | 'completed' | 'missed' | 'pending_approval' | 'late') {
 
-    const record = await getStaffAttendanceTrackingModel().findById(id);
+    const record = await StaffAttendanceTracking.findById(id);
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
     if (record.shiftId) {
-      const shift = await getShiftModel().findByIdAndUpdate(
+      const shift = await Shift.findByIdAndUpdate(
         record.shiftId,
         { status },
         { new: true }
@@ -604,7 +604,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async addNotes(id: string, notes: string) {
-    const record = await getStaffAttendanceTrackingModel().findByIdAndUpdate(
+    const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       { notes },
       { new: true }
@@ -619,7 +619,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async approve(id: string, approvedBy: string) {
-    const record = await getStaffAttendanceTrackingModel().findByIdAndUpdate(
+    const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
         approvedBy,
@@ -637,7 +637,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {
-    const record = await getStaffAttendanceTrackingModel().findByIdAndUpdate(
+    const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
         penalties,
@@ -657,7 +657,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async approveAttendance(id: string, userId: string) {
-    const record = await getStaffAttendanceTrackingModel().findByIdAndUpdate(
+    const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
         approvedByTimeTracking: userId,
@@ -674,12 +674,12 @@ export class StaffAttendanceTrackingService {
   }
 
   async rejectAttendance(id: string, userId: string, reason?: string) {
-    const existingRecord = await getStaffAttendanceTrackingModel().findById(id);
+    const existingRecord = await StaffAttendanceTracking.findById(id);
     if (!existingRecord) {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    const record = await getStaffAttendanceTrackingModel().findByIdAndUpdate(
+    const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
         approvedByTimeTracking: userId,
@@ -697,7 +697,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getPendingApprovals() {
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       approvedAtTimeTracking: { $exists: false },
       approvedByTimeTracking: { $exists: false }
     })
@@ -708,7 +708,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getApprovedRecords() {
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       approvedAtTimeTracking: { $exists: true },
       approvedByTimeTracking: { $exists: true }
     })
@@ -719,7 +719,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getRejectedRecords() {
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       approvedAtTimeTracking: { $exists: true },
       approvedByTimeTracking: { $exists: true }
 
@@ -732,7 +732,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getLateArrivals(thresholdMinutes: number = 15) {
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       'penalties.late.minutes': { $gte: thresholdMinutes }
     })
       .populate('staffId', 'fullName role')
@@ -742,7 +742,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getEarlyLeaves(thresholdMinutes: number = 15) {
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       'penalties.earlyLeave.minutes': { $gte: thresholdMinutes }
     })
       .populate('staffId', 'fullName role')
@@ -752,7 +752,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getOvertimeRecords(thresholdMinutes: number = 30) {
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       'bonuses.overtime.minutes': { $gte: thresholdMinutes }
     })
       .populate('staffId', 'fullName role')
@@ -763,7 +763,7 @@ export class StaffAttendanceTrackingService {
 
   async getAbsenteeismRecords() {
 
-    const records = await getStaffAttendanceTrackingModel().find({
+    const records = await StaffAttendanceTracking.find({
       actualStart: { $exists: false }
     })
       .populate('staffId', 'fullName role')
@@ -773,7 +773,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getWorkDurationStats(startDate: string, endDate: string) {
-    const stats = await getStaffAttendanceTrackingModel().aggregate([
+    const stats = await StaffAttendanceTracking.aggregate([
       {
         $match: {
           date: {
@@ -823,7 +823,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getBreakDurationStats(startDate: string, endDate: string) {
-    const stats = await getStaffAttendanceTrackingModel().aggregate([
+    const stats = await StaffAttendanceTracking.aggregate([
       {
         $match: {
           date: {
@@ -869,14 +869,14 @@ export class StaffAttendanceTrackingService {
   }
 
   async getAttendanceRate(startDate: string, endDate: string) {
-    const totalRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const totalRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       }
     });
 
-    const presentRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const presentRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -884,7 +884,7 @@ export class StaffAttendanceTrackingService {
       actualStart: { $exists: true, $ne: null }
     });
 
-    const absentRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const absentRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -901,14 +901,14 @@ export class StaffAttendanceTrackingService {
   }
 
   async getLateArrivalRate(startDate: string, endDate: string, thresholdMinutes: number = 15) {
-    const totalRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const totalRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       }
     });
 
-    const lateRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const lateRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -924,14 +924,14 @@ export class StaffAttendanceTrackingService {
   }
 
   async getEarlyLeaveRate(startDate: string, endDate: string, thresholdMinutes: number = 15) {
-    const totalRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const totalRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       }
     });
 
-    const earlyLeaveRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const earlyLeaveRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -947,14 +947,14 @@ export class StaffAttendanceTrackingService {
   }
 
   async getOvertimeRate(startDate: string, endDate: string, thresholdMinutes: number = 30) {
-    const totalRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const totalRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       }
     });
 
-    const overtimeRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const overtimeRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -970,14 +970,14 @@ export class StaffAttendanceTrackingService {
   }
 
   async getAbsenteeismRate(startDate: string, endDate: string) {
-    const totalRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const totalRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       }
     });
 
-    const absentRecords = await getStaffAttendanceTrackingModel().countDocuments({
+    const absentRecords = await StaffAttendanceTracking.countDocuments({
       date: {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
@@ -993,7 +993,7 @@ export class StaffAttendanceTrackingService {
   }
 
   async getStatistics() {
-    const stats = await getStaffAttendanceTrackingModel().aggregate([
+    const stats = await StaffAttendanceTracking.aggregate([
       {
         $group: {
           _id: {
@@ -1023,7 +1023,7 @@ export class StaffAttendanceTrackingService {
       }
     ]);
 
-    const total = await getStaffAttendanceTrackingModel().countDocuments();
+    const total = await StaffAttendanceTracking.countDocuments();
 
     return {
       total,

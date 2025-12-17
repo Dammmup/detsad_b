@@ -1,9 +1,8 @@
-import { IHelminthJournal } from './model';
-import { getModel } from '../../../config/modelRegistry';
+import HelminthJournal, { IHelminthJournal } from './model';
+import User from '../../users/model';
 
 export class HelminthJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const filter: any = {};
 
     if (filters.childId) filter.childId = filters.childId;
@@ -27,7 +26,6 @@ export class HelminthJournalService {
   }
 
   async getById(id: string) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const journal = await HelminthJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
@@ -40,8 +38,6 @@ export class HelminthJournalService {
   }
 
   async create(journalData: Partial<IHelminthJournal>, userId: string) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
-    const User = getModel<any>('User');
 
 
     if (!journalData.childId) {
@@ -84,7 +80,6 @@ export class HelminthJournalService {
   }
 
   async update(id: string, data: Partial<IHelminthJournal>) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const updatedJournal = await HelminthJournal.findByIdAndUpdate(
       id,
       data,
@@ -100,7 +95,6 @@ export class HelminthJournalService {
   }
 
   async delete(id: string) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const result = await HelminthJournal.findByIdAndDelete(id);
 
     if (!result) {
@@ -111,7 +105,6 @@ export class HelminthJournalService {
   }
 
   async getByChildId(childId: string, filters: { date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const filter: any = { childId };
 
     if (filters.doctorId) filter.doctor = filters.doctorId;
@@ -134,7 +127,6 @@ export class HelminthJournalService {
   }
 
   async getByDoctorId(doctorId: string, filters: { childId?: string, status?: string, startDate?: string, endDate?: string }) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const filter: any = { doctor: doctorId };
 
     if (filters.childId) filter.childId = filters.childId;
@@ -155,7 +147,6 @@ export class HelminthJournalService {
   }
 
   async getUpcomingAppointments(days: number = 7) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
@@ -174,7 +165,6 @@ export class HelminthJournalService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const journal = await HelminthJournal.findByIdAndUpdate(
       id,
       { status },
@@ -190,7 +180,6 @@ export class HelminthJournalService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const journal = await HelminthJournal.findByIdAndUpdate(
       id,
       { recommendations },
@@ -206,7 +195,6 @@ export class HelminthJournalService {
   }
 
   async getStatistics() {
-    const HelminthJournal = getModel<IHelminthJournal>('HelminthJournal');
     const stats = await HelminthJournal.aggregate([
       {
         $group: {

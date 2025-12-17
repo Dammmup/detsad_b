@@ -323,7 +323,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
 
 
 
-    const allUsers = await User().find({ role: { $ne: 'admin' } });
+    const allUsers = await User.find({ role: { $ne: 'admin' } });
 
 
 
@@ -344,7 +344,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
       const total = rentAmount;
 
 
-      let rentRecord = await Payroll().findOne({
+      let rentRecord = await Payroll.findOne({
         tenantId: tenant._id,
         period: period
       });
@@ -359,7 +359,7 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
         console.log(`Обновлена аренда для арендатора ${tenant.fullName}: ${total} тг`);
       } else {
 
-        rentRecord = new (Payroll())({
+        rentRecord = new Payroll({
           tenantId: tenant._id,
           period: period,
           baseSalary: rentAmount,

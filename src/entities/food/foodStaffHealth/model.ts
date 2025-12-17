@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IFoodStaffHealth extends Document {
   staffId: mongoose.Types.ObjectId;
   date: Date;
@@ -140,12 +138,4 @@ const FoodStaffHealthSchema = new Schema<IFoodStaffHealth>({
 });
 
 
-const createFoodStaffHealthModel = createModelFactory<IFoodStaffHealth>(
-  'FoodStaffHealth',
-  FoodStaffHealthSchema,
-  'food_staff_health',
-  'food'
-);
-
-
-export default createFoodStaffHealthModel;
+export default mongoose.model<IFoodStaffHealth>('FoodStaffHealth', FoodStaffHealthSchema, 'food_staff_health');

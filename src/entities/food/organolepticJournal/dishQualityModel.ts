@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
 
 // Simplified model for dish quality assessment (organoleptic evaluation of prepared dishes)
 // This is separate from the product inspection model (IOrganolepticJournal)
@@ -76,11 +75,4 @@ const DishQualityAssessmentSchema = new Schema<IDishQualityAssessment>({
 // Compound index for efficient queries by date and group
 DishQualityAssessmentSchema.index({ date: 1, group: 1 });
 
-const createDishQualityAssessmentModel = createModelFactory<IDishQualityAssessment>(
-    'DishQualityAssessment',
-    DishQualityAssessmentSchema,
-    'dish_quality_assessments',
-    'food'
-);
-
-export default createDishQualityAssessmentModel;
+export default mongoose.model<IDishQualityAssessment>('DishQualityAssessment', DishQualityAssessmentSchema, 'dish_quality_assessments');

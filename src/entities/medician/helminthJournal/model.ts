@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IHelminthJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -62,12 +60,4 @@ const HelminthJournalSchema = new Schema<IHelminthJournal>({
 });
 
 
-const createHelminthJournalModel = createModelFactory<IHelminthJournal>(
-  'HelminthJournal',
-  HelminthJournalSchema,
-  'helminth_journals',
-  'medical'
-);
-
-
-export default createHelminthJournalModel;
+export default mongoose.model<IHelminthJournal>('HelminthJournal', HelminthJournalSchema, 'helminth_journals');

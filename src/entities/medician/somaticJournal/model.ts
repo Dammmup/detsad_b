@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface ISomaticJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -82,12 +80,4 @@ SomaticJournalSchema.index({ childId: 1, date: 1 });
 SomaticJournalSchema.index({ doctor: 1, date: -1 });
 
 
-const createSomaticJournalModel = createModelFactory<ISomaticJournal>(
-  'SomaticJournal',
-  SomaticJournalSchema,
-  'somatic_journals',
-  'medical'
-);
-
-
-export default createSomaticJournalModel;
+export default mongoose.model<ISomaticJournal>('SomaticJournal', SomaticJournalSchema, 'somatic_journals');

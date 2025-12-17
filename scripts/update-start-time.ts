@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { connectDatabases, getConnection } from '../src/config/database';
+import { connectDB } from '../src/config/database';
 import Shift from '../src/entities/staffShifts/model';
 
 
@@ -8,24 +8,22 @@ const updateShiftsStartTime = async () => {
         console.log('Начинаем подключение к базе данных...');
 
 
-        await connectDatabases();
+        await connectDB();
 
 
-        const dbConnection = getConnection('default');
+        const dbConnection = mongoose.connection;
 
         console.log('Подключение к базе данных установлено');
 
 
-        const ShiftModel = Shift();
-
-        console.log('Получили модель смен');
 
 
-        const totalCount = await ShiftModel.countDocuments();
+
+        const totalCount = await Shift.countDocuments();
         console.log(`Всего записей в коллекции shifts: ${totalCount}`);
 
 
-        const result = await ShiftModel.updateMany(
+        const result = await Shift.updateMany(
             {},
             { $set: { startTime: '08:00' } }
         );

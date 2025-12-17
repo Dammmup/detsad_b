@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { getModel } from '../config/modelRegistry';
+import User from '../entities/users/model';
 
 export interface AuthUser {
   id: string;
@@ -10,9 +10,7 @@ export interface AuthUser {
   fullName: string;
 }
 
-
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Токен не предоставлен в заголовке Authorization' });
@@ -32,8 +30,6 @@ function verifyToken(token: string, req: Request, res: Response, next: NextFunct
   try {
     const decoded = jwt.verify(token, secret) as AuthUser;
 
-
-    const User = getModel<any>('User');
     User.findById(decoded.id).then(user => {
       if (!user || !user.active) {
         return res.status(401).json({ error: 'Пользователь не найден или неактивен' });

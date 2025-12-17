@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IContactInfectionJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
@@ -94,12 +92,4 @@ const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
 });
 
 
-const createContactInfectionJournalModel = createModelFactory<IContactInfectionJournal>(
-  'ContactInfectionJournal',
-  ContactInfectionJournalSchema,
-  'contact_infection_journals',
-  'medical'
-);
-
-
-export default createContactInfectionJournalModel;
+export default mongoose.model<IContactInfectionJournal>('ContactInfectionJournal', ContactInfectionJournalSchema, 'contact_infection_journals');

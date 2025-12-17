@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IMenuItem extends Document {
   name: string;
   description?: string;
@@ -86,11 +84,4 @@ const MenuItemSchema = new Schema<IMenuItem>({
 
 
 
-const createMenuItemModel = createModelFactory<IMenuItem>(
-  'MenuItem',
-  MenuItemSchema,
-  'menu_items',
-  'food'
-);
-
-export default createMenuItemModel;
+export default mongoose.model<IMenuItem>('MenuItem', MenuItemSchema, 'menu_items');

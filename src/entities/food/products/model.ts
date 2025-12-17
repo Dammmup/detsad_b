@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../../config/database';
-
 export interface IProduct extends Document {
   name: string;
   description?: string;
@@ -104,11 +102,4 @@ const ProductSchema = new Schema<IProduct>({
 
 
 
-const createProductModel = createModelFactory<IProduct>(
-  'Product',
-  ProductSchema,
-  'products',
-  'food'
-);
-
-export default createProductModel;
+export default mongoose.model<IProduct>('Product', ProductSchema, 'products');

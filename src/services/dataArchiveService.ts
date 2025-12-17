@@ -44,7 +44,7 @@ interface CollectionExportResult {
 async function exportChildAttendance(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
 
-    const records = await ChildAttendance().find({
+    const records = await ChildAttendance.find({
         date: { $lt: archiveDate }
     }).populate('childId', 'fullName').populate('groupId', 'name');
 
@@ -87,7 +87,7 @@ async function exportChildAttendance(): Promise<CollectionExportResult> {
 async function exportChildPayments(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
 
-    const records = await ChildPayment().find({
+    const records = await ChildPayment.find({
         createdAt: { $lt: archiveDate }
     }).populate('childId', 'fullName');
 
@@ -133,7 +133,7 @@ async function exportChildPayments(): Promise<CollectionExportResult> {
 async function exportStaffAttendanceTracking(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
 
-    const records = await StaffAttendanceTracking().find({
+    const records = await StaffAttendanceTracking.find({
         date: { $lt: archiveDate }
     }).populate('staffId', 'fullName');
 
@@ -180,7 +180,7 @@ async function exportStaffShifts(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
     const archiveDateStr = archiveDate.toISOString().split('T')[0];
 
-    const records = await StaffShift().find({
+    const records = await StaffShift.find({
         date: { $lt: archiveDateStr }
     }).populate('staffId', 'fullName');
 
@@ -224,7 +224,7 @@ async function exportStaffShifts(): Promise<CollectionExportResult> {
 async function exportPayrolls(): Promise<CollectionExportResult> {
     const archivePeriod = getArchivePeriod();
 
-    const records = await Payroll().find({
+    const records = await Payroll.find({
         period: { $lt: archivePeriod }
     }).populate('staffId', 'fullName');
 
@@ -279,31 +279,31 @@ async function deleteArchivedRecords(): Promise<void> {
     console.log(`🗑️ Удаление записей старше ${archiveDate.toLocaleDateString('ru-RU')}...`);
 
     // Удаляем посещаемость детей
-    const childAttendanceResult = await ChildAttendance().deleteMany({
+    const childAttendanceResult = await ChildAttendance.deleteMany({
         date: { $lt: archiveDate }
     });
     console.log(`  - childAttendance: удалено ${childAttendanceResult.deletedCount} записей`);
 
     // Удаляем оплаты детей
-    const childPaymentResult = await ChildPayment().deleteMany({
+    const childPaymentResult = await ChildPayment.deleteMany({
         createdAt: { $lt: archiveDate }
     });
     console.log(`  - childPayments: удалено ${childPaymentResult.deletedCount} записей`);
 
     // Удаляём учёт посещаемости сотрудников
-    const staffAttendanceResult = await StaffAttendanceTracking().deleteMany({
+    const staffAttendanceResult = await StaffAttendanceTracking.deleteMany({
         date: { $lt: archiveDate }
     });
     console.log(`  - staffAttendanceTracking: удалено ${staffAttendanceResult.deletedCount} записей`);
 
     // Удаляём смены сотрудников
-    const shiftsResult = await StaffShift().deleteMany({
+    const shiftsResult = await StaffShift.deleteMany({
         date: { $lt: archiveDateStr }
     });
     console.log(`  - staffShifts: удалено ${shiftsResult.deletedCount} записей`);
 
     // Удаляём зарплаты
-    const payrollResult = await Payroll().deleteMany({
+    const payrollResult = await Payroll.deleteMany({
         period: { $lt: archivePeriod }
     });
     console.log(`  - payrolls: удалено ${payrollResult.deletedCount} записей`);

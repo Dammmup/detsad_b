@@ -1,6 +1,4 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { createModelFactory } from '../../config/database';
-
 export interface ITask extends Document {
   title: string;
   description?: string;
@@ -156,12 +154,4 @@ TaskSchema.methods.addNote = function (note: string) {
 };
 
 
-const createTaskModel = createModelFactory<ITask>(
-  'Task',
-  TaskSchema,
-  'tasks',
-  'default'
-);
-
-
-export default createTaskModel;
+export default mongoose.model<ITask>('Task', TaskSchema, 'tasks');

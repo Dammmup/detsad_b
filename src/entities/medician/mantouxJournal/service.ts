@@ -16,10 +16,6 @@ interface IMantouxJournalInput extends Partial<Omit<IMantouxJournal, 'reactionSi
   // reactionSize теперь обязательное поле через основной интерфейс
 }
 
-const getMantouxJournalModel = () => MantouxJournal();
-const getUserModel = () => User();
-const getChildModel = () => Child();
-
 export class MantouxJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, reactionType?: string, startDate?: string, endDate?: string }) {
     const filter: any = {};
@@ -37,7 +33,7 @@ export class MantouxJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getMantouxJournalModel().find(filter)
+    const journals = await MantouxJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -46,7 +42,7 @@ export class MantouxJournalService {
   }
 
   async getById(id: string) {
-    const journal = await getMantouxJournalModel().findById(id)
+    const journal = await MantouxJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -90,25 +86,25 @@ export class MantouxJournalService {
     }
 
 
-    const child = await getChildModel().findById(journalData.childId);
+    const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
 
-    const doctor = await getUserModel().findById(journalData.doctor);
+    const doctor = await User.findById(journalData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
 
-    const journal = new (getMantouxJournalModel())({
+    const journal = new MantouxJournal({
       ...journalData,
       doctor: journalData.doctor || userId
     });
 
     await journal.save();
 
-    const populatedJournal = await getMantouxJournalModel().findById(journal._id)
+    const populatedJournal = await MantouxJournal.findById(journal._id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -121,7 +117,7 @@ export class MantouxJournalService {
       data.date = new Date(`${data.year}-01-01`);
     }
 
-    const updatedJournal = await getMantouxJournalModel().findByIdAndUpdate(
+    const updatedJournal = await MantouxJournal.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -136,7 +132,7 @@ export class MantouxJournalService {
   }
 
   async delete(id: string) {
-    const result = await getMantouxJournalModel().findByIdAndDelete(id);
+    const result = await MantouxJournal.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись манту не найдена');
@@ -160,7 +156,7 @@ export class MantouxJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getMantouxJournalModel().find(filter)
+    const journals = await MantouxJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -181,7 +177,7 @@ export class MantouxJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getMantouxJournalModel().find(filter)
+    const journals = await MantouxJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -194,7 +190,7 @@ export class MantouxJournalService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const journals = await getMantouxJournalModel().find({
+    const journals = await MantouxJournal.find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
@@ -208,7 +204,7 @@ export class MantouxJournalService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await getMantouxJournalModel().findByIdAndUpdate(
+    const journal = await MantouxJournal.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -223,7 +219,7 @@ export class MantouxJournalService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const journal = await getMantouxJournalModel().findByIdAndUpdate(
+    const journal = await MantouxJournal.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -238,7 +234,7 @@ export class MantouxJournalService {
   }
 
   async getStatistics() {
-    const stats = await getMantouxJournalModel().aggregate([
+    const stats = await MantouxJournal.aggregate([
       {
         $group: {
           _id: '$reactionType',
@@ -250,7 +246,7 @@ export class MantouxJournalService {
       }
     ]);
 
-    const total = await getMantouxJournalModel().countDocuments();
+    const total = await MantouxJournal.countDocuments();
 
     return {
       total,

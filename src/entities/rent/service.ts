@@ -24,14 +24,14 @@ export class RentService {
       query.status = filters.status;
     }
 
-    return await Rent().find(query)
+    return await Rent.find(query)
       .populate('tenantId', 'fullName role')
       .sort({ createdAt: -1 });
   }
 
 
   async getById(id: string) {
-    const rent = await Rent().findById(id).populate('tenantId', 'fullName role');
+    const rent = await Rent.findById(id).populate('tenantId', 'fullName role');
     if (!rent) {
       throw new Error('Аренда не найдена');
     }
@@ -40,13 +40,13 @@ export class RentService {
 
 
   async create(rentData: Partial<IRent>) {
-    const rent = new (Rent())(rentData);
+    const rent = new Rent(rentData);
     return await rent.save();
   }
 
 
   async update(id: string, updateData: Partial<IRent>) {
-    const rent = await Rent().findByIdAndUpdate(id, updateData, { new: true })
+    const rent = await Rent.findByIdAndUpdate(id, updateData, { new: true })
       .populate('tenantId', 'fullName role');
 
     if (!rent) {
@@ -58,7 +58,7 @@ export class RentService {
 
 
   async delete(id: string) {
-    const rent = await Rent().findByIdAndDelete(id);
+    const rent = await Rent.findByIdAndDelete(id);
     if (!rent) {
       throw new Error('Аренда не найдена');
     }
@@ -67,7 +67,7 @@ export class RentService {
 
 
   async markAsPaid(id: string) {
-    const rent = await Rent().findByIdAndUpdate(
+    const rent = await Rent.findByIdAndUpdate(
       id,
       {
         status: 'paid',
@@ -85,13 +85,13 @@ export class RentService {
 
 
   async getByPeriod(period: string) {
-    return await Rent().find({ period })
+    return await Rent.find({ period })
       .populate('tenantId', 'fullName role');
   }
 
 
   async getRentByTenantAndPeriod(tenantId: string, period: string) {
-    return await Rent().findOne({
+    return await Rent.findOne({
       tenantId: new Types.ObjectId(tenantId),
       period
     }).populate('tenantId', 'fullName role');
@@ -99,19 +99,19 @@ export class RentService {
 
 
   async createOrUpdateForTenant(tenantId: string, period: string, data: Partial<IRent>) {
-    const existingRent = await Rent().findOne({
+    const existingRent = await Rent.findOne({
       tenantId: new Types.ObjectId(tenantId),
       period: period
     });
 
     if (existingRent) {
-      return await Rent().findByIdAndUpdate(existingRent._id, {
+      return await Rent.findByIdAndUpdate(existingRent._id, {
         ...data,
         tenantId: new Types.ObjectId(tenantId),
         period
       }, { new: true }).populate('tenantId', 'fullName role');
     } else {
-      const rent = new (Rent())({
+      const rent = new Rent({
         ...data,
         tenantId: new Types.ObjectId(tenantId),
         period
@@ -123,7 +123,7 @@ export class RentService {
   async generateRentSheets(period: string) {
     try {
 
-      const tenants = await User().find({ role: { $ne: 'admin' } });
+      const tenants = await User.find({ role: { $ne: 'admin' } });
 
 
       for (const tenant of tenants) {

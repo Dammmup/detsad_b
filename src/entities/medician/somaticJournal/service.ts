@@ -8,14 +8,14 @@ let UserModel: any = null;
 
 const getSomaticJournalModel = () => {
   if (!SomaticJournalModel) {
-    SomaticJournalModel = SomaticJournal();
+    SomaticJournalModel = SomaticJournal;
   }
   return SomaticJournalModel;
 };
 
 const getUserModel = () => {
   if (!UserModel) {
-    UserModel = User();
+    UserModel = User;
   }
   return UserModel;
 };
@@ -36,7 +36,7 @@ export class SomaticJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getSomaticJournalModel().find(filter)
+    const journals = await SomaticJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -45,7 +45,7 @@ export class SomaticJournalService {
   }
 
   async getById(id: string) {
-    const journal = await getSomaticJournalModel().findById(id)
+    const journal = await SomaticJournal.findById(id)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role');
 
@@ -75,18 +75,18 @@ export class SomaticJournalService {
     }
 
 
-    const child = await getUserModel().findById(journalData.childId);
+    const child = await User.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
 
-    const doctor = await getUserModel().findById(journalData.doctor);
+    const doctor = await User.findById(journalData.doctor);
     if (!doctor) {
       throw new Error('Врач не найден');
     }
 
-    const somaticJournalModel = getSomaticJournalModel();
+    const somaticJournalModel = SomaticJournal;
     const journal = new somaticJournalModel({
       ...journalData,
       doctor: userId
@@ -102,7 +102,7 @@ export class SomaticJournalService {
   }
 
   async update(id: string, data: Partial<ISomaticJournal>) {
-    const updatedJournal = await getSomaticJournalModel().findByIdAndUpdate(
+    const updatedJournal = await SomaticJournal.findByIdAndUpdate(
       id,
       data,
       { new: true }
@@ -117,7 +117,7 @@ export class SomaticJournalService {
   }
 
   async delete(id: string) {
-    const result = await getSomaticJournalModel().findByIdAndDelete(id);
+    const result = await SomaticJournal.findByIdAndDelete(id);
 
     if (!result) {
       throw new Error('Запись соматического журнала не найдена');
@@ -140,7 +140,7 @@ export class SomaticJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getSomaticJournalModel().find(filter)
+    const journals = await SomaticJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -160,7 +160,7 @@ export class SomaticJournalService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    const journals = await getSomaticJournalModel().find(filter)
+    const journals = await SomaticJournal.find(filter)
       .populate('childId', 'fullName iin')
       .populate('doctor', 'fullName role')
       .sort({ date: -1 });
@@ -173,7 +173,7 @@ export class SomaticJournalService {
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    const journals = await getSomaticJournalModel().find({
+    const journals = await SomaticJournal.find({
       nextAppointmentDate: {
         $gte: today,
         $lte: futureDate
@@ -187,7 +187,7 @@ export class SomaticJournalService {
   }
 
   async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await getSomaticJournalModel().findByIdAndUpdate(
+    const journal = await SomaticJournal.findByIdAndUpdate(
       id,
       { status },
       { new: true }
@@ -202,7 +202,7 @@ export class SomaticJournalService {
   }
 
   async addRecommendations(id: string, recommendations: string) {
-    const journal = await getSomaticJournalModel().findByIdAndUpdate(
+    const journal = await SomaticJournal.findByIdAndUpdate(
       id,
       { recommendations },
       { new: true }
@@ -217,7 +217,7 @@ export class SomaticJournalService {
   }
 
   async getStatistics() {
-    const stats = await getSomaticJournalModel().aggregate([
+    const stats = await SomaticJournal.aggregate([
       {
         $group: {
           _id: '$status',
@@ -229,7 +229,7 @@ export class SomaticJournalService {
       }
     ]);
 
-    const total = await getSomaticJournalModel().countDocuments();
+    const total = await SomaticJournal.countDocuments();
 
     return {
       total,
