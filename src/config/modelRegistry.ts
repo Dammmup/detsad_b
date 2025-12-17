@@ -32,6 +32,9 @@ type ModelFactory<T> = () => Model<T>;
 
 const modelRegistry: Record<string, any> = {};
 
+// Флаг инициализации
+let modelsInitialized = false;
+
 
 export function registerModelFactory<T>(name: string, factory: ModelFactory<T>) {
   modelRegistry[name] = factory;
@@ -42,11 +45,31 @@ export function getModel<T>(name: string): Model<T> {
   if (!modelRegistry[name]) {
     throw new Error(`Модель ${name} не зарегистрирована. Проверьте, что все модели зарегистрированы и подключение к базе данных выполнено.`);
   }
+
+  // Если модель ещё фабрика и модели инициализированы, вызываем фабрику
+  if (typeof modelRegistry[name] === 'function' && modelsInitialized) {
+    modelRegistry[name] = modelRegistry[name]();
+  }
+
+  // Если модели не инициализированы - ошибка
+  if (typeof modelRegistry[name] === 'function') {
+    throw new Error(`Модель ${name} не инициализирована. Вызовите initializeModels() сначала.`);
+  }
+
   return modelRegistry[name];
+}
+
+// Проверка, инициализированы ли модели
+export function isModelsInitialized(): boolean {
+  return modelsInitialized;
 }
 
 
 export async function initializeModels(): Promise<void> {
+  if (modelsInitialized) {
+    console.log('⚡ Модели уже инициализированы, пропускаем');
+    return;
+  }
 
   await connectDatabases();
 
@@ -57,6 +80,9 @@ export async function initializeModels(): Promise<void> {
       modelRegistry[modelName] = modelRegistry[modelName]();
     }
   });
+
+  modelsInitialized = true;
+  console.log('✅ Все модели инициализированы');
 }
 
 registerModelFactory('MedicalJournal', medicalJournalFactory);

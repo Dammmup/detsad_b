@@ -13,6 +13,14 @@ export interface IMantouxJournal extends Document {
   status: 'pending' | 'completed' | 'reviewed';
   nextAppointmentDate?: Date;
   recommendations?: string;
+  mm?: number;
+  year?: string;
+  atr?: string;
+  diagnosis?: string;
+  address?: string;
+  birthdate?: Date;
+  fio?: string;
+  has063?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,7 +61,7 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
   },
   notes: {
     type: String,
-    maxlength: [500, 'Заметки не могут превышать 500 символов']
+    maxlength: [50, 'Заметки не могут превышать 500 символов']
   },
   attachments: [String],
   status: {
@@ -68,7 +76,39 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
   },
   recommendations: {
     type: String,
-    maxlength: [30, 'Рекомендации не могут превышать 300 символов']
+    maxlength: [300, 'Рекомендации не могут превышать 300 символов']
+  },
+  mm: {
+    type: Number,
+    min: [0, 'Значение мм не может быть отрицательным'],
+    max: [50, 'Значение мм не может превышать 50']
+  },
+  year: {
+    type: String,
+    trim: true
+  },
+  atr: {
+    type: String,
+    trim: true
+  },
+  diagnosis: {
+    type: String,
+    trim: true
+  },
+  address: {
+    type: String,
+    trim: true
+  },
+  birthdate: {
+    type: Date
+  },
+  fio: {
+    type: String,
+    trim: true
+  },
+  has063: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

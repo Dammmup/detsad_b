@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from './service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
-import User from '../users/model';
 import { getModel } from '../../config/modelRegistry';
 
 const authService = new AuthService();

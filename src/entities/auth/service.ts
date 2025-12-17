@@ -1,12 +1,12 @@
 import { IUser } from '../users/model';
-import User from '../users/model';
+import { getModel } from '../../config/modelRegistry';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { hashPassword, comparePassword } from '../../utils/hash';
 
 export class AuthService {
   private get userModel() {
-    return User();
+    return getModel<IUser>('User');
   }
   private createJwtToken(user: any) {
     const secret = process.env.JWT_SECRET;

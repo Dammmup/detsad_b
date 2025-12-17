@@ -9,7 +9,7 @@ interface IMantouxJournalInput extends Partial<Omit<IMantouxJournal, 'reactionSi
   fio?: string;
   address?: string;
   atr?: string;
-  birthdate?: string;
+  birthdate?: Date;
   diagnosis?: string;
   has063?: boolean;
   reactionSize: number;

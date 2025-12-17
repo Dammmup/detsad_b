@@ -61,9 +61,13 @@ export const getConnection = (database: keyof IDatabaseConnections): Connection 
   return connections[database];
 };
 
+// Кеш для моделей - избегаем повторного создания
+const modelCache = new Map<string, Model<any>>();
+
 /**
  * Функция для создания фабрики модели с отложенным подключением
  * Это позволяет создавать модели до подключения к базе данных
+ * Модель кешируется после первого создания
  */
 export const createModelFactory = <T>(
   modelName: string,
@@ -71,8 +75,26 @@ export const createModelFactory = <T>(
   collectionName: string,
   database: keyof IDatabaseConnections
 ): (() => Model<T>) => {
+  const cacheKey = `${database}:${modelName}`;
+
   return () => {
+    // Проверяем кеш
+    if (modelCache.has(cacheKey)) {
+      return modelCache.get(cacheKey) as Model<T>;
+    }
+
     const connection = getConnection(database);
-    return connection.model<T>(modelName, schema, collectionName);
+
+    // Проверяем, есть ли уже модель в connection
+    try {
+      const existingModel = connection.model<T>(modelName);
+      modelCache.set(cacheKey, existingModel);
+      return existingModel;
+    } catch {
+      // Модель не существует, создаём новую
+      const newModel = connection.model<T>(modelName, schema, collectionName);
+      modelCache.set(cacheKey, newModel);
+      return newModel;
+    }
   };
 };
