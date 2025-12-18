@@ -430,16 +430,24 @@ export class StaffAttendanceTrackingService {
   }
 
   async update(id: string, data: Partial<IStaffAttendanceTracking>) {
-    const updatedRecord = await StaffAttendanceTracking.findByIdAndUpdate(
-      id,
-      data,
-      { new: true }
-    ).populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role');
+    // Use findById + save to trigger Mongoose post-save hook
+    // which recalculates payroll for the staff member
+    const record = await StaffAttendanceTracking.findById(id);
 
-    if (!updatedRecord) {
+    if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
+
+    // Update fields
+    Object.assign(record, data);
+
+    // Save triggers post-save hook which recalculates payroll
+    await record.save();
+
+    // Populate and return
+    const updatedRecord = await StaffAttendanceTracking.findById(id)
+      .populate('staffId', 'fullName role')
+      .populate('approvedBy', 'fullName role');
 
     return updatedRecord;
   }
@@ -637,40 +645,44 @@ export class StaffAttendanceTrackingService {
   }
 
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {
-    const record = await StaffAttendanceTracking.findByIdAndUpdate(
-      id,
-      {
-        penalties,
-        bonuses,
-        notes,
-        approvedByTimeTracking: userId,
-        approvedAtTimeTracking: new Date()
-      },
-      { new: true }
-    ).populate('staffId', 'fullName role');
+    // Use findById + save to trigger payroll recalculation
+    const record = await StaffAttendanceTracking.findById(id);
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    return record;
+    record.penalties = penalties;
+    record.bonuses = bonuses;
+    record.notes = notes;
+    (record as any).approvedByTimeTracking = userId;
+    (record as any).approvedAtTimeTracking = new Date();
+
+    await record.save();
+
+    const updatedRecord = await StaffAttendanceTracking.findById(id)
+      .populate('staffId', 'fullName role');
+
+    return updatedRecord;
   }
 
   async approveAttendance(id: string, userId: string) {
-    const record = await StaffAttendanceTracking.findByIdAndUpdate(
-      id,
-      {
-        approvedByTimeTracking: userId,
-        approvedAtTimeTracking: new Date()
-      },
-      { new: true }
-    ).populate('staffId', 'fullName role');
+    // Use findById + save to trigger payroll recalculation
+    const record = await StaffAttendanceTracking.findById(id);
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    return record;
+    (record as any).approvedByTimeTracking = userId;
+    (record as any).approvedAtTimeTracking = new Date();
+
+    await record.save();
+
+    const updatedRecord = await StaffAttendanceTracking.findById(id)
+      .populate('staffId', 'fullName role');
+
+    return updatedRecord;
   }
 
   async rejectAttendance(id: string, userId: string, reason?: string) {
