@@ -7,11 +7,30 @@ import StaffAttendanceTracking from '../entities/staffAttendanceTracking/model';
 import User from '../entities/users/model';
 import { generateMonthlyChildPayments } from './childPaymentGenerator';
 import { archiveAndDeleteRecords } from './dataArchiveService';
+import { cacheService } from './cache';
 
 export const initializeTaskScheduler = () => {
   console.log('Инициализация планировщика задач...');
 
 
+
+  console.log('Инициализация планировщика задач...');
+
+  // Ежемесячная очистка кэша (1-го числа каждого месяца в 00:00)
+  cron.schedule('0 0 1 * *', async () => {
+    console.log('Запуск запланированной задачи: ежемесячная очистка кэша Redis');
+    try {
+      console.log('Очистка кэша для: staffAttendance, shifts, payroll, childAttendance, childPayment');
+      await cacheService.invalidate('staffAttendance:*');
+      await cacheService.invalidate('shifts:*');
+      await cacheService.invalidate('payroll:*');
+      await cacheService.invalidate('childAttendance:*');
+      await cacheService.invalidate('childPayment:*');
+      console.log('Ежемесячная очистка кэша выполнена успешно');
+    } catch (error) {
+      console.error('Ошибка при очистке кэша:', error);
+    }
+  });
 
   cron.schedule('0 1 * * *', async () => {
     console.log('Запуск запланированной задачи: автоматический расчет зарплат');

@@ -18,6 +18,9 @@ import foodStaffHealthRoutes from './entities/food/foodStaffHealth/route';
 import productsRoutes from './entities/food/products/route';
 import dishesRoutes from './entities/food/dishes/route';
 import dailyMenuRoutes from './entities/food/dailyMenu/route';
+import weeklyMenuTemplateRoutes from './entities/food/weeklyMenuTemplate/route';
+import productPurchaseRoutes from './entities/food/productPurchase/route';
+import productReportsRoutes from './entities/food/productReports/route';
 import authRoutes from './entities/auth/route';
 import userRoutes from './entities/users/route';
 import groupRoutes from './entities/groups/route';
@@ -67,7 +70,6 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 
-app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/groups', groupRoutes);
 app.use('/staff-shifts', staffShiftRoutes);
@@ -104,6 +106,9 @@ app.use('/food-staff-health', foodStaffHealthRoutes);
 app.use('/products', productsRoutes);
 app.use('/dishes', dishesRoutes);
 app.use('/daily-menu', dailyMenuRoutes);
+app.use('/weekly-menu-template', weeklyMenuTemplateRoutes);
+app.use('/product-purchases', productPurchaseRoutes);
+app.use('/product-reports', productReportsRoutes);
 app.use('/qwen3-chat', qwen3ChatRoutes);
 app.use('/api', uiStateRoutes);
 app.use('/api/auth', authRoutes);

@@ -6,6 +6,10 @@ import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
 import { HolidaysService } from '../holidays/service';
+import { cacheService } from '../../services/cache';
+
+const CACHE_KEY_PREFIX = 'shifts';
+const CACHE_TTL = 300; // 5 minutes
 
 const settingsService = new SettingsService();
 const holidaysService = new HolidaysService();
@@ -51,12 +55,15 @@ export class ShiftsService {
       };
     }
 
-    const shifts = await Shift.find(filter)
-      .populate('staffId', 'fullName role')
-      .populate('createdBy', 'fullName')
-      .sort({ date: 1, createdAt: -1 });
+    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const shifts = await Shift.find(filter)
+        .populate('staffId', 'fullName role')
+        .populate('createdBy', 'fullName')
+        .sort({ date: 1, createdAt: -1 });
 
-    return shifts;
+      return shifts;
+    }, CACHE_TTL);
   }
 
 
@@ -146,6 +153,7 @@ export class ShiftsService {
       .populate('staffId', 'fullName role')
       .populate('createdBy', 'fullName');
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return populatedShift;
   }
 
@@ -231,6 +239,10 @@ export class ShiftsService {
           error: err.message || 'Ошибка создания смены'
         });
       }
+    }
+
+    if (createdShifts.length > 0) {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     }
 
     return {
@@ -336,6 +348,7 @@ export class ShiftsService {
     await shift.populate('staffId', 'fullName role');
     await shift.populate('createdBy', 'fullName');
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return shift;
   }
 
@@ -345,6 +358,7 @@ export class ShiftsService {
     if (!shift) {
       throw new Error('Смена не найдена');
     }
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return shift;
   }
 
@@ -494,6 +508,7 @@ export class ShiftsService {
 
     await timeTracking.save();
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { shift, timeTracking, message: lateMinutes >= 15 ? 'Опоздание на смену' : 'Успешно отмечен приход' };
   }
 
@@ -642,6 +657,7 @@ export class ShiftsService {
       }
     }
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { shift, message: 'Успешно отмечен уход' };
   }
 
@@ -661,12 +677,13 @@ export class ShiftsService {
       };
     }
 
-    const records = await StaffAttendanceTracking.find(filter)
-      .populate('staffId', 'fullName role')
-      .populate('shiftId')
-      .sort({ date: -1 });
-
-    return records;
+    const cacheKey = `${CACHE_KEY_PREFIX}:getTimeTracking:${userId}:${role}:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      return await StaffAttendanceTracking.find(filter)
+        .populate('staffId', 'fullName role')
+        .populate('shiftId')
+        .sort({ date: -1 });
+    }, CACHE_TTL);
   }
 
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {
@@ -686,6 +703,7 @@ export class ShiftsService {
       throw new Error('Запись не найдена');
     }
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return record;
   }
 

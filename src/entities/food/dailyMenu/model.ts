@@ -109,6 +109,5 @@ const DailyMenuSchema = new Schema<IDailyMenu>({
 });
 
 // Индекс для уникальности даты
-DailyMenuSchema.index({ date: 1 }, { unique: true });
 
 export default mongoose.model<IDailyMenu>('DailyMenu', DailyMenuSchema, 'daily_menus');

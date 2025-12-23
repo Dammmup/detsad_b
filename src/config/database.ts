@@ -23,4 +23,9 @@ export const connectDB = async (): Promise<void> => {
   }
 };
 
+/**
+ * Алиас для совместимости с миграциями
+ */
+export const connectDatabases = connectDB;
+
 export default connectDB;

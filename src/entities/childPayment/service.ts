@@ -3,7 +3,10 @@ import ChildPayment, { IChildPayment } from './model';
 import Child from '../children/model';
 import User from '../users/model';
 
+import { cacheService } from '../../services/cache';
 
+const CACHE_KEY_PREFIX = 'childPayment';
+const CACHE_TTL = 300; // 5 minutes
 let ChildPaymentModel: any = null;
 let ChildModel: any = null;
 let UserModel: any = null;
@@ -50,7 +53,9 @@ export const createChildPayment = async (paymentData: Partial<IChildPayment>): P
 
   const childPaymentModel = ChildPayment;
   const payment = new childPaymentModel(paymentData);
-  return await payment.save();
+  await payment.save();
+  await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+  return payment;
 };
 
 export const getChildPayments = async (filters: any = {}): Promise<IChildPayment[]> => {
@@ -83,16 +88,22 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
     query.status = filters.status;
   }
 
-  return await childPaymentModel.find(query)
-    .populate('childId', 'fullName')
-    .populate('userId', 'fullName');
+  const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
+  return await cacheService.getOrSet(cacheKey, async () => {
+    return await childPaymentModel.find(query)
+      .populate('childId', 'fullName')
+      .populate('userId', 'fullName');
+  }, CACHE_TTL);
 };
 
 export const getChildPaymentById = async (id: string): Promise<IChildPayment | null> => {
+  const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
   const childPaymentModel = ChildPayment;
-  return await childPaymentModel.findById(id)
-    .populate('childId', 'fullName')
-    .populate('userId', 'fullName');
+  return await cacheService.getOrSet(cacheKey, async () => {
+    return await childPaymentModel.findById(id)
+      .populate('childId', 'fullName')
+      .populate('userId', 'fullName');
+  }, CACHE_TTL);
 };
 
 export const updateChildPayment = async (id: string, updateData: Partial<IChildPayment>): Promise<IChildPayment | null> => {
@@ -116,14 +127,18 @@ export const updateChildPayment = async (id: string, updateData: Partial<IChildP
     }
   }
 
-  return await childPaymentModel.findByIdAndUpdate(id, updateData, { new: true })
+  const updated = await childPaymentModel.findByIdAndUpdate(id, updateData, { new: true })
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
+
+  await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+  return updated;
 };
 
 export const deleteChildPayment = async (id: string): Promise<boolean> => {
   const childPaymentModel = ChildPayment;
   const result = await childPaymentModel.findByIdAndDelete(id);
+  await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
   return !!result;
 };
 
@@ -150,7 +165,10 @@ export const getChildPaymentByPeriod = async (
     throw new Error('Either childId or userId must be specified');
   }
 
-  return await childPaymentModel.findOne(query)
-    .populate('childId', 'fullName')
-    .populate('userId', 'fullName');
+  const cacheKey = `${CACHE_KEY_PREFIX}:period:${JSON.stringify(period)}:${childId || ''}:${userId || ''}`;
+  return await cacheService.getOrSet(cacheKey, async () => {
+    return await childPaymentModel.findOne(query)
+      .populate('childId', 'fullName')
+      .populate('userId', 'fullName');
+  }, CACHE_TTL);
 };

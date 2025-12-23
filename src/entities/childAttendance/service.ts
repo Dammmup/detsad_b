@@ -7,6 +7,10 @@ import mongoose from 'mongoose';
 import Child from '../children/model';
 import { SettingsService } from '../settings/service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { cacheService } from '../../services/cache';
+
+const CACHE_KEY_PREFIX = 'childAttendance';
+const CACHE_TTL = 300; // 5 minutes
 
 
 
@@ -58,10 +62,11 @@ export class ChildAttendanceService {
       filter.status = filters.status;
     }
 
-    const attendance = await ChildAttendance.find(filter)
-      .sort({ date: -1, childId: 1 });
-
-    return attendance;
+    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      return await ChildAttendance.find(filter)
+        .sort({ date: -1, childId: 1 });
+    }, CACHE_TTL);
   }
 
   async createOrUpdate(attendanceData: any, userId: string) {
@@ -148,6 +153,7 @@ export class ChildAttendanceService {
       console.error('Telegram notify error:', e);
     }
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return attendance;
   }
 
@@ -291,6 +297,12 @@ export class ChildAttendanceService {
       console.error('Telegram notify error:', e);
     }
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return {
       success: results.length,
       errorCount: errors.length,
@@ -300,43 +312,46 @@ export class ChildAttendanceService {
   }
 
   async getStats(filters: { groupId?: string, startDate?: string, endDate?: string }) {
-    const filter: any = {};
+    const cacheKey = `${CACHE_KEY_PREFIX}:stats:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const filter: any = {};
 
-    if (filters.groupId) {
-      filter.groupId = filters.groupId;
-    }
-
-    if (filters.startDate && filters.endDate) {
-      filter.date = {
-        $gte: new Date(filters.startDate as string),
-        $lte: new Date(filters.endDate as string)
-      };
-    }
-
-    const stats = await ChildAttendance.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
+      if (filters.groupId) {
+        filter.groupId = filters.groupId;
       }
-    ]);
 
-    const totalRecords = await ChildAttendance.countDocuments(filter);
+      if (filters.startDate && filters.endDate) {
+        filter.date = {
+          $gte: new Date(filters.startDate as string),
+          $lte: new Date(filters.endDate as string)
+        };
+      }
 
-    const result = {
-      total: totalRecords,
-      byStatus: stats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
-        return acc;
-      }, {}),
-      attendanceRate: totalRecords > 0
-        ? Math.round(((stats.find(s => s._id === 'present')?.count || 0) / totalRecords) * 100)
-        : 0
-    };
+      const stats = await ChildAttendance.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
 
-    return result;
+      const totalRecords = await ChildAttendance.countDocuments(filter);
+
+      const result = {
+        total: totalRecords,
+        byStatus: stats.reduce((acc: any, stat: any) => {
+          acc[stat._id] = stat.count;
+          return acc;
+        }, {}),
+        attendanceRate: totalRecords > 0
+          ? Math.round(((stats.find((s: any) => s._id === 'present')?.count || 0) / totalRecords) * 100)
+          : 0
+      };
+
+      return result;
+    }, CACHE_TTL);
   }
 
   async delete(id: string) {
@@ -346,6 +361,7 @@ export class ChildAttendanceService {
       throw new Error('Запись не найдена');
     }
 
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { message: 'Запись удалена успешно' };
   }
 

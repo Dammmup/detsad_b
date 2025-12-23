@@ -1,12 +1,12 @@
 import express, { Router } from 'express';
 import { MainEventsService } from './service';
-import { authenticate } from '../../middlewares/authenticate';
+import { authMiddleware } from '../../middlewares/authMiddleware';
 
 const router: Router = express.Router();
 const mainEventsService = new MainEventsService();
 
 
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const { enabled } = req.query;
     const filters: any = {};
@@ -23,7 +23,7 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.getById(req.params.id);
     res.json(mainEvent);
@@ -33,7 +33,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.create(req.body);
     res.status(201).json(mainEvent);
@@ -43,7 +43,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.update(req.params.id, req.body);
     res.json(mainEvent);
@@ -53,7 +53,7 @@ router.put('/:id', authenticate, async (req, res) => {
 });
 
 
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const result = await mainEventsService.delete(req.params.id);
     res.json(result);
@@ -63,7 +63,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 });
 
 
-router.patch('/:id/toggle-enabled', authenticate, async (req, res) => {
+router.patch('/:id/toggle-enabled', authMiddleware, async (req, res) => {
   try {
     const mainEvent = await mainEventsService.toggleEnabled(req.params.id, req.body.enabled);
     res.json(mainEvent);
@@ -73,7 +73,7 @@ router.patch('/:id/toggle-enabled', authenticate, async (req, res) => {
 });
 
 
-router.post('/:id/export', authenticate, async (req, res) => {
+router.post('/:id/export', authMiddleware, async (req, res) => {
   try {
     const result = await mainEventsService.executeScheduledExport(req.params.id);
     res.json(result);
@@ -83,7 +83,7 @@ router.post('/:id/export', authenticate, async (req, res) => {
 });
 
 
-router.post('/execute-scheduled', authenticate, async (req, res) => {
+router.post('/execute-scheduled', authMiddleware, async (req, res) => {
   try {
     const results = await mainEventsService.checkAndExecuteScheduledEvents();
     res.json(results);

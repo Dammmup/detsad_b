@@ -18,14 +18,12 @@ const upload = multer({
 });
 
 export const sendMessage = async (req: Request, res: Response) => {
-  try {
+  upload.single('image')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
 
-    upload.single('image')(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
-
-
+    try {
       if (req.file) {
         const body = req.body as any;
         let messages: any[];
@@ -33,7 +31,6 @@ export const sendMessage = async (req: Request, res: Response) => {
         let currentPage: string | undefined;
 
         try {
-
           messages = JSON.parse(body.messages || '[]');
           model = body.model || 'qwen-vl-max';
           currentPage = body.currentPage;
@@ -44,7 +41,6 @@ export const sendMessage = async (req: Request, res: Response) => {
         if (!messages || !Array.isArray(messages)) {
           return res.status(400).json({ error: 'Messages array is required' });
         }
-
 
         const qwen3Request: Qwen3Request = {
           messages,
@@ -57,7 +53,6 @@ export const sendMessage = async (req: Request, res: Response) => {
         const result = await Qwen3ChatService.sendMessage(qwen3Request);
         res.json(result);
       } else {
-
         const { messages, model, currentPage } = req.body as Qwen3Request;
 
         if (!messages || !Array.isArray(messages)) {
@@ -74,9 +69,13 @@ export const sendMessage = async (req: Request, res: Response) => {
         const result = await Qwen3ChatService.sendMessage(qwen3Request);
         res.json(result);
       }
-    });
-  } catch (error: any) {
-    console.error('Error in Qwen3 chat controller:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
-  }
+    } catch (error: any) {
+      console.error('Error in Qwen3 chat controller:', error);
+      res.status(500).json({
+        content: error.message || 'Ошибка при обращении к AI',
+        action: 'text',
+        error: true
+      });
+    }
+  });
 };

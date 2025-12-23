@@ -41,9 +41,7 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
 
     if (req.user.role !== 'admin') {
       const filteredUsers = users.map(user => {
-
-        const userObj = user.toObject();
-        const { passwordHash, initialPassword, ...filteredUser } = userObj;
+        const { passwordHash, initialPassword, ...filteredUser } = user as any;
         return {
           ...filteredUser,
 
@@ -75,7 +73,7 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
 
 
       const usersWithFilteredPasswords = users.map(user => {
-        const userObj = user.toObject();
+        const userObj = user as any;
         if (userObj.passwordHash) delete userObj.passwordHash;
         return userObj;
       });
@@ -100,7 +98,7 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
 
     if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
 
-      const userObj = user.toObject();
+      const userObj = user as any;
       const { passwordHash, ...filteredUser } = userObj;
 
       if (req.user.id === req.params.id) {
@@ -136,7 +134,7 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
     } else {
 
 
-      const userObj = user.toObject();
+      const userObj = user as any;
       if (userObj.passwordHash) delete userObj.passwordHash;
       res.json(userObj);
     }
@@ -204,7 +202,7 @@ export const createUser = async (req: Request, res: Response) => {
     const user = await userService.create(userData);
 
 
-    const userObj = user.toObject();
+    const userObj = (user as any).toObject ? (user as any).toObject() : user;
     if (userObj.passwordHash) delete userObj.passwordHash;
 
 
@@ -316,12 +314,12 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       if (req.body.photo !== undefined) user.photo = req.body.photo;
     }
 
-    const updatedUser = await userService.update(req.params.id, user.toObject());
+    const updatedUser = await userService.update(req.params.id, user);
     if (!updatedUser) {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
     }
 
-    const userObj = updatedUser.toObject();
+    const userObj = (updatedUser as any).toObject ? (updatedUser as any).toObject() : updatedUser;
     if (userObj.passwordHash) delete userObj.passwordHash;
 
     if (req.user.role === 'admin' || req.user.id === req.params.id) {
@@ -362,7 +360,7 @@ export const generateTelegramCode = async (req: AuthenticatedRequest, res: Respo
     }
 
 
-    const userObj = updatedUser.toObject();
+    const userObj = (updatedUser as any).toObject ? (updatedUser as any).toObject() : updatedUser;
     if (userObj.passwordHash) delete userObj.passwordHash;
 
     if (req.user.role === 'admin' || req.user.id === req.params.id) {
@@ -421,13 +419,13 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response) =
     user.initialPassword = newPassword.trim();
     (user as any).passwordHash = newPasswordHash;
 
-    const updatedUser = await userService.update(userId, user.toObject());
+    const updatedUser = await userService.update(userId, user);
     if (!updatedUser) {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
     }
 
 
-    const userObj = updatedUser.toObject();
+    const userObj = (updatedUser as any).toObject ? (updatedUser as any).toObject() : updatedUser;
     if (userObj.passwordHash) delete userObj.passwordHash;
 
     console.log(`✅ Пароль изменён для пользователя ${updatedUser.fullName}`);
@@ -567,7 +565,7 @@ export const updateUserSalary = async (req: AuthenticatedRequest, res: Response)
     }
 
 
-    const updatedUser = await userService.update(req.params.id, user.toObject());
+    const updatedUser = await userService.update(req.params.id, user);
     console.log('Updated user salary:', updatedUser, req.body.salary);
     res.json(updatedUser);
   } catch (err) {

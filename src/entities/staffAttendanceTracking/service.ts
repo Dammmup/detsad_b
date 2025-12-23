@@ -7,6 +7,10 @@ import Shift from '../staffShifts/model';
 import Payroll from '../payroll/model';
 import { SettingsService } from '../settings/service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { cacheService } from '../../services/cache';
+
+const CACHE_KEY_PREFIX = 'staffAttendance';
+const CACHE_TTL = 300; // 5 minutes
 
 
 let StaffAttendanceTrackingModel: any = null;
@@ -217,6 +221,12 @@ export class StaffAttendanceTrackingService {
       }
     } catch (e) { console.error('Telegram notify error:', e); }
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return {
       message: 'Successfully clocked in',
       attendanceRecord,
@@ -342,6 +352,12 @@ export class StaffAttendanceTrackingService {
       }
     } catch (e) { console.error('Telegram notify error:', e); }
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return {
       message: 'Successfully clocked out',
       attendanceRecord,
@@ -372,24 +388,30 @@ export class StaffAttendanceTrackingService {
       filter.approvedAt = new Date(filters.approvedAt);
     }
 
-    const records = await StaffAttendanceTracking.find(filter)
-      .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role')
-      .sort({ date: -1 });
+    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const records = await StaffAttendanceTracking.find(filter)
+        .populate('staffId', 'fullName role')
+        .populate('approvedBy', 'fullName role')
+        .sort({ date: -1 });
 
-    return records;
+      return records;
+    }, CACHE_TTL);
   }
 
   async getById(id: string) {
-    const record = await StaffAttendanceTracking.findById(id)
-      .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role');
+    const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const record = await StaffAttendanceTracking.findById(id)
+        .populate('staffId', 'fullName role')
+        .populate('approvedBy', 'fullName role');
 
-    if (!record) {
-      throw new Error('Запись посещаемости сотрудника не найдена');
-    }
+      if (!record) {
+        throw new Error('Запись посещаемости сотрудника не найдена');
+      }
 
-    return record;
+      return record;
+    }, CACHE_TTL);
   }
 
   async create(recordData: Partial<IStaffAttendanceTracking>, userId: string) {
@@ -426,6 +448,12 @@ export class StaffAttendanceTrackingService {
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role');
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return populatedRecord;
   }
 
@@ -449,6 +477,12 @@ export class StaffAttendanceTrackingService {
       .populate('staffId', 'fullName role')
       .populate('approvedBy', 'fullName role');
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return updatedRecord;
   }
 
@@ -457,6 +491,12 @@ export class StaffAttendanceTrackingService {
 
     if (!result) {
       throw new Error('Запись посещаемости сотрудника не найдена');
+    }
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
     }
 
     return { message: 'Запись посещаемости сотрудника успешно удалена' };
@@ -481,12 +521,15 @@ export class StaffAttendanceTrackingService {
       filter.approvedAt = new Date(filters.approvedAt);
     }
 
-    const records = await StaffAttendanceTracking.find(filter)
-      .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role')
-      .sort({ date: -1 });
+    const cacheKey = `${CACHE_KEY_PREFIX}:getByStaffId:${staffId}:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const records = await StaffAttendanceTracking.find(filter)
+        .populate('staffId', 'fullName role')
+        .populate('approvedBy', 'fullName role')
+        .sort({ date: -1 });
 
-    return records;
+      return records;
+    }, CACHE_TTL);
   }
 
   async getByDateRange(startDate: string, endDate: string, filters: { staffId?: string, status?: string, inZone?: boolean, approvedBy?: string, approvedAt?: string }) {
@@ -506,12 +549,15 @@ export class StaffAttendanceTrackingService {
       filter.approvedAt = new Date(filters.approvedAt);
     }
 
-    const records = await StaffAttendanceTracking.find(filter)
-      .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role')
-      .sort({ date: -1 });
+    const cacheKey = `${CACHE_KEY_PREFIX}:getByDateRange:${startDate}:${endDate}:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const records = await StaffAttendanceTracking.find(filter)
+        .populate('staffId', 'fullName role')
+        .populate('approvedBy', 'fullName role')
+        .sort({ date: -1 });
 
-    return records;
+      return records;
+    }, CACHE_TTL);
   }
 
   async getEntries(userId: string, filters: { page?: number, limit?: number, startDate?: string, endDate?: string, status?: string }) {
@@ -530,23 +576,26 @@ export class StaffAttendanceTrackingService {
       if (filters.endDate) query.date.$lte = new Date(filters.endDate);
     }
 
-    const records = await StaffAttendanceTracking.find(query)
-      .populate('staffId', 'fullName role')
-      .sort({ date: -1 })
-      .skip(skip)
-      .limit(limit);
+    const cacheKey = `${CACHE_KEY_PREFIX}:getEntries:${userId}:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const records = await StaffAttendanceTracking.find(query)
+        .populate('staffId', 'fullName role')
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(limit);
 
-    const total = await StaffAttendanceTracking.countDocuments(query);
+      const total = await StaffAttendanceTracking.countDocuments(query);
 
-    return {
-      records,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    };
+      return {
+        records,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    }, CACHE_TTL);
   }
 
   async getSummary(userId: string, startDate: string, endDate: string) {
@@ -608,6 +657,12 @@ export class StaffAttendanceTrackingService {
       );
     }
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return record;
   }
 
@@ -621,6 +676,12 @@ export class StaffAttendanceTrackingService {
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
+    }
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
     }
 
     return record;
@@ -639,6 +700,12 @@ export class StaffAttendanceTrackingService {
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
+    }
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
     }
 
     return record;
@@ -663,6 +730,12 @@ export class StaffAttendanceTrackingService {
     const updatedRecord = await StaffAttendanceTracking.findById(id)
       .populate('staffId', 'fullName role');
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return updatedRecord;
   }
 
@@ -681,6 +754,12 @@ export class StaffAttendanceTrackingService {
 
     const updatedRecord = await StaffAttendanceTracking.findById(id)
       .populate('staffId', 'fullName role');
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
 
     return updatedRecord;
   }
@@ -703,6 +782,12 @@ export class StaffAttendanceTrackingService {
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
+    }
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
     }
 
     return record;

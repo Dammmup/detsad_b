@@ -8,22 +8,31 @@ import {
   getWorkingDaysInMonth,
   shouldCountAttendance
 } from '../../services/payrollAutomationService';
+import { cacheService } from '../../services/cache';
+
+const CACHE_KEY_PREFIX = 'payroll';
+const CACHE_TTL = 300; // 5 minutes
 
 export class PayrollService {
   async getPayrollBreakdown(id: string) {
-    return Payroll.findById(id).populate('staffId', 'fullName role');
+    return await cacheService.getOrSet(`${CACHE_KEY_PREFIX}:breakdown:${id}`, async () => {
+      return Payroll.findById(id).populate('staffId', 'fullName role');
+    }, CACHE_TTL);
   }
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
-    const filter: any = {};
+    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const filter: any = {};
 
-    if (filters.staffId) filter.staffId = filters.staffId;
-    const targetPeriod = filters.period || new Date().toISOString().slice(0, 7);
-    if (targetPeriod) filter.period = targetPeriod;
-    if (filters.status) filter.status = filters.status;
+      if (filters.staffId) filter.staffId = filters.staffId;
+      const targetPeriod = filters.period || new Date().toISOString().slice(0, 7);
+      if (targetPeriod) filter.period = targetPeriod;
+      if (filters.status) filter.status = filters.status;
 
-    return Payroll.find(filter)
-      .populate('staffId', 'fullName role')
-      .sort({ period: -1 });
+      return Payroll.find(filter)
+        .populate('staffId', 'fullName role')
+        .sort({ period: -1 });
+    }, CACHE_TTL);
   }
 
   async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
@@ -194,39 +203,47 @@ export class PayrollService {
   }
 
   async getById(id: string, userId?: string) {
-    const payroll = await Payroll.findById(id)
-      .populate('staffId', 'fullName role');
+    const cacheKey = `${CACHE_KEY_PREFIX}:${id}:${userId || ''}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      const payroll = await Payroll.findById(id)
+        .populate('staffId', 'fullName role');
 
-    if (!payroll) {
-      throw new Error('Зарплата не найдена');
-    }
-
-
-    let staffIdStr: string | undefined;
-    if (payroll.staffId) {
-      if (typeof payroll.staffId === 'object' && '_id' in payroll.staffId) {
-        staffIdStr = (payroll.staffId as any)._id?.toString();
-      } else {
-        staffIdStr = String(payroll.staffId);
+      if (!payroll) {
+        throw new Error('Зарплата не найдена');
       }
-    }
 
-    if (userId && staffIdStr !== userId) {
-      throw new Error('Forbidden: Payroll record does not belong to user');
-    }
+      let staffIdStr: string | undefined;
+      if (payroll.staffId) {
+        if (typeof payroll.staffId === 'object' && '_id' in payroll.staffId) {
+          staffIdStr = (payroll.staffId as any)._id?.toString();
+        } else {
+          staffIdStr = String(payroll.staffId);
+        }
+      }
 
-    return payroll;
+      if (userId && staffIdStr !== userId) {
+        throw new Error('Forbidden: Payroll record does not belong to user');
+      }
+
+      return payroll;
+    }, CACHE_TTL);
   }
 
   async getPayrollForUser(userId: string, period: string) {
+    const cacheKey = `${CACHE_KEY_PREFIX}:user:${userId}:${period}`;
+    return await cacheService.getOrSet(cacheKey, async () => {
+      // Logic inside ensurePayrollForUser involves creation/calculation, might not be safe to cache purely?
+      // But getPayrollForUser returns the record.
+      // ensurePayrollForUser is a side-effect. We shoud keep it outside cache or cache the result AFTER ensuring.
+      // But ensurePayrollForUser involves DB writes.
 
-    await this.ensurePayrollForUser(userId, period);
+      await this.ensurePayrollForUser(userId, period);
 
+      const payroll = await Payroll.findOne({ staffId: userId, period })
+        .populate('staffId', 'fullName role');
 
-    const payroll = await Payroll.findOne({ staffId: userId, period })
-      .populate('staffId', 'fullName role');
-
-    return payroll;
+      return payroll;
+    }, CACHE_TTL);
   }
 
   async create(payrollData: Partial<IPayroll>) {
@@ -257,6 +274,7 @@ export class PayrollService {
         `Статус: ${(populatedPayroll.status === 'paid') ? 'Выплачено' : 'Начислено'}`;
       await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
     }
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return populatedPayroll;
   }
 
@@ -359,6 +377,14 @@ export class PayrollService {
         `Статус: ${(updatedPayroll.status === 'paid') ? 'Выплачено' : 'Начислено'}`;
       await sendTelegramNotification((updatedPayroll.staffId as any).telegramChatId, msg);
     }
+
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return updatedPayroll;
   }
 
@@ -367,6 +393,12 @@ export class PayrollService {
 
     if (!result) {
       throw new Error('Зарплата не найдена');
+    }
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
     }
 
     return { message: 'Зарплата успешно удалена' };
@@ -386,6 +418,12 @@ export class PayrollService {
       throw new Error('Зарплата не найдена');
     }
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return payroll;
   }
 
@@ -403,6 +441,12 @@ export class PayrollService {
       throw new Error('Зарплата не найдена');
     }
 
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
     return payroll;
   }
 
@@ -411,7 +455,6 @@ export class PayrollService {
     if (!payroll) {
       throw new Error('Зарплата не найдена');
     }
-
 
     const fine = {
       amount: Number(fineData.amount),
@@ -422,22 +465,24 @@ export class PayrollService {
       createdAt: new Date()
     };
 
-
     if (!payroll.fines) {
       payroll.fines = [];
     }
     payroll.fines.push(fine);
 
-
     payroll.userFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
-
-
 
     payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
 
     payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
 
     await payroll.save();
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
 
     return Payroll.findById(payroll._id).populate('staffId', 'fullName role');
   }
@@ -461,18 +506,21 @@ export class PayrollService {
       throw new Error('Вычет не найден');
     }
 
-
-
+    payroll.fines.splice(fineIndex, 1);
 
     payroll.userFines = payroll.fines.reduce((sum, f) => sum + f.amount, 0);
 
-
     payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
-
 
     payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
 
     await payroll.save();
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
 
     return Payroll.findById(payroll._id).populate('staffId', 'fullName role');
   }

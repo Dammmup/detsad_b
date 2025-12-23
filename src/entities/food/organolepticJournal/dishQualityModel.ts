@@ -72,7 +72,5 @@ const DishQualityAssessmentSchema = new Schema<IDishQualityAssessment>({
     timestamps: true
 });
 
-// Compound index for efficient queries by date and group
-DishQualityAssessmentSchema.index({ date: 1, group: 1 });
 
 export default mongoose.model<IDishQualityAssessment>('DishQualityAssessment', DishQualityAssessmentSchema, 'dish_quality_assessments');

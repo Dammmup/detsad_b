@@ -186,7 +186,6 @@ PayrollSchema.pre('save', function (next) {
 });
 
 
-PayrollSchema.index({ staffId: 1, period: 1 }, { unique: true });
 
 
 export default mongoose.model<IPayroll>('Payroll', PayrollSchema, 'payrolls');

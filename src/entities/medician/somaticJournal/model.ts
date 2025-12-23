@@ -76,8 +76,5 @@ const SomaticJournalSchema = new Schema<ISomaticJournal>({
 
 
 
-SomaticJournalSchema.index({ childId: 1, date: 1 });
-SomaticJournalSchema.index({ doctor: 1, date: -1 });
-
 
 export default mongoose.model<ISomaticJournal>('SomaticJournal', SomaticJournalSchema, 'somatic_journals');

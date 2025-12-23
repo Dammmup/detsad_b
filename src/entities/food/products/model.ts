@@ -11,7 +11,7 @@ export interface IProduct extends Document {
   maxStockLevel: number;
   expirationDate?: Date;
   batchNumber?: string;
-  storageConditions: string;
+  storageConditions?: string;
   notes?: string;
   attachments?: string[];
   status: 'active' | 'inactive' | 'discontinued';
@@ -85,7 +85,6 @@ const ProductSchema = new Schema<IProduct>({
   },
   storageConditions: {
     type: String,
-    required: [true, 'Условия хранения обязательны'],
     trim: true,
     maxlength: [200, 'Условия хранения не могут превышать 200 символов']
   },

@@ -1,4 +1,3 @@
-
 export interface Qwen3Message {
   id: number;
   text: string;
@@ -17,4 +16,6 @@ export interface Qwen3Request {
 
 export interface Qwen3Response {
   content: string;
+  action?: 'query' | 'navigate' | 'text';
+  navigateTo?: string;
 }
