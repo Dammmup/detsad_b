@@ -18,8 +18,13 @@ const upload = multer({
 });
 
 export const sendMessage = async (req: Request, res: Response) => {
+  console.log('📩 Qwen3Chat: Request received');
+  console.log('📩 Body:', JSON.stringify(req.body).substring(0, 200));
+
   upload.single('image')(req, res, async (err) => {
+    console.log('📩 Multer processed');
     if (err) {
+      console.log('📩 Multer error:', err.message);
       return res.status(400).json({ error: err.message });
     }
 
