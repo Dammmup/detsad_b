@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "script": "ts-node scripts/create-admin-user.ts",
     "populate-documents": "ts-node src/scripts/populate-documents.ts",
     "migrate": "ts-node migrate.ts",

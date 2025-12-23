@@ -24,7 +24,7 @@
     "useUnknownInCatchVariables": true,
     "downlevelIteration": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "baseUrl": ".",
     "paths": {
       "@src/*": [
@@ -33,7 +33,8 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "scripts/**/*"
   ],
   "exclude": [
     "node_modules",
