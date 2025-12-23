@@ -11,10 +11,5 @@
             "src": "/(.*)",
             "dest": "src/api/vercel.ts"
         }
-    ],
-    "functions": {
-        "src/api/vercel.ts": {
-            "maxDuration": 60
-        }
-    }
+    ]
 }
