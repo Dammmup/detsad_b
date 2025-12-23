@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { Qwen3Request } from './model';
-import fs from 'fs';
-import path from 'path';
 import { UIStateService } from '../uiState/service';
 import { executeQuery, QueryRequest } from './queryExecutor';
+import { ASSISTANT_PROMPT, DATA_ACCESS_PROMPT } from './prompts';
 
 const QWEN3_API_URL = process.env.QWEN3_API_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
 const QWEN3_API_KEY = process.env.QWEN3_API_KEY || 'sk-5aeb0fdc7fa446c391b6d51363102e79';
@@ -153,11 +152,9 @@ export class Qwen3ChatService {
     }
 
     try {
-      const promptPath = path.join(__dirname, 'assistant-prompt.md');
-      const dataAccessPromptPath = path.join(__dirname, 'data-access-prompt.md');
-
-      const systemPrompt = fs.readFileSync(promptPath, 'utf-8');
-      const dataAccessPrompt = fs.readFileSync(dataAccessPromptPath, 'utf-8');
+      // Используем константы промптов (для работы на Vercel Serverless)
+      const systemPrompt = ASSISTANT_PROMPT;
+      const dataAccessPrompt = DATA_ACCESS_PROMPT;
 
       const dateContext = this.getCurrentDateContext();
       const combinedSystemPrompt = `${systemPrompt}\n\n${dataAccessPrompt}\n\n${dateContext}`;
