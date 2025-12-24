@@ -76,55 +76,21 @@ export class FoodStockLogService {
 
   async create(logData: Partial<IFoodStockLog>, userId: string) {
 
-    if (!logData.productId) {
-      throw new Error('Не указан продукт');
-    }
+    // Minimal required fields
     if (!logData.productName) {
       throw new Error('Не указано название продукта');
     }
-    if (!logData.batchNumber) {
-      throw new Error('Не указан номер партии');
-    }
-    if (!logData.expirationDate) {
-      throw new Error('Не указана дата истечения срока годности');
-    }
-    if (logData.quantity === undefined) {
-      throw new Error('Не указано количество');
-    }
-    if (!logData.unit) {
-      throw new Error('Не указана единица измерения');
-    }
-    if (!logData.supplier) {
-      throw new Error('Не указан поставщик');
-    }
-    if (!logData.supplierContact) {
-      throw new Error('Не указан контакт поставщика');
-    }
-    if (!logData.deliveryDate) {
-      throw new Error('Не указана дата поставки');
-    }
-    if (!logData.deliveryPerson) {
-      throw new Error('Не указан получатель');
-    }
-    if (!logData.receiver) {
-      throw new Error('Не указан ответственный за получение');
-    }
-    if (!logData.status) {
-      throw new Error('Не указан статус');
+    // All other fields are optional for flexibility
+
+    // Validate productId if provided
+    if (logData.productId) {
+      const product = await Product.findById(logData.productId);
+      if (!product) {
+        throw new Error('Продукт не найден');
+      }
     }
 
-
-    const product = await Product.findById(logData.productId);
-    if (!product) {
-      throw new Error('Продукт не найден');
-    }
-
-
-    const receiver = await User.findById(logData.receiver);
-    if (!receiver) {
-      throw new Error('Ответственный не найден');
-    }
-
+    // Use current user as receiver
     const foodStockLogModel = FoodStockLog;
     const log = new foodStockLogModel({
       ...logData,

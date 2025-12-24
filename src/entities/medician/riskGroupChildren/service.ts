@@ -1,6 +1,7 @@
 import RiskGroupChild from './model';
 import { IRiskGroupChild } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 
 let RiskGroupChildModel: any = null;
@@ -67,30 +68,18 @@ export class RiskGroupChildrenService {
       throw new Error('Не указан ребенок');
     }
     if (!childData.date) {
-      throw new Error('Не указана дата');
+      // Use current date if not provided
+      childData.date = new Date();
     }
-    if (!childData.riskFactors || childData.riskFactors.length === 0) {
-      throw new Error('Не указаны факторы риска');
-    }
-    if (!childData.assessment) {
-      throw new Error('Не указана оценка');
-    }
-    if (!childData.doctor) {
-      throw new Error('Не указан врач');
-    }
+    // riskFactors, assessment are optional now
+    // doctor will be set to userId below
 
-
-    const child = await User.findById(childData.childId);
+    const child = await Child.findById(childData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await User.findById(childData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
+    // Use current user as doctor
     const riskGroupModel = RiskGroupChild;
     const riskChild = new riskGroupModel({
       ...childData,

@@ -17,7 +17,7 @@ export interface IMedicalJournal extends Document {
 const MedicalJournalSchema = new Schema<IMedicalJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },

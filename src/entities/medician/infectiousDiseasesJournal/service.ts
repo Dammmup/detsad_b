@@ -1,6 +1,7 @@
 import InfectiousDiseasesJournal from './model';
 import { IInfectiousDiseasesJournal } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 
 export class InfectiousDiseasesJournalService {
@@ -46,33 +47,18 @@ export class InfectiousDiseasesJournalService {
       throw new Error('Не указан ребенок');
     }
     if (!journalData.date) {
-      throw new Error('Не указана дата');
+      // Use current date if not provided
+      journalData.date = new Date();
     }
-    if (!journalData.disease) {
-      throw new Error('Не указано заболевание');
-    }
-    if (!journalData.symptoms || journalData.symptoms.length === 0) {
-      throw new Error('Не указаны симптомы');
-    }
-    if (!journalData.treatment) {
-      throw new Error('Не указано лечение');
-    }
-    if (!journalData.doctor) {
-      throw new Error('Не указан врач');
-    }
+    // disease, symptoms, treatment are optional now
+    // doctor will be set to userId below
 
-
-    const child = await User.findById(journalData.childId);
+    const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await User.findById(journalData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
+    // Use current user as doctor
     const journal = new InfectiousDiseasesJournal({
       ...journalData,
       doctor: userId

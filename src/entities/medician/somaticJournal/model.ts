@@ -18,7 +18,7 @@ export interface ISomaticJournal extends Document {
 const SomaticJournalSchema = new Schema<ISomaticJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },

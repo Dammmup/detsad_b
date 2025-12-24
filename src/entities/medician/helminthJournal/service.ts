@@ -1,5 +1,6 @@
 import HelminthJournal, { IHelminthJournal } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 export class HelminthJournalService {
   async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
@@ -49,22 +50,14 @@ export class HelminthJournalService {
     if (!journalData.result) {
       throw new Error('Не указан результат');
     }
-    if (!journalData.doctor) {
-      throw new Error('Не указан врач');
-    }
+    // doctor will be set to userId below
 
-
-    const child = await User.findById(journalData.childId);
+    const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await User.findById(journalData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
+    // Use current user as doctor
     const journal = new HelminthJournal({
       ...journalData,
       doctor: userId

@@ -21,7 +21,7 @@ export interface IContactInfectionJournal extends Document {
 const ContactInfectionJournalSchema = new Schema<IContactInfectionJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },

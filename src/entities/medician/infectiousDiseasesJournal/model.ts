@@ -18,7 +18,7 @@ export interface IInfectiousDiseasesJournal extends Document {
 const InfectiousDiseasesJournalSchema = new Schema<IInfectiousDiseasesJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },

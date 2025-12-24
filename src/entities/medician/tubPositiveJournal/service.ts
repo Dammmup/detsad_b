@@ -1,6 +1,7 @@
 import TubPositiveJournal from './model';
 import { ITubPositiveJournal } from './model';
 import User from '../../../entities/users/model';
+import Child from '../../children/model';
 
 
 export class TubPositiveJournalService {
@@ -45,27 +46,18 @@ export class TubPositiveJournalService {
       throw new Error('Не указан ребенок');
     }
     if (!journalData.date) {
-      throw new Error('Не указана дата');
+      // Use current date if not provided
+      journalData.date = new Date();
     }
-    if (!journalData.result) {
-      throw new Error('Не указан результат');
-    }
-    if (!journalData.doctor) {
-      throw new Error('Не указан врач');
-    }
+    // result is optional now
+    // doctor will be set to userId below
 
-
-    const child = await User.findById(journalData.childId);
+    const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await User.findById(journalData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
+    // Use current user as doctor
     const journal = new TubPositiveJournal({
       ...journalData,
       doctor: userId

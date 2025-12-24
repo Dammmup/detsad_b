@@ -78,73 +78,21 @@ export class ProductCertificatesService {
 
   async create(certificateData: Partial<IProductCertificate>, userId: string) {
 
-    if (!certificateData.productId) {
-      throw new Error('Не указан продукт');
-    }
+    // Minimal required fields
     if (!certificateData.productName) {
       throw new Error('Не указано название продукта');
     }
-    if (!certificateData.certificateNumber) {
-      throw new Error('Не указан номер сертификата');
-    }
-    if (!certificateData.issueDate) {
-      throw new Error('Не указана дата выдачи');
-    }
-    if (!certificateData.expiryDate) {
-      throw new Error('Не указана дата истечения срока годности');
-    }
-    if (!certificateData.issuer) {
-      throw new Error('Не указан издатель');
-    }
-    if (!certificateData.issuerAddress) {
-      throw new Error('Не указан адрес издателя');
-    }
-    if (!certificateData.issuerContact) {
-      throw new Error('Не указан контакт издателя');
-    }
-    if (!certificateData.productDescription) {
-      throw new Error('Не указано описание продукта');
-    }
-    if (!certificateData.productCategory) {
-      throw new Error('Не указана категория продукта');
-    }
-    if (!certificateData.manufacturingDate) {
-      throw new Error('Не указана дата производства');
-    }
-    if (!certificateData.batchNumber) {
-      throw new Error('Не указан номер партии');
-    }
-    if (certificateData.quantity === undefined) {
-      throw new Error('Не указано количество');
-    }
-    if (!certificateData.unit) {
-      throw new Error('Не указана единица измерения');
-    }
-    if (!certificateData.qualityStandards || certificateData.qualityStandards.length === 0) {
-      throw new Error('Не указаны стандарты качества');
-    }
-    if (!certificateData.testingResults) {
-      throw new Error('Не указаны результаты тестирования');
-    }
-    if (!certificateData.inspector) {
-      throw new Error('Не указан инспектор');
-    }
-    if (!certificateData.inspectionDate) {
-      throw new Error('Не указана дата проверки');
+    // All other fields are optional for flexibility
+
+    // Validate productId if provided
+    if (certificateData.productId) {
+      const product = await Product.findById(certificateData.productId);
+      if (!product) {
+        throw new Error('Продукт не найден');
+      }
     }
 
-
-    const product = await Product.findById(certificateData.productId);
-    if (!product) {
-      throw new Error('Продукт не найден');
-    }
-
-
-    const inspector = await User.findById(certificateData.inspector);
-    if (!inspector) {
-      throw new Error('Инспектор не найден');
-    }
-
+    // Use current user as inspector
     const productCertificateModel = ProductCertificate;
     const certificate = new productCertificateModel({
       ...certificateData,

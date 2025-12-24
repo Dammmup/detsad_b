@@ -46,7 +46,7 @@ export class MedicalJournalsService {
     return journal;
   }
 
-  async create(journalData: Partial<IMedicalJournal>) {
+  async create(journalData: Partial<IMedicalJournal>, userId?: string) {
 
     if (!journalData.childId) {
       throw new Error('Не указан ребенок');
@@ -60,8 +60,9 @@ export class MedicalJournalsService {
     if (!journalData.result) {
       throw new Error('Не указан результат');
     }
-    if (!journalData.doctor) {
-      throw new Error('Не указан врач');
+    // doctor will be set to userId if provided
+    if (!journalData.doctor && userId) {
+      journalData.doctor = userId as any;
     }
 
     const medicalJournalModel = MedicalJournal;

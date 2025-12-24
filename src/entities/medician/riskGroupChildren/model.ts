@@ -17,7 +17,7 @@ export interface IRiskGroupChild extends Document {
 const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true
   },
   date: {

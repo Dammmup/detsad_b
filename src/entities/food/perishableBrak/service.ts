@@ -76,49 +76,21 @@ export class PerishableBrakService {
 
   async create(brakData: Partial<IPerishableBrak>, userId: string) {
 
-    if (!brakData.productId) {
-      throw new Error('Не указан продукт');
-    }
+    // Minimal required fields
     if (!brakData.productName) {
       throw new Error('Не указано название продукта');
     }
-    if (!brakData.batchNumber) {
-      throw new Error('Не указан номер партии');
-    }
-    if (!brakData.expirationDate) {
-      throw new Error('Не указана дата истечения срока годности');
-    }
-    if (brakData.quantity === undefined) {
-      throw new Error('Не указано количество');
-    }
-    if (!brakData.unit) {
-      throw new Error('Не указана единица измерения');
-    }
-    if (!brakData.reason) {
-      throw new Error('Не указана причина');
-    }
-    if (!brakData.inspector) {
-      throw new Error('Не указан инспектор');
-    }
-    if (!brakData.inspectionDate) {
-      throw new Error('Не указана дата проверки');
-    }
-    if (!brakData.disposalMethod) {
-      throw new Error('Не указан метод утилизации');
+    // All other fields are optional for flexibility
+
+    // Validate productId if provided
+    if (brakData.productId) {
+      const product = await Product.findById(brakData.productId);
+      if (!product) {
+        throw new Error('Продукт не найден');
+      }
     }
 
-
-    const product = await Product.findById(brakData.productId);
-    if (!product) {
-      throw new Error('Продукт не найден');
-    }
-
-
-    const inspector = await User.findById(brakData.inspector);
-    if (!inspector) {
-      throw new Error('Инспектор не найден');
-    }
-
+    // Use current user as inspector
     const perishableBrakModel = PerishableBrak;
     const brak = new perishableBrakModel({
       ...brakData,

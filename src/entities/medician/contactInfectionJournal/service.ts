@@ -1,6 +1,7 @@
 import ContactInfectionJournal from './model';
 import { IContactInfectionJournal } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 export class ContactInfectionJournalService {
   private get journalModel() {
@@ -61,34 +62,18 @@ export class ContactInfectionJournalService {
       throw new Error('Не указан ребенок');
     }
     if (!journalData.date) {
-      throw new Error('Не указана дата');
+      // Use current date if not provided
+      journalData.date = new Date();
     }
-    if (!journalData.infectionType) {
-      throw new Error('Не указан тип инфекции');
-    }
-    if (!journalData.symptoms || journalData.symptoms.length === 0) {
-      throw new Error('Не указаны симптомы');
-    }
-    if (!journalData.treatment) {
-      throw new Error('Не указано лечение');
-    }
-    if (!journalData.doctor) {
-      throw new Error('Не указан врач');
-    }
+    // infectionType, symptoms, treatment are optional now
+    // doctor will be set to userId below
 
-
-    const child = await this.userModel.findById(journalData.childId);
+    const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await this.userModel.findById(journalData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
-
+    // Use current user as doctor
     if (journalData.isolationPeriod) {
       const isolationEndDate = new Date(journalData.date as Date);
       isolationEndDate.setDate(isolationEndDate.getDate() + journalData.isolationPeriod);

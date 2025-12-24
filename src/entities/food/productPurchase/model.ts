@@ -4,6 +4,8 @@ export interface IProductPurchase extends Document {
     productId: mongoose.Types.ObjectId;
     quantity: number;
     unit: string;
+    weight?: number; // Вес единицы продукта
+    weightUnit?: 'г' | 'кг' | 'мл' | 'л';
     pricePerUnit: number;
     totalPrice: number;
     supplier: string;
@@ -33,6 +35,15 @@ const ProductPurchaseSchema = new Schema<IProductPurchase>({
         type: String,
         required: [true, 'Единица измерения обязательна'],
         trim: true
+    },
+    weight: {
+        type: Number,
+        min: [0, 'Вес не может быть отрицательным']
+    },
+    weightUnit: {
+        type: String,
+        enum: ['г', 'кг', 'мл', 'л'],
+        default: 'г'
     },
     pricePerUnit: {
         type: Number,

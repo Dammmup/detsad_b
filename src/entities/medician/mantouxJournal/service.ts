@@ -91,12 +91,7 @@ export class MantouxJournalService {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await User.findById(journalData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
+    // Use provided doctor or userId
     const journal = new MantouxJournal({
       ...journalData,
       doctor: journalData.doctor || userId

@@ -1,6 +1,7 @@
 import SomaticJournal from './model';
 import { ISomaticJournal } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 
 let SomaticJournalModel: any = null;
@@ -70,22 +71,16 @@ export class SomaticJournalService {
     if (!journalData.treatment) {
       throw new Error('Не указано лечение');
     }
-    if (!journalData.doctor) {
-      throw new Error('Не указан врач');
-    }
+    // doctor will be set to userId below
 
 
-    const child = await User.findById(journalData.childId);
+    // Validate child exists in Children collection
+    const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-
-    const doctor = await User.findById(journalData.doctor);
-    if (!doctor) {
-      throw new Error('Врач не найден');
-    }
-
+    // Use current user as doctor
     const somaticJournalModel = SomaticJournal;
     const journal = new somaticJournalModel({
       ...journalData,

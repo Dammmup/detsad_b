@@ -1,6 +1,7 @@
 import OrganolepticJournal from './model';
 import { IOrganolepticJournal } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 
 let OrganolepticJournalModel: any = null;
@@ -60,67 +61,24 @@ export class OrganolepticJournalService {
 
   async create(journalData: Partial<IOrganolepticJournal>, userId: string) {
 
-    if (!journalData.childId) {
-      throw new Error('Не указан ребенок');
-    }
+    // Minimal required fields
     if (!journalData.date) {
       throw new Error('Не указана дата');
     }
     if (!journalData.productName) {
       throw new Error('Не указано название продукта');
     }
-    if (!journalData.appearance) {
-      throw new Error('Не указан внешний вид');
-    }
-    if (!journalData.color) {
-      throw new Error('Не указан цвет');
-    }
-    if (!journalData.smell) {
-      throw new Error('Не указан запах');
-    }
-    if (!journalData.taste) {
-      throw new Error('Не указан вкус');
-    }
-    if (journalData.temperature === undefined) {
-      throw new Error('Не указана температура');
-    }
-    if (!journalData.consistency) {
-      throw new Error('Не указана консистенция');
-    }
-    if (!journalData.packagingCondition) {
-      throw new Error('Не указано состояние упаковки');
-    }
-    if (!journalData.expirationDate) {
-      throw new Error('Не указана дата истечения срока годности');
-    }
-    if (!journalData.batchNumber) {
-      throw new Error('Не указан номер партии');
-    }
-    if (!journalData.supplier) {
-      throw new Error('Не указан поставщик');
-    }
-    if (journalData.quantity === undefined) {
-      throw new Error('Не указано количество');
-    }
-    if (!journalData.unit) {
-      throw new Error('Не указана единица измерения');
-    }
-    if (!journalData.inspector) {
-      throw new Error('Не указан инспектор');
+    // All other fields are optional for flexibility
+
+    // Validate childId if provided
+    if (journalData.childId) {
+      const child = await Child.findById(journalData.childId);
+      if (!child) {
+        throw new Error('Ребенок не найден');
+      }
     }
 
-
-    const child = await User.findById(journalData.childId);
-    if (!child) {
-      throw new Error('Ребенок не найден');
-    }
-
-
-    const inspector = await User.findById(journalData.inspector);
-    if (!inspector) {
-      throw new Error('Инспектор не найден');
-    }
-
+    // Use current user as inspector
     const organolepticModel = OrganolepticJournal;
     const journal = new organolepticModel({
       ...journalData,

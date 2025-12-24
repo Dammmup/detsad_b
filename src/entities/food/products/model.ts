@@ -4,6 +4,8 @@ export interface IProduct extends Document {
   description?: string;
   category: string;
   unit: string;
+  weight?: number; // Вес единицы продукта (например, 250г томатной пасты)
+  weightUnit?: 'г' | 'кг' | 'мл' | 'л'; // Единица измерения веса
   supplier: string;
   price: number;
   stockQuantity: number;
@@ -45,6 +47,15 @@ const ProductSchema = new Schema<IProduct>({
     required: [true, 'Единица измерения обязательна'],
     trim: true,
     maxlength: [20, 'Единица измерения не может превышать 20 символов']
+  },
+  weight: {
+    type: Number,
+    min: [0, 'Вес не может быть отрицательным']
+  },
+  weightUnit: {
+    type: String,
+    enum: ['г', 'кг', 'мл', 'л'],
+    default: 'г'
   },
   supplier: {
     type: String,

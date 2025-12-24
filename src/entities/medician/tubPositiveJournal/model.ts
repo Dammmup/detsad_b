@@ -16,7 +16,7 @@ export interface ITubPositiveJournal extends Document {
 const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },

@@ -1,6 +1,7 @@
 import ChildHealthPassport from './model';
 import { IChildHealthPassport } from './model';
 import User from '../../users/model';
+import Child from '../../children/model';
 
 export class ChildHealthPassportService {
   async getAll(filters: { childId?: string, status?: string, bloodType?: string, rhesusFactor?: string, startDate?: string, endDate?: string, nextExaminationDate?: string, vaccinationDate?: string, doctorExaminationDate?: string }) {
@@ -64,7 +65,7 @@ export class ChildHealthPassportService {
     }
 
 
-    const child = await User.findById(passportData.childId);
+    const child = await Child.findById(passportData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }

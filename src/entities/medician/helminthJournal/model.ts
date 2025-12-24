@@ -16,7 +16,7 @@ export interface IHelminthJournal extends Document {
 const HelminthJournalSchema = new Schema<IHelminthJournal>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     index: true
   },

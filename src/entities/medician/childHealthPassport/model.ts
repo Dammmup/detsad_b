@@ -31,7 +31,7 @@ export interface IChildHealthPassport extends Document {
 const ChildHealthPassportSchema = new Schema<IChildHealthPassport>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     unique: true,
     index: true
