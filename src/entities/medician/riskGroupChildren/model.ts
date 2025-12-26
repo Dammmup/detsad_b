@@ -2,14 +2,10 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IRiskGroupChild extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
-  riskFactors: string[];
-  assessment: string;
-  doctor: mongoose.Types.ObjectId;
+  group?: string;
+  reason?: string;
   notes?: string;
-  attachments?: string[];
-  status: 'pending' | 'completed' | 'reviewed';
-  nextAssessmentDate?: Date;
-  recommendations?: string;
+  fio?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,44 +14,30 @@ const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
   childId: {
     type: Schema.Types.ObjectId,
     ref: 'Child',
-    required: true
+    required: true,
+    index: true
   },
   date: {
     type: Date,
     required: true
   },
-  riskFactors: [{
+  group: {
     type: String,
     trim: true,
-    maxlength: [100, 'Фактор риска не может превышать 100 символов']
-  }],
-  assessment: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: [500, 'Оценка не может превышать 500 символов']
+    maxlength: [100, 'Группа риска не может превышать 100 символов']
   },
-  doctor: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  reason: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Причина не может превышать 500 символов']
   },
   notes: {
     type: String,
     maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
-  attachments: [String],
-  status: {
+  fio: {
     type: String,
-    enum: ['pending', 'completed', 'reviewed'],
-    default: 'pending'
-  },
-  nextAssessmentDate: {
-    type: Date
-  },
-  recommendations: {
-    type: String,
-    maxlength: [300, 'Рекомендации не могут превышать 300 символов']
+    trim: true
   }
 }, {
   timestamps: true

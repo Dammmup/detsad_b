@@ -48,6 +48,7 @@ import mainEventsRoutes from './entities/mainEvents/route';
 import holidayRoutes from './entities/holidays/route';
 import telegramRoutes from './api/telegram';
 import exportRoutes from './api/export';
+import cyclogramRoutes from './entities/cyclogram/routes';
 import fs from 'fs';
 import path from 'path';
 const app = express();
@@ -116,6 +117,7 @@ app.use('/main-events', mainEventsRoutes);
 app.use('/holidays', holidayRoutes);
 app.use('/telegram', telegramRoutes);
 app.use('/export', exportRoutes);
+app.use('/cyclogram', cyclogramRoutes);
 
 
 app.get('/health', (req, res) => {

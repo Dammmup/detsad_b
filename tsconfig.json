@@ -34,7 +34,8 @@
   },
   "include": [
     "src/**/*",
-    "scripts/**/*"
+    "scripts/**/*",
+    "src/entities/qwen3Chat/service.ts"
   ],
   "exclude": [
     "node_modules",

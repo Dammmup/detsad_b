@@ -10,12 +10,19 @@ export const login = async (req: Request, res: Response) => {
   console.log('login:', phone, password);
   try {
     const result = await authService.login(phone, password);
-        const user = await User.findOne({ phone: phone });
-    if (user) {
-      await sendLogToTelegram(`Пользователь ${user.fullName} вошёл в систему`);
-    } else {
-      await sendLogToTelegram(`Пользователь с телефоном ${phone} вошёл в систему`);
+    const user = await User.findOne({ phone: phone });
+
+    // Логирование в Telegram (не блокирует логин при ошибке)
+    try {
+      if (user) {
+        await sendLogToTelegram(`Пользователь ${user.fullName} вошёл в систему`);
+      } else {
+        await sendLogToTelegram(`Пользователь с телефоном ${phone} вошёл в систему`);
+      }
+    } catch (telegramError) {
+      console.warn('Telegram log failed:', telegramError);
     }
+
     res.json(result);
   } catch (err) {
     console.error('Login error:', err);
@@ -24,7 +31,6 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const validateToken = async (req: Request, res: Response) => {
-
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -44,7 +50,14 @@ export const validateToken = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
   try {
     console.log('👋 Пользователь вышел из системы');
-    await sendLogToTelegram('Пользователь вышел из системы');
+
+    // Логирование в Telegram (не блокирует логаут при ошибке)
+    try {
+      await sendLogToTelegram('Пользователь вышел из системы');
+    } catch (telegramError) {
+      console.warn('Telegram log failed:', telegramError);
+    }
+
     const result = await authService.logout();
     res.json(result);
   } catch (error) {

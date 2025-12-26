@@ -1,26 +1,14 @@
-import HelminthJournal, { IHelminthJournal } from './model';
-import User from '../../users/model';
+import HelminthJournal from './model';
+import { IHelminthJournal } from './model';
 import Child from '../../children/model';
 
 export class HelminthJournalService {
-  async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
+  async getAll(filters: { childId?: string }) {
     const filter: any = {};
-
     if (filters.childId) filter.childId = filters.childId;
-    if (filters.doctorId) filter.doctor = filters.doctorId;
-    if (filters.status) filter.status = filters.status;
-
-    if (filters.date) {
-      filter.date = new Date(filters.date);
-    } else if (filters.startDate || filters.endDate) {
-      filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
-    }
 
     const journals = await HelminthJournal.find(filter)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
+      .populate('childId', 'fullName birthday address')
       .sort({ date: -1 });
 
     return journals;
@@ -28,46 +16,33 @@ export class HelminthJournalService {
 
   async getById(id: string) {
     const journal = await HelminthJournal.findById(id)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
+      .populate('childId', 'fullName birthday address');
 
     if (!journal) {
-      throw new Error('Запись гельминтов не найдена');
+      throw new Error('Запись не найдена');
     }
 
     return journal;
   }
 
   async create(journalData: Partial<IHelminthJournal>, userId: string) {
-
-
     if (!journalData.childId) {
       throw new Error('Не указан ребенок');
     }
     if (!journalData.date) {
-      throw new Error('Не указана дата');
+      journalData.date = new Date();
     }
-    if (!journalData.result) {
-      throw new Error('Не указан результат');
-    }
-    // doctor will be set to userId below
 
     const child = await Child.findById(journalData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-    // Use current user as doctor
-    const journal = new HelminthJournal({
-      ...journalData,
-      doctor: userId
-    });
-
+    const journal = new HelminthJournal(journalData);
     await journal.save();
 
     const populatedJournal = await HelminthJournal.findById(journal._id)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
+      .populate('childId', 'fullName birthday address');
 
     return populatedJournal;
   }
@@ -77,11 +52,10 @@ export class HelminthJournalService {
       id,
       data,
       { new: true }
-    ).populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
+    ).populate('childId', 'fullName birthday address');
 
     if (!updatedJournal) {
-      throw new Error('Запись гельминтов не найдена');
+      throw new Error('Запись не найдена');
     }
 
     return updatedJournal;
@@ -91,123 +65,17 @@ export class HelminthJournalService {
     const result = await HelminthJournal.findByIdAndDelete(id);
 
     if (!result) {
-      throw new Error('Запись гельминтов не найдена');
+      throw new Error('Запись не найдена');
     }
 
-    return { message: 'Запись гельминтов успешно удалена' };
+    return { message: 'Запись успешно удалена' };
   }
 
-  async getByChildId(childId: string, filters: { date?: string, doctorId?: string, status?: string, startDate?: string, endDate?: string }) {
-    const filter: any = { childId };
-
-    if (filters.doctorId) filter.doctor = filters.doctorId;
-    if (filters.status) filter.status = filters.status;
-
-    if (filters.date) {
-      filter.date = new Date(filters.date);
-    } else if (filters.startDate || filters.endDate) {
-      filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
-    }
-
-    const journals = await HelminthJournal.find(filter)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
+  async getByChildId(childId: string) {
+    const journals = await HelminthJournal.find({ childId })
+      .populate('childId', 'fullName birthday address')
       .sort({ date: -1 });
 
     return journals;
-  }
-
-  async getByDoctorId(doctorId: string, filters: { childId?: string, status?: string, startDate?: string, endDate?: string }) {
-    const filter: any = { doctor: doctorId };
-
-    if (filters.childId) filter.childId = filters.childId;
-    if (filters.status) filter.status = filters.status;
-
-    if (filters.startDate || filters.endDate) {
-      filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
-    }
-
-    const journals = await HelminthJournal.find(filter)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
-      .sort({ date: -1 });
-
-    return journals;
-  }
-
-  async getUpcomingAppointments(days: number = 7) {
-    const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(today.getDate() + days);
-
-    const journals = await HelminthJournal.find({
-      nextAppointmentDate: {
-        $gte: today,
-        $lte: futureDate
-      }
-    })
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
-      .sort({ nextAppointmentDate: 1 });
-
-    return journals;
-  }
-
-  async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const journal = await HelminthJournal.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    ).populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
-
-    if (!journal) {
-      throw new Error('Запись гельминтов не найдена');
-    }
-
-    return journal;
-  }
-
-  async addRecommendations(id: string, recommendations: string) {
-    const journal = await HelminthJournal.findByIdAndUpdate(
-      id,
-      { recommendations },
-      { new: true }
-    ).populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
-
-    if (!journal) {
-      throw new Error('Запись гельминтов не найдена');
-    }
-
-    return journal;
-  }
-
-  async getStatistics() {
-    const stats = await HelminthJournal.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
-
-    const total = await HelminthJournal.countDocuments();
-
-    return {
-      total,
-      byStatus: stats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
-        return acc;
-      }, {})
-    };
   }
 }

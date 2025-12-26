@@ -1,14 +1,13 @@
 import { Request, Response } from 'express';
 import { TubPositiveJournalService } from './service';
 
+let service: TubPositiveJournalService | null = null;
 
-let tubPositiveJournalService: TubPositiveJournalService | null = null;
-
-const getTubPositiveJournalService = (): TubPositiveJournalService => {
-  if (!tubPositiveJournalService) {
-    tubPositiveJournalService = new TubPositiveJournalService();
+const getService = (): TubPositiveJournalService => {
+  if (!service) {
+    service = new TubPositiveJournalService();
   }
-  return tubPositiveJournalService;
+  return service;
 };
 
 export const getAllTubPositiveJournals = async (req: Request, res: Response) => {
@@ -17,21 +16,12 @@ export const getAllTubPositiveJournals = async (req: Request, res: Response) => 
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { childId, date, doctorId, status, startDate, endDate } = req.query;
-
-    const journals = await getTubPositiveJournalService().getAll({
-      childId: childId as string,
-      date: date as string,
-      doctorId: doctorId as string,
-      status: status as string,
-      startDate: startDate as string,
-      endDate: endDate as string
-    });
-
+    const { childId } = req.query;
+    const journals = await getService().getAll({ childId: childId as string });
     res.json(journals);
   } catch (err) {
     console.error('Error fetching tub positive journals:', err);
-    res.status(500).json({ error: 'Ошибка получения записей туберкулеза' });
+    res.status(500).json({ error: 'Ошибка получения записей' });
   }
 };
 
@@ -41,11 +31,11 @@ export const getTubPositiveJournalById = async (req: Request, res: Response) => 
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const journal = await getTubPositiveJournalService().getById(req.params.id);
+    const journal = await getService().getById(req.params.id);
     res.json(journal);
   } catch (err: any) {
     console.error('Error fetching tub positive journal:', err);
-    res.status(404).json({ error: err.message || 'Запись туберкулеза не найдена' });
+    res.status(404).json({ error: err.message || 'Запись не найдена' });
   }
 };
 
@@ -55,11 +45,11 @@ export const createTubPositiveJournal = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const journal = await getTubPositiveJournalService().create(req.body, req.user.id as string);
+    const journal = await getService().create(req.body, req.user.id as string);
     res.status(201).json(journal);
   } catch (err: any) {
     console.error('Error creating tub positive journal:', err);
-    res.status(400).json({ error: err.message || 'Ошибка создания записи туберкулеза' });
+    res.status(400).json({ error: err.message || 'Ошибка создания записи' });
   }
 };
 
@@ -69,11 +59,11 @@ export const updateTubPositiveJournal = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const journal = await getTubPositiveJournalService().update(req.params.id, req.body);
+    const journal = await getService().update(req.params.id, req.body);
     res.json(journal);
   } catch (err: any) {
     console.error('Error updating tub positive journal:', err);
-    res.status(404).json({ error: err.message || 'Ошибка обновления записи туберкулеза' });
+    res.status(404).json({ error: err.message || 'Ошибка обновления записи' });
   }
 };
 
@@ -83,11 +73,11 @@ export const deleteTubPositiveJournal = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const result = await getTubPositiveJournalService().delete(req.params.id);
+    const result = await getService().delete(req.params.id);
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting tub positive journal:', err);
-    res.status(404).json({ error: err.message || 'Ошибка удаления записи туберкулеза' });
+    res.status(404).json({ error: err.message || 'Ошибка удаления записи' });
   }
 };
 
@@ -98,113 +88,10 @@ export const getTubPositiveJournalsByChildId = async (req: Request, res: Respons
     }
 
     const { childId } = req.params;
-    const { date, doctorId, status, startDate, endDate } = req.query;
-
-    const journals = await getTubPositiveJournalService().getByChildId(childId, {
-      date: date as string,
-      doctorId: doctorId as string,
-      status: status as string,
-      startDate: startDate as string,
-      endDate: endDate as string
-    });
-
+    const journals = await getService().getByChildId(childId);
     res.json(journals);
   } catch (err: any) {
     console.error('Error fetching tub positive journals by child ID:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения записей туберкулеза по ребенку' });
-  }
-};
-
-export const getTubPositiveJournalsByDoctorId = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const { doctorId } = req.params;
-    const { childId, status, startDate, endDate } = req.query;
-
-    const journals = await getTubPositiveJournalService().getByDoctorId(doctorId, {
-      childId: childId as string,
-      status: status as string,
-      startDate: startDate as string,
-      endDate: endDate as string
-    });
-
-    res.json(journals);
-  } catch (err: any) {
-    console.error('Error fetching tub positive journals by doctor ID:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения записей туберкулеза по врачу' });
-  }
-};
-
-export const getUpcomingAppointments = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const { days } = req.query;
-    const daysNum = days ? parseInt(days as string) : 7;
-
-    const journals = await getTubPositiveJournalService().getUpcomingAppointments(daysNum);
-    res.json(journals);
-  } catch (err: any) {
-    console.error('Error fetching upcoming appointments:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения предстоящих записей' });
-  }
-};
-
-export const updateTubPositiveJournalStatus = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const { status } = req.body;
-
-    if (!status) {
-      return res.status(400).json({ error: 'Не указан статус' });
-    }
-
-    const journal = await getTubPositiveJournalService().updateStatus(req.params.id, status);
-    res.json(journal);
-  } catch (err: any) {
-    console.error('Error updating tub positive journal status:', err);
-    res.status(404).json({ error: err.message || 'Ошибка обновления статуса записи туберкулеза' });
-  }
-};
-
-export const addTubPositiveJournalRecommendations = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const { recommendations } = req.body;
-
-    if (!recommendations) {
-      return res.status(400).json({ error: 'Не указаны рекомендации' });
-    }
-
-    const journal = await getTubPositiveJournalService().addRecommendations(req.params.id, recommendations);
-    res.json(journal);
-  } catch (err: any) {
-    console.error('Error adding tub positive journal recommendations:', err);
-    res.status(404).json({ error: err.message || 'Ошибка добавления рекомендаций к записи туберкулеза' });
-  }
-};
-
-export const getTubPositiveJournalStatistics = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const stats = await getTubPositiveJournalService().getStatistics();
-    res.json(stats);
-  } catch (err: any) {
-    console.error('Error fetching tub positive journal statistics:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения статистики туберкулеза' });
+    res.status(500).json({ error: err.message || 'Ошибка получения записей' });
   }
 };

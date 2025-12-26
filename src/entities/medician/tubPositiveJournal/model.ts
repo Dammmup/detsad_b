@@ -2,13 +2,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ITubPositiveJournal extends Document {
   childId: mongoose.Types.ObjectId;
   date: Date;
-  result: string;
-  doctor: mongoose.Types.ObjectId;
+  result?: string;
   notes?: string;
-  attachments?: string[];
-  status: 'pending' | 'completed' | 'reviewed';
-  nextAppointmentDate?: Date;
-  recommendations?: string;
+  fio?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,33 +23,16 @@ const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
   },
   result: {
     type: String,
-    required: true,
     trim: true,
-    maxlength: [20, 'Результат не может превышать 200 символов']
-  },
-  doctor: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    maxlength: [200, 'Результат не может превышать 200 символов']
   },
   notes: {
     type: String,
     maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
-  attachments: [String],
-  status: {
+  fio: {
     type: String,
-    enum: ['pending', 'completed', 'reviewed'],
-    default: 'pending',
-    index: true
-  },
-  nextAppointmentDate: {
-    type: Date,
-    index: true
-  },
-  recommendations: {
-    type: String,
-    maxlength: [30, 'Рекомендации не могут превышать 300 символов']
+    trim: true
   }
 }, {
   timestamps: true

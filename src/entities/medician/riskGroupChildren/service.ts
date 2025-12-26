@@ -1,50 +1,15 @@
 import RiskGroupChild from './model';
 import { IRiskGroupChild } from './model';
-import User from '../../users/model';
 import Child from '../../children/model';
 
-
-let RiskGroupChildModel: any = null;
-let UserModel: any = null;
-
-const getRiskGroupChildModel = () => {
-  if (!RiskGroupChildModel) {
-    RiskGroupChildModel = RiskGroupChild;
-  }
-  return RiskGroupChildModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
-
 export class RiskGroupChildrenService {
-  async getAll(filters: { childId?: string, date?: string, doctorId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {
+  async getAll(filters: { childId?: string }) {
     const filter: any = {};
 
     if (filters.childId) filter.childId = filters.childId;
-    if (filters.doctorId) filter.doctor = filters.doctorId;
-    if (filters.status) filter.status = filters.status;
-    if (filters.riskFactor) filter.riskFactors = { $in: [filters.riskFactor] };
-
-    if (filters.date) {
-      filter.date = new Date(filters.date);
-    } else if (filters.startDate || filters.endDate) {
-      filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
-    }
-
-    if (filters.nextAssessmentDate) {
-      filter.nextAssessmentDate = new Date(filters.nextAssessmentDate);
-    }
 
     const children = await RiskGroupChild.find(filter)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
+      .populate('childId', 'fullName birthday address')
       .sort({ date: -1 });
 
     return children;
@@ -52,8 +17,7 @@ export class RiskGroupChildrenService {
 
   async getById(id: string) {
     const child = await RiskGroupChild.findById(id)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
+      .populate('childId', 'fullName birthday address');
 
     if (!child) {
       throw new Error('Запись ребенка из группы риска не найдена');
@@ -63,35 +27,23 @@ export class RiskGroupChildrenService {
   }
 
   async create(childData: Partial<IRiskGroupChild>, userId: string) {
-
     if (!childData.childId) {
       throw new Error('Не указан ребенок');
     }
     if (!childData.date) {
-      // Use current date if not provided
       childData.date = new Date();
     }
-    // riskFactors, assessment are optional now
-    // doctor will be set to userId below
 
     const child = await Child.findById(childData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
-    // Use current user as doctor
-    const riskGroupModel = RiskGroupChild;
-    const riskChild = new riskGroupModel({
-      ...childData,
-      doctor: userId
-    });
-
+    const riskChild = new RiskGroupChild(childData);
     await riskChild.save();
 
-    const populatedChildModel = RiskGroupChild;
-    const populatedChild = await populatedChildModel.findById(riskChild._id)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
+    const populatedChild = await RiskGroupChild.findById(riskChild._id)
+      .populate('childId', 'fullName birthday address');
 
     return populatedChild;
   }
@@ -101,8 +53,7 @@ export class RiskGroupChildrenService {
       id,
       data,
       { new: true }
-    ).populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
+    ).populate('childId', 'fullName birthday address');
 
     if (!updatedChild) {
       throw new Error('Запись ребенка из группы риска не найдена');
@@ -121,146 +72,11 @@ export class RiskGroupChildrenService {
     return { message: 'Запись ребенка из группы риска успешно удалена' };
   }
 
-  async getByChildId(childId: string, filters: { date?: string, doctorId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {
-    const filter: any = { childId };
-
-    if (filters.doctorId) filter.doctor = filters.doctorId;
-    if (filters.status) filter.status = filters.status;
-    if (filters.riskFactor) filter.riskFactors = { $in: [filters.riskFactor] };
-
-    if (filters.date) {
-      filter.date = new Date(filters.date);
-    } else if (filters.startDate || filters.endDate) {
-      filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
-    }
-
-    if (filters.nextAssessmentDate) {
-      filter.nextAssessmentDate = new Date(filters.nextAssessmentDate);
-    }
-
-    const children = await RiskGroupChild.find(filter)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
+  async getByChildId(childId: string) {
+    const children = await RiskGroupChild.find({ childId })
+      .populate('childId', 'fullName birthday address')
       .sort({ date: -1 });
 
     return children;
-  }
-
-  async getByDoctorId(doctorId: string, filters: { childId?: string, status?: string, riskFactor?: string, startDate?: string, endDate?: string, nextAssessmentDate?: string }) {
-    const filter: any = { doctor: doctorId };
-
-    if (filters.childId) filter.childId = filters.childId;
-    if (filters.status) filter.status = filters.status;
-    if (filters.riskFactor) filter.riskFactors = { $in: [filters.riskFactor] };
-
-    if (filters.startDate || filters.endDate) {
-      filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
-    }
-
-    if (filters.nextAssessmentDate) {
-      filter.nextAssessmentDate = new Date(filters.nextAssessmentDate);
-    }
-
-    const children = await RiskGroupChild.find(filter)
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
-      .sort({ date: -1 });
-
-    return children;
-  }
-
-  async getUpcomingAssessments(days: number = 7) {
-    const today = new Date();
-    const futureDate = new Date();
-    futureDate.setDate(today.getDate() + days);
-
-    const children = await RiskGroupChild.find({
-      nextAssessmentDate: {
-        $gte: today,
-        $lte: futureDate
-      }
-    })
-      .populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role')
-      .sort({ nextAssessmentDate: 1 });
-
-    return children;
-  }
-
-  async updateStatus(id: string, status: 'pending' | 'completed' | 'reviewed') {
-    const child = await RiskGroupChild.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    ).populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
-
-    if (!child) {
-      throw new Error('Запись ребенка из группы риска не найдена');
-    }
-
-    return child;
-  }
-
-  async addRecommendations(id: string, recommendations: string) {
-    const child = await RiskGroupChild.findByIdAndUpdate(
-      id,
-      { recommendations },
-      { new: true }
-    ).populate('childId', 'fullName iin')
-      .populate('doctor', 'fullName role');
-
-    if (!child) {
-      throw new Error('Запись ребенка из группы риска не найдена');
-    }
-
-    return child;
-  }
-
-  async getStatistics() {
-    const stats = await RiskGroupChild.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
-
-    const riskFactorStats = await RiskGroupChild.aggregate([
-      {
-        $unwind: '$riskFactors'
-      },
-      {
-        $group: {
-          _id: '$riskFactors',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
-
-    const total = await RiskGroupChild.countDocuments();
-
-    return {
-      total,
-      byStatus: stats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
-        return acc;
-      }, {}),
-      byRiskFactor: riskFactorStats.reduce((acc, stat) => {
-        acc[stat._id] = stat.count;
-        return acc;
-      }, {})
-    };
   }
 }

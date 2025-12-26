@@ -54,8 +54,7 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
   },
   doctor: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   },
   notes: {
     type: String,
