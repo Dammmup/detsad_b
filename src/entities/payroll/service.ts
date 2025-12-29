@@ -80,10 +80,14 @@ export class PayrollService {
         return payroll;
       } else {
 
+        // Ищем baseSalary из предыдущих периодов этого сотрудника
+        const previousPayroll = await Payroll.findOne({
+          staffId: user._id
+        }).sort({ period: -1 }); // Берём последнюю запись
 
-        const baseSalary = 180000;
-        const salaryType: string = 'month';
-        const shiftRate = 0;
+        const baseSalary = previousPayroll?.baseSalary || 180000; // Если нет записей - 180000 по умолчанию
+        const salaryType: string = previousPayroll?.baseSalaryType || 'month';
+        const shiftRate = previousPayroll?.shiftRate || 0;
 
         let workedDays = 0;
         let workedShifts = 0;
@@ -549,9 +553,17 @@ export class PayrollService {
 
 
 
-      const baseSalary = existing?.baseSalary || 180000;
-      const baseSalaryType: string = existing?.baseSalaryType || 'month';
-      const shiftRate = existing?.shiftRate || 0;
+      // Если нет текущей записи - ищем из предыдущих периодов
+      let baseSalary = existing?.baseSalary;
+      let baseSalaryType: string = existing?.baseSalaryType || 'month';
+      let shiftRate = existing?.shiftRate || 0;
+
+      if (!baseSalary) {
+        const previousPayroll = await Payroll.findOne({ staffId }).sort({ period: -1 });
+        baseSalary = previousPayroll?.baseSalary || 180000;
+        baseSalaryType = previousPayroll?.baseSalaryType || 'month';
+        shiftRate = previousPayroll?.shiftRate || 0;
+      }
 
 
 
@@ -728,9 +740,11 @@ export class PayrollService {
       const createdRecords = [];
       for (const staff of staffWithoutPayroll) {
 
-        const baseSalary = 180000;
-        const baseSalaryType: string = 'month';
-        const shiftRate = 0;
+        // Ищем baseSalary из предыдущих записей сотрудника
+        const previousPayroll = await Payroll.findOne({ staffId: staff._id }).sort({ period: -1 });
+        const baseSalary = previousPayroll?.baseSalary || 180000;
+        const baseSalaryType: string = previousPayroll?.baseSalaryType || 'month';
+        const shiftRate = previousPayroll?.shiftRate || 0;
 
 
 
