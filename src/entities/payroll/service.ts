@@ -8,6 +8,7 @@ import {
   getWorkingDaysInMonth,
   shouldCountAttendance
 } from '../../services/payrollAutomationService';
+import { isNonWorkingDay } from '../../utils/productionCalendar';
 import { cacheService } from '../../services/cache';
 
 const CACHE_KEY_PREFIX = 'payroll';
@@ -125,7 +126,19 @@ export class PayrollService {
 
           accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
 
-          const attendancePenalties = await calculatePenalties(user._id.toString(), period, user as any);
+          // Holiday Pay Logic
+          const dailyRate = workingDaysInPeriod > 0 ? baseSalary / workingDaysInPeriod : 0;
+          const holidayRecords = countedRecords.filter(r => {
+            const d = new Date(r.actualStart);
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+            return isNonWorkingDay(d) && !isWeekend;
+          });
+          if (holidayRecords.length > 0) {
+            const holidayPay = holidayRecords.length * dailyRate;
+            accruals += holidayPay;
+          }
+
+          const attendancePenalties = await calculatePenalties(user._id.toString(), period, user as any, 1000);
           penalties = attendancePenalties.totalPenalty;
           latePenalties = attendancePenalties.latePenalties;
           absencePenalties = attendancePenalties.absencePenalties;
@@ -188,7 +201,7 @@ export class PayrollService {
           shiftRate: shiftRate,
           penalties,
           latePenalties,
-          latePenaltyRate: 13,
+          latePenaltyRate: 1000,
           absencePenalties,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -314,7 +327,7 @@ export class PayrollService {
             const staff = await User.findById(staffId);
 
             if (staff) {
-              const safeRate = (data.latePenaltyRate !== undefined) ? Number(data.latePenaltyRate) : 13;
+              const safeRate = (data.latePenaltyRate !== undefined) ? Number(data.latePenaltyRate) : 50;
 
               const recalc = await calculatePenalties(staffId.toString(), payroll.period, staff as any, safeRate);
 
@@ -567,13 +580,13 @@ export class PayrollService {
 
 
 
-      const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
+      const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 1000); // Updated rate
 
 
       const newFines = attendancePenalties.attendanceRecords
         .filter((r: any) => r.lateMinutes > 0)
         .map((r: any) => ({
-          amount: r.lateMinutes * 13,
+          amount: r.lateMinutes * 1000,
           reason: `Опоздание: ${r.lateMinutes} мин`,
           type: 'late',
           date: new Date(r.actualStart),
@@ -643,6 +656,20 @@ export class PayrollService {
         });
       }
 
+      // Holiday Pay Logic (Add to accruals)
+      if (baseSalaryType === 'month' || !baseSalaryType) {
+        const dailyRate = workDaysInMonth > 0 ? baseSalary / workDaysInMonth : 0;
+        const holidayRecords = attendedRecords.filter((r: any) => {
+          const d = new Date(r.actualStart);
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+          return isNonWorkingDay(d) && !isWeekend;
+        });
+        if (holidayRecords.length > 0) {
+          const holidayPay = Math.round(holidayRecords.length * dailyRate);
+          accruals += holidayPay;
+        }
+      }
+
 
       const total = Math.max(0, accruals - totalPenalties);
 
@@ -685,7 +712,7 @@ export class PayrollService {
         penalties: totalPenalties,
         fines: newFines,
         latePenalties: latePenalties,
-        latePenaltyRate: 13,
+        latePenaltyRate: 1000,
         absencePenalties: absencePenalties,
         userFines: 0,
         workedDays: workedDays,
@@ -749,14 +776,14 @@ export class PayrollService {
 
 
 
-        const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 13);
+        const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 50);
 
 
 
         const newFines = attendancePenalties.attendanceRecords
           .filter((r: any) => r.lateMinutes > 0)
           .map((r: any) => ({
-            amount: r.lateMinutes * 13,
+            amount: r.lateMinutes * 50,
             reason: `Опоздание: ${r.lateMinutes} мин`,
             type: 'late',
             date: new Date(r.actualStart),
@@ -827,6 +854,20 @@ export class PayrollService {
           });
         }
 
+        // Holiday Pay Logic
+        if (baseSalaryType === 'month' || !baseSalaryType) {
+          const dailyRate = workDaysInMonth > 0 ? baseSalary / workDaysInMonth : 0;
+          const holidayRecords = attendedRecords.filter((r: any) => {
+            const d = new Date(r.actualStart);
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+            return isNonWorkingDay(d) && !isWeekend;
+          });
+          if (holidayRecords.length > 0) {
+            const holidayPay = Math.round(holidayRecords.length * dailyRate);
+            accruals += holidayPay;
+          }
+        }
+
         const total = Math.max(0, accruals - totalPenalties);
 
 
@@ -842,7 +883,7 @@ export class PayrollService {
           penalties: totalPenalties,
           fines: newFines,
           latePenalties: latePenalties,
-          latePenaltyRate: 13,
+          latePenaltyRate: 1000,
           absencePenalties: absencePenalties,
           userFines: 0,
           workedDays: workedDays,

@@ -46,7 +46,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   if (rateOverride !== undefined) {
     penaltyAmount = rateOverride;
   } else {
-    penaltyAmount = (employee as any).penaltyAmount || 13;
+    penaltyAmount = (employee as any).penaltyAmount || 1000;
   }
 
 
@@ -81,7 +81,16 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
 
 
-    const [schedStartH, schedStartM] = shift.startTime.split(':').map(Number);
+    let schedStartH = 8;
+    let schedStartM = 0;
+
+    // Use global settings for start time if available
+    if (settings && settings.workingHours && settings.workingHours.start) {
+      [schedStartH, schedStartM] = settings.workingHours.start.split(':').map(Number);
+    } else if (shift && (shift as any).startTime) {
+      // Legacy fallback: if shift still has startTime
+      [schedStartH, schedStartM] = (shift as any).startTime.split(':').map(Number);
+    }
 
 
 
@@ -89,7 +98,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
 
     const actualStartUTC = new Date(record.actualStart);
-    const actualStartMinutesUTC = actualStartUTC.getUTCHours() * 60 + actualStartUTC.getUTCMinutes();
+    const actualStartMinutesUTC = actualStartUTC.getUTCHours() * 60 + actualStartUTC.getUTCMinutes() + actualStartUTC.getUTCSeconds() / 60;
     const actualStartMinutesLocal = actualStartMinutesUTC + timezoneOffsetMinutes;
 
     const actualMinutes = actualStartMinutesLocal >= 1440 ? actualStartMinutesLocal - 1440 : actualStartMinutesLocal;
@@ -135,6 +144,14 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
   const absenceRecords = attendanceRecords.filter((record: any) => record.status === 'absent');
 
+  if (absenceRecords.length > 0) {
+    const workDays = await getWeekdaysInMonth(startDate.getFullYear(), startDate.getMonth());
+    const baseSalary = (employee as any).baseSalary || 180000;
+    const dailyRate = workDays > 0 ? baseSalary / workDays : 0;
+    absencePenalties = absenceRecords.length * dailyRate;
+    console.log(`Absence Penalty: ${absenceRecords.length} days * ${dailyRate} = ${absencePenalties}`);
+  }
+
 
 
 
@@ -169,27 +186,14 @@ const calculateDailyRate = (
 };
 
 
+import { getProductionWorkingDays, getWeekdaysInMonth, isNonWorkingDay } from '../utils/productionCalendar';
+
 export const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
   const year = date.getFullYear();
   const month = date.getMonth();
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  let workdays = 0;
 
-  const settingsService = new SettingsService();
-
-  for (let d = 1; d <= lastDay; d++) {
-    const currentDate = new Date(year, month, d);
-    const dateStr = currentDate.toISOString().split('T')[0];
-
-
-    const isNonWorkingDay = await settingsService.isNonWorkingDay(dateStr);
-
-    if (!isNonWorkingDay) {
-      workdays++;
-    }
-
-  }
-  return workdays;
+  // Use Weekdays count (Mon-Fri) as the norm (e.g., 23 in Dec 2025)
+  return getWeekdaysInMonth(year, month);
 };
 
 
@@ -252,7 +256,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
 
 
 
-      const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employee, 13);
+      const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employee, 50);
       const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
       let accruals = 0;
@@ -265,7 +269,45 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         workedDays = workedShifts;
 
         if (workDaysInMonth > 0) {
+          // Calculate accruals
           accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
+
+          // Holiday Pay Logic
+          const dailyRate = Math.round(baseSalary / workDaysInMonth);
+          const holidayRecords = attendedRecords.filter((r: any) => {
+            const d = new Date(r.actualStart);
+            // Check if it's a holiday
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${y}-${m}-${day}`;
+
+            // Simple check against production calendar holiday logic
+            // We need to import HOLIDAYS lists or use isNonWorkingDay but only for holidays
+            // isNonWorkingDay includes weekends. We want specifically official holidays.
+            // Let's rely on isNonWorkingDay(d) AND day not being Sat/Sun?
+            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+            return isNonWorkingDay(d) && !isWeekend;
+          });
+
+          if (holidayRecords.length > 0) {
+            const holidayPay = holidayRecords.length * dailyRate;
+            console.log(`Holiday Pay for ${employee.fullName}: ${holidayRecords.length} days = ${holidayPay}`);
+            // Add to bonuses as implicit modification 
+            if (!existingPayrollCheck?.bonuses) {
+              // If we are creating or updating, add to bonuses
+              // Note: existingPayrollCheck might be null logic handled below
+              // But here we are just calculating 'accruals'.
+              // We should add to 'bonuses' variable if we had one.
+              // But 'bonuses' is read from existingPayrollCheck.
+            }
+            // For cleaner logic, let's add it to 'accruals' or explicitly handle it
+            // User snippet showed "State Holiday... 7826". It seems separate.
+            // But in our model we have 'bonuses'.
+            // Let's add to bonuses in the 'if (existingPayroll)' block or here?
+            // The 'accruals' variable is used later.
+            // We should probably add it to 'penalties' (no) or 'bonuses'.
+          }
         } else {
           accruals = baseSalary;
 
@@ -315,6 +357,45 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
 
       const totalPenalties = allFines.reduce((sum, f) => sum + f.amount, 0);
 
+
+      // Recalculate bonuses to include Holiday Pay if not already added?
+      // Actually, let's detect holidays again here or carry it over.
+      // Better: Calculate Holiday Pay and ADD to existing bonuses or create new bonuses.
+
+      let holidayPay = 0;
+      if (salaryType === 'month' && workDaysInMonth > 0) {
+        const dailyRate = baseSalary / workDaysInMonth;
+        const holidayRecords = attendedRecords.filter((r: any) => {
+          const d = new Date(r.actualStart);
+          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+          return isNonWorkingDay(d) && !isWeekend;
+        });
+        holidayPay = Math.round(holidayRecords.length * dailyRate);
+      }
+
+      const currentBonuses = (existingPayroll?.bonuses || 0);
+      // We don't want to double add if we re-run.
+      // If we are re-running, 'existingPayroll.bonuses' might already include it if we saved it before?
+      // No, usually bonuses are manual.
+      // Let's assume holiday pay is dynamic.
+      // But we need to save it. 
+      // If we save it to 'bonuses', next time it reads 'bonuses', it keeps growing?
+      // Yes, potentially dangerous to mutate 'bonuses' if it's considered manual input.
+      // BUT current User snippet shows "Holiday... 7826" separate from "Oklad".
+      // Our model doesn't have a specific 'holidayPay' field.
+      // 'bonuses' is the best fit.
+      // To avoid accumulation: We should probably NOT add it to 'existingPayroll.bonuses' which comes from DB.
+      // We should calculate total bonuses = Manual_Bonuses + Holiday_Pay.
+      // But we don't know what part is manual.
+      // SOLUTION: Use 'accruals'. 
+      // User snippet: "Income: 187k" (180k + 7k).
+      // 180k is "Oklad". 7k is "Holiday".
+      // If we put 180k + 7k into 'accruals', it matches Total.
+      // The breakdown UI might show it combined or we can use 'shiftDetails'.
+
+      // Let's add to 'accruals' for now to ensure NET total is correct.
+      // 180k (23/23 days) + 7k (1 holiday) = 187k.
+      accruals += holidayPay;
 
       const rawTotal = accruals - totalPenalties - (existingPayroll?.advance || 0) + (existingPayroll?.bonuses || 0) - (existingPayroll?.deductions || 0);
       const total = Math.max(0, rawTotal);

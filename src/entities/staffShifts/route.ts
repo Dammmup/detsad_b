@@ -9,7 +9,8 @@ import {
   checkOutSimple,
   getTimeTrackingSimple,
   updateAdjustmentsSimple,
-  updateLateShifts
+  updateLateShifts,
+  bulkDeleteShifts
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -28,7 +29,7 @@ router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createShif
 router.post('/request', authMiddleware, requestShift);
 
 
-router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
+router.post('/bulk', authMiddleware, authorizeRole(['admin', 'manager']), async (req: any, res: express.Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -62,5 +63,7 @@ router.put('/timetracking/:id/adjustments', authMiddleware, authorizeRole(['admi
 
 
 router.post('/update-late', authMiddleware, authorizeRole(['admin', 'manager']), updateLateShifts);
+
+router.post('/bulk-delete', authMiddleware, authorizeRole(['admin', 'manager']), bulkDeleteShifts);
 
 export default router;

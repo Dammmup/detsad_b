@@ -118,37 +118,4 @@ export class SettingsService {
     return settings;
   }
 
-  async isNonWorkingDay(dateStr: string): Promise<boolean> {
-    try {
-      const settings = await this.getKindergartenSettings();
-
-      if (!settings) {
-        const date = new Date(dateStr);
-        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
-        return dayOfWeek === 'sat' || dayOfWeek === 'sun';
-      }
-
-      const date = new Date(dateStr);
-      const kindergartenSettings = settings as IKindergartenSettings;
-
-      if (kindergartenSettings.holidays && kindergartenSettings.holidays.includes(dateStr)) {
-        return true;
-      }
-
-      const dayOfWeekNumber = date.getDay();
-      const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dayOfWeekNumber];
-
-      if (settings.workingDays) {
-        const isWorkingDay = settings.workingDays.some(workingDay =>
-          workingDay.toLowerCase() === dayOfWeek
-        );
-        return !isWorkingDay;
-      } else {
-        return dayOfWeek === 'sat' || dayOfWeek === 'sun';
-      }
-    } catch (error) {
-      console.error('Ошибка при проверке нерабочего дня:', error);
-      return false;
-    }
-  }
 }

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '../src/config/database';
 import StaffAttendanceTracking from '../src/entities/staffAttendanceTracking/model';
 import Shift from '../src/entities/staffShifts/model';
+import { SettingsService } from '@src/entities/settings/service';
 
 
 const recalculateLateMinutes = async () => {
@@ -56,17 +57,19 @@ const recalculateLateMinutes = async () => {
                     skippedCount++;
                     continue;
                 }
+                // Получаем настройки для начала рабочего дня
+                const settingsService = new SettingsService();
+                const settings = await settingsService.getKindergartenSettings();
+                const workingStart = settings?.workingHours?.start
 
-
-                const shiftStartTime = shift.startTime;
-                if (!shiftStartTime) {
+                if (!workingStart) {
                     console.log(`У смены ${shift._id} нет времени начала`);
                     skippedCount++;
                     continue;
                 }
 
 
-                const [shiftHours, shiftMinutes] = shiftStartTime.split(':').map(Number);
+                const [shiftHours, shiftMinutes] = workingStart.split(':').map(Number);
 
 
                 const actualStart = record.actualStart;

@@ -11,25 +11,27 @@
 ## Коллекции
 
 ### users (Сотрудники)
+
 Коллекция для хранения информации о сотрудниках и пользователях системы.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `fullName` | String | ФИО сотрудника |
-| `phone` | String | Телефон (уникальный) |
-| `role` | String | Роль: `admin`, `teacher`, `assistant`, `nurse`, `cook`, `cleaner`, `security`, `psychologist`, `music_teacher`, `physical_teacher`, `staff`, `rent` |
-| `active` | Boolean | Активен ли сотрудник (true = работает, false = уволен) |
-| `birthday` | Date | Дата рождения |
-| `iin` | String | ИИН (индивидуальный идентификационный номер) |
-| `groupId` | ObjectId | Ссылка на группу (для воспитателей) |
-| `notes` | String | Заметки |
-| `photo` | String | Путь к фото |
-| `tenant` | Boolean | Арендатор (true/false) |
-| `createdAt` | Date | Дата создания |
-| `updatedAt` | Date | Дата обновления |
+| Поле      | Тип   | Описание                                                                                                                                                               |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `_id`       | ObjectId | Уникальный идентификатор                                                                                                                                |
+| `fullName`  | String   | ФИО сотрудника                                                                                                                                                    |
+| `phone`     | String   | Телефон (уникальный)                                                                                                                                          |
+| `role`      | String   | Роль:`admin`, `teacher`, `assistant`, `nurse`, `cook`, `cleaner`, `security`, `psychologist`, `music_teacher`, `physical_teacher`, `staff`, `rent` |
+| `active`    | Boolean  | Активен ли сотрудник (true = работает, false = уволен)                                                                                         |
+| `birthday`  | Date     | Дата рождения                                                                                                                                                      |
+| `iin`       | String   | ИИН (индивидуальный идентификационный номер)                                                                                            |
+| `groupId`   | ObjectId | Ссылка на группу (для воспитателей)                                                                                                               |
+| `notes`     | String   | Заметки                                                                                                                                                                 |
+| `photo`     | String   | Путь к фото                                                                                                                                                           |
+| `tenant`    | Boolean  | Арендатор (true/false)                                                                                                                                                |
+| `createdAt` | Date     | Дата создания                                                                                                                                                      |
+| `updatedAt` | Date     | Дата обновления                                                                                                                                                  |
 
 **Примеры запросов:**
+
 - Активные сотрудники: `{ "active": true, "role": { "$ne": "admin" } }`
 - Воспитатели: `{ "role": "teacher", "active": true }`
 - Арендаторы: `{ "tenant": true }`
@@ -37,60 +39,64 @@
 ---
 
 ### children (Дети)
+
 Информация о детях, посещающих детский сад.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `fullName` | String | ФИО ребёнка |
-| `birthday` | Date | Дата рождения |
-| `groupId` | ObjectId | Ссылка на группу |
-| `active` | Boolean | Посещает ли ребёнок сад |
-| `parentName` | String | ФИО родителя |
-| `parentPhone` | String | Телефон родителя |
-| `address` | String | Адрес |
-| `iin` | String | ИИН ребёнка |
-| `gender` | String | Пол |
-| `allergy` | String | Аллергии |
-| `notes` | String | Заметки |
+| Поле        | Тип   | Описание                                |
+| --------------- | -------- | ----------------------------------------------- |
+| `_id`         | ObjectId | Уникальный идентификатор |
+| `fullName`    | String   | ФИО ребёнка                           |
+| `birthday`    | Date     | Дата рождения                       |
+| `groupId`     | ObjectId | Ссылка на группу                  |
+| `active`      | Boolean  | Посещает ли ребёнок сад     |
+| `parentName`  | String   | ФИО родителя                         |
+| `parentPhone` | String   | Телефон родителя                 |
+| `address`     | String   | Адрес                                      |
+| `iin`         | String   | ИИН ребёнка                           |
+| `gender`      | String   | Пол                                          |
+| `allergy`     | String   | Аллергии                                |
+| `notes`       | String   | Заметки                                  |
 
 ---
 
 ### groups (Группы)
+
 Группы детского сада.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `name` | String | Название группы (например, "Солнышко") |
-| `description` | String | Описание |
-| `ageGroup` | String | Возрастная группа |
-| `maxStudents` | Number | Максимальное количество детей |
-| `isActive` | Boolean | Активна ли группа |
-| `teacherId` | ObjectId | Ссылка на воспитателя |
-| `assistantId` | ObjectId | Ссылка на помощника воспитателя |
+| Поле        | Тип   | Описание                                                     |
+| --------------- | -------- | -------------------------------------------------------------------- |
+| `_id`         | ObjectId | Уникальный идентификатор                      |
+| `name`        | String   | Название группы (например, "Солнышко") |
+| `description` | String   | Описание                                                     |
+| `ageGroup`    | String   | Возрастная группа                                    |
+| `maxStudents` | Number   | Максимальное количество детей             |
+| `isActive`    | Boolean  | Активна ли группа                                     |
+| `teacherId`   | ObjectId | Ссылка на воспитателя                             |
+| `assistantId` | ObjectId | Ссылка на помощника воспитателя          |
 
 ---
 
 ### staff_attendance_tracking (Посещаемость сотрудников)
+
 Отметки прихода/ухода сотрудников.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `staffId` | ObjectId | Ссылка на сотрудника (users) |
-| `date` | Date | Дата |
-| `actualStart` | Date | Время прихода (clock-in) |
-| `actualEnd` | Date | Время ухода (clock-out) |
-| `totalHours` | Number | Отработано часов |
-| `lateMinutes` | Number | Минут опоздания |
-| `earlyLeaveMinutes` | Number | Минут раннего ухода |
-| `inZone` | Boolean | Был ли в зоне геолокации |
-| `penalties.late.minutes` | Number | Минуты опоздания |
-| `penalties.late.amount` | Number | Сумма штрафа |
-| `notes` | String | Заметки |
+| Поле                   | Тип   | Описание                                |
+| -------------------------- | -------- | ----------------------------------------------- |
+| `_id`                    | ObjectId | Уникальный идентификатор |
+| `staffId`                | ObjectId | Ссылка на сотрудника (users)  |
+| `date`                   | Date     | Дата                                        |
+| `actualStart`            | Date     | Время прихода (clock-in)            |
+| `actualEnd`              | Date     | Время ухода (clock-out)               |
+| `totalHours`             | Number   | Отработано часов                 |
+| `lateMinutes`            | Number   | Минут опоздания                   |
+| `earlyLeaveMinutes`      | Number   | Минут раннего ухода            |
+| `inZone`                 | Boolean  | Был ли в зоне геолокации    |
+| `penalties.late.minutes` | Number   | Минуты опоздания                 |
+| `penalties.late.amount`  | Number   | Сумма штрафа                         |
+| `notes`                  | String   | Заметки                                  |
 
 **Важно для запросов по дате:**
+
 - Для поиска записей за сегодня используй:
   ```json
   {
@@ -104,92 +110,87 @@
 ---
 
 ### staff_shifts (Смены сотрудников)
+
 Запланированные смены.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `staffId` | ObjectId | Ссылка на сотрудника |
-| `date` | String | Дата в формате "YYYY-MM-DD" |
-| `startTime` | String | Время начала "HH:MM" |
-| `endTime` | String | Время окончания "HH:MM" |
-| `status` | String | Статус смены |
+| Поле      | Тип   | Описание                                |
+| ------------- | -------- | ----------------------------------------------- |
+| `_id`       | ObjectId | Уникальный идентификатор |
+| `staffId`   | ObjectId | Ссылка на сотрудника          |
+| `date`      | String   | Дата в формате "YYYY-MM-DD"         |
+| `startTime` | String   | Время начала "HH:MM"                 |
+| `endTime`   | String   | Время окончания "HH:MM"           |
+| `status`    | String   | Статус смены                         |
 
 ---
 
 ### childattendances (Посещаемость детей)
+
 Отметки посещаемости детей.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `childId` | ObjectId | Ссылка на ребёнка |
-| `groupId` | ObjectId | Ссылка на группу |
-| `date` | Date | Дата |
-| `status` | String | Статус: `present`, `absent`, `sick`, `vacation` |
-| `actualStart` | Date | Время прихода |
-| `actualEnd` | Date | Время ухода |
-| `markedBy` | ObjectId | Кто отметил |
+| Поле        | Тип   | Описание                                             |
+| --------------- | -------- | ------------------------------------------------------------ |
+| `_id`         | ObjectId | Уникальный идентификатор              |
+| `childId`     | ObjectId | Ссылка на ребёнка                             |
+| `groupId`     | ObjectId | Ссылка на группу                               |
+| `date`        | Date     | Дата                                                     |
+| `status`      | String   | Статус:`present`, `absent`, `sick`, `vacation` |
+| `actualStart` | Date     | Время прихода                                    |
+| `actualEnd`   | Date     | Время ухода                                        |
+| `markedBy`    | ObjectId | Кто отметил                                        |
 
 ---
 
 ### payrolls (Зарплаты)
+
 Расчётные листы.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `staffId` | ObjectId | Ссылка на сотрудника |
-| `period` | String | Период "YYYY-MM" |
-| `baseSalary` | Number | Базовая зарплата |
-| `bonuses` | Number | Бонусы |
-| `penalties` | Number | Штрафы |
-| `latePenalties` | Number | Штрафы за опоздания |
-| `total` | Number | Итого к выплате |
-| `status` | String | Статус: `draft`, `approved`, `paid` |
-| `workedShifts` | Number | Отработано смен |
-| `workedDays` | Number | Отработано дней |
+| Поле          | Тип   | Описание                                |
+| ----------------- | -------- | ----------------------------------------------- |
+| `_id`           | ObjectId | Уникальный идентификатор |
+| `staffId`       | ObjectId | Ссылка на сотрудника          |
+| `period`        | String   | Период "YYYY-MM"                          |
+| `baseSalary`    | Number   | Базовая зарплата                 |
+| `bonuses`       | Number   | Бонусы                                    |
+| `penalties`     | Number   | Штрафы                                    |
+| `latePenalties` | Number   | Штрафы за опоздания            |
+| `total`         | Number   | Итого к выплате                    |
+| `status`        | String   | Статус:`draft`, `approved`, `paid`  |
+| `workedShifts`  | Number   | Отработано смен                   |
+| `workedDays`    | Number   | Отработано дней                   |
 
 ---
 
 ### tasks (Задачи)
+
 Список задач.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `title` | String | Название задачи |
-| `description` | String | Описание |
-| `assignee` | ObjectId | Исполнитель |
-| `dueDate` | Date | Срок выполнения |
-| `status` | String | Статус: `pending`, `in_progress`, `completed`, `cancelled` |
-| `priority` | String | Приоритет: `low`, `medium`, `high` |
+| Поле        | Тип   | Описание                                                        |
+| --------------- | -------- | ----------------------------------------------------------------------- |
+| `_id`         | ObjectId | Уникальный идентификатор                         |
+| `title`       | String   | Название задачи                                           |
+| `description` | String   | Описание                                                        |
+| `assignee`    | ObjectId | Исполнитель                                                  |
+| `dueDate`     | Date     | Срок выполнения                                           |
+| `status`      | String   | Статус:`pending`, `in_progress`, `completed`, `cancelled` |
+| `priority`    | String   | Приоритет:`low`, `medium`, `high`                        |
 
 ---
 
 ### child_payments (Платежи за детей)
+
 Оплаты за посещение.
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `childId` | ObjectId | Ссылка на ребёнка |
-| `amount` | Number | Сумма |
-| `period` | String | Период "YYYY-MM" |
-| `status` | String | Статус оплаты |
-| `paidAt` | Date | Дата оплаты |
+| Поле    | Тип   | Описание                                |
+| ----------- | -------- | ----------------------------------------------- |
+| `_id`     | ObjectId | Уникальный идентификатор |
+| `childId` | ObjectId | Ссылка на ребёнка                |
+| `amount`  | Number   | Сумма                                      |
+| `period`  | String   | Период "YYYY-MM"                          |
+| `status`  | String   | Статус оплаты                       |
+| `paidAt`  | Date     | Дата оплаты                           |
 
 ---
-
-### holidays (Праздничные/выходные дни)
-Календарь праздников.
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `_id` | ObjectId | Уникальный идентификатор |
-| `date` | Date | Дата праздника |
-| `name` | String | Название |
-| `isWorking` | Boolean | Рабочий ли день |
 
 ---
 

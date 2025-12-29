@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
+import { ObjectId } from 'mongodb';
 
-// Разрешённые коллекции (только чтение)
+// Разрешённые коллекции для операций
 const ALLOWED_COLLECTIONS = [
     'users',
     'children',
@@ -13,7 +14,6 @@ const ALLOWED_COLLECTIONS = [
     'documents',
     'reports',
     'settings',
-    'holidays',
     'health_passports',
     'mantoux_journal',
     'somatic_journal',
@@ -40,8 +40,16 @@ const ALLOWED_COLLECTIONS = [
     'main_events'
 ];
 
-// Разрешённые операции (только чтение)
-const ALLOWED_OPERATIONS = ['find', 'findOne', 'count', 'countDocuments', 'aggregate'];
+// Разрешённые операции (чтение и запись)
+const ALLOWED_OPERATIONS = [
+    // Чтение
+    'find', 'findOne', 'count', 'countDocuments', 'aggregate',
+    // Запись
+    'insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'
+];
+
+// Операции записи (требуют особой осторожности)
+const WRITE_OPERATIONS = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
 
 // Запрещённые операторы (потенциально опасные)
 const FORBIDDEN_OPERATORS = ['$where', '$function', '$accumulator', '$expr'];
@@ -54,12 +62,15 @@ const QUERY_TIMEOUT = 10000;
 
 export interface QueryRequest {
     collection: string;
-    operation: 'find' | 'findOne' | 'count' | 'countDocuments' | 'aggregate';
+    operation: 'find' | 'findOne' | 'count' | 'countDocuments' | 'aggregate' | 'insertOne' | 'updateOne' | 'updateMany' | 'deleteOne' | 'deleteMany';
     filter?: Record<string, any>;
     pipeline?: Record<string, any>[];
     projection?: Record<string, any>;
     limit?: number;
     sort?: Record<string, any>;
+    // Для операций записи
+    document?: Record<string, any>;  // Для insertOne
+    update?: Record<string, any>;    // Для updateOne/updateMany
 }
 
 export interface QueryResult {
@@ -67,6 +78,7 @@ export interface QueryResult {
     data?: any;
     error?: string;
     count?: number;
+    message?: string;  // Для CRUD операций
 }
 
 /**
@@ -204,6 +216,60 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 queryPromise = collection.aggregate(pipeline).toArray();
                 break;
 
+            // CRUD операции
+            case 'insertOne':
+                if (!query.document) {
+                    return { success: false, error: 'Документ обязателен для insertOne' };
+                }
+                const documentToInsert = convertDates(query.document);
+                // Добавляем timestamps
+                documentToInsert.createdAt = new Date();
+                documentToInsert.updatedAt = new Date();
+                queryPromise = collection.insertOne(documentToInsert);
+                break;
+
+            case 'updateOne':
+                if (!query.update) {
+                    return { success: false, error: 'Обновление обязательно для updateOne' };
+                }
+                const updateOne = convertDates(query.update);
+                // Добавляем updatedAt
+                if (updateOne.$set) {
+                    updateOne.$set.updatedAt = new Date();
+                } else {
+                    updateOne.$set = { updatedAt: new Date() };
+                }
+                queryPromise = collection.updateOne(filter, updateOne);
+                break;
+
+            case 'updateMany':
+                if (!query.update) {
+                    return { success: false, error: 'Обновление обязательно для updateMany' };
+                }
+                const updateMany = convertDates(query.update);
+                // Добавляем updatedAt
+                if (updateMany.$set) {
+                    updateMany.$set.updatedAt = new Date();
+                } else {
+                    updateMany.$set = { updatedAt: new Date() };
+                }
+                queryPromise = collection.updateMany(filter, updateMany);
+                break;
+
+            case 'deleteOne':
+                if (!filter || Object.keys(filter).length === 0) {
+                    return { success: false, error: 'Фильтр обязателен для deleteOne (нельзя удалить без условия)' };
+                }
+                queryPromise = collection.deleteOne(filter);
+                break;
+
+            case 'deleteMany':
+                if (!filter || Object.keys(filter).length === 0) {
+                    return { success: false, error: 'Фильтр обязателен для deleteMany (нельзя удалить всё)' };
+                }
+                queryPromise = collection.deleteMany(filter);
+                break;
+
             default:
                 return { success: false, error: `Неподдерживаемая операция: ${query.operation}` };
         }
@@ -213,6 +279,41 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
         // Для count возвращаем число
         if (query.operation === 'count' || query.operation === 'countDocuments') {
             return { success: true, data: result, count: result };
+        }
+
+        // Для CRUD операций форматируем ответ
+        if (query.operation === 'insertOne') {
+            return {
+                success: true,
+                data: {
+                    insertedId: result.insertedId?.toString(),
+                    acknowledged: result.acknowledged
+                },
+                message: 'Запись успешно создана'
+            };
+        }
+
+        if (query.operation === 'updateOne' || query.operation === 'updateMany') {
+            return {
+                success: true,
+                data: {
+                    matchedCount: result.matchedCount,
+                    modifiedCount: result.modifiedCount,
+                    acknowledged: result.acknowledged
+                },
+                message: `Обновлено записей: ${result.modifiedCount}`
+            };
+        }
+
+        if (query.operation === 'deleteOne' || query.operation === 'deleteMany') {
+            return {
+                success: true,
+                data: {
+                    deletedCount: result.deletedCount,
+                    acknowledged: result.acknowledged
+                },
+                message: `Удалено записей: ${result.deletedCount}`
+            };
         }
 
         return { success: true, data: result };

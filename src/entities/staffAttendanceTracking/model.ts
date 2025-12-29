@@ -1,81 +1,21 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface ILocation {
-  name: string;
-  radius: number;
-  timestamp: Date;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
-}
 
 export interface IStaffAttendanceTracking extends Document {
   staffId: mongoose.Types.ObjectId;
   shiftId?: mongoose.Types.ObjectId;
   date: Date;
   actualStart?: Date;
-  groupId?: mongoose.Types.ObjectId;
   actualEnd?: Date;
-  workDuration?: number;
-  breakDuration?: number;
-  overtimeDuration?: number;
+  workDuration?: number; // в минутах
+  breakDuration?: number; // в минутах
+  overtimeDuration?: number; // в минутах
   lateMinutes?: number;
   earlyLeaveMinutes?: number;
-  penalties: {
-    late: {
-      minutes: number;
-      amount: number;
-      reason?: string;
-    };
-    earlyLeave: {
-      minutes: number;
-      amount: number;
-      reason?: string;
-    };
-    unauthorized: {
-      amount: number;
-      reason?: string;
-    };
-  };
-  bonuses: {
-    overtime: {
-      minutes: number;
-      amount: number;
-    };
-    punctuality: {
-      amount: number;
-      reason?: string;
-    };
-  };
   notes?: string;
-  attachments?: string[];
-  approvedBy?: mongoose.Types.ObjectId;
-  approvedAt?: Date;
-  inZone?: boolean;
-
-  clockInLocation?: ILocation;
-  clockOutLocation?: ILocation;
-  photoClockIn?: string;
-  photoClockOut?: string;
-  totalHours: number;
-  regularHours: number;
-  overtimeHours: number;
-  approvedAtTimeTracking?: Date;
-  approvedByTimeTracking?: mongoose.Types.ObjectId;
   isManualEntry: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
-
-const LocationSchema = new Schema({
-  name: { type: String, required: true },
-  radius: { type: Number, required: true, default: 100 },
-  timestamp: { type: Date, default: Date.now },
-  coordinates: {
-    latitude: { type: Number, required: true },
-    longitude: { type: Number, required: true }
-  }
-});
 
 const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   staffId: {
@@ -84,9 +24,9 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
     required: true,
     index: true
   },
-  groupId: {
+  shiftId: {
     type: Schema.Types.ObjectId,
-    ref: 'Groups',
+    ref: 'Shift',
     required: false
   },
   date: {
@@ -116,72 +56,9 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
     type: Number,
     default: 0
   },
-  penalties: {
-    late: {
-      minutes: { type: Number, default: 0 },
-      amount: { type: Number, default: 0 },
-      reason: String
-    },
-    earlyLeave: {
-      minutes: { type: Number, default: 0 },
-      amount: { type: Number, default: 0 },
-      reason: String
-    },
-    unauthorized: {
-      amount: { type: Number, default: 0 },
-      reason: String
-    }
-  },
-  bonuses: {
-    overtime: {
-      minutes: { type: Number, default: 0 },
-      amount: { type: Number, default: 0 }
-    },
-    punctuality: {
-      amount: { type: Number, default: 0 },
-      reason: String
-    }
-  },
   notes: {
     type: String,
     maxlength: [500, 'Заметки не могут превышать 500 символов']
-  },
-  attachments: [String],
-  approvedBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
-  },
-  approvedAt: Date,
-  inZone: {
-    type: Boolean,
-    default: false,
-    index: true
-  },
-
-  clockInLocation: LocationSchema,
-  clockOutLocation: LocationSchema,
-  photoClockIn: String,
-  photoClockOut: String,
-  totalHours: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 24
-  },
-  regularHours: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  overtimeHours: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  approvedAtTimeTracking: Date,
-  approvedByTimeTracking: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
   },
   isManualEntry: {
     type: Boolean,
@@ -191,49 +68,42 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   timestamps: true
 });
 
+// Enforce unique attendance record per staff per day
+StaffAttendanceTrackingSchema.index({ staffId: 1, date: 1 }, { unique: true });
 
+
+// Рассчитываем workDuration при сохранении
 StaffAttendanceTrackingSchema.pre('save', function (this: IStaffAttendanceTracking, next) {
   if (this.actualStart && this.actualEnd) {
     const totalMs = this.actualEnd.getTime() - this.actualStart.getTime();
     let totalMinutes = Math.floor(totalMs / (1000 * 60));
 
-
     if (this.breakDuration) {
       totalMinutes -= this.breakDuration;
     }
 
-    this.totalHours = Math.max(0, totalMinutes / 60);
-
-
-    const standardHours = 8;
-    this.regularHours = Math.min(this.totalHours, standardHours);
-    this.overtimeHours = Math.max(0, this.totalHours - standardHours);
+    this.workDuration = Math.max(0, totalMinutes);
   }
   next();
 });
 
 
+// Пересчитываем Payroll после сохранения
 StaffAttendanceTrackingSchema.post('save', async function (this: IStaffAttendanceTracking) {
   try {
-
     const attendanceDate = this.date || new Date();
     const period = `${attendanceDate.getFullYear()}-${String(attendanceDate.getMonth() + 1).padStart(2, '0')}`;
 
-
     const { PayrollService } = await import('../payroll/service');
     const payrollService = new PayrollService();
-
 
     await payrollService.ensurePayrollForUser(this.staffId.toString(), period);
 
     console.log(`Payroll recalculated for staff ${this.staffId} period ${period} after attendance update`);
   } catch (error) {
-
     console.error('Error recalculating payroll after attendance save:', error);
   }
 });
-
-
 
 
 export default mongoose.model<IStaffAttendanceTracking>('StaffAttendanceTracking', StaffAttendanceTrackingSchema, 'staff_attendance_tracking');

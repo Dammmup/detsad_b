@@ -172,13 +172,14 @@ const PayrollSchema = new Schema<IPayroll>({
 
 PayrollSchema.pre('save', function (next) {
   const accruals = this.accruals || 0;
+  const bonuses = this.bonuses || 0;
+  const advance = this.advance || 0;
+  const deductions = this.deductions || 0;
   const latePenalties = this.latePenalties || 0;
   const absencePenalties = this.absencePenalties || 0;
   const userFines = this.userFines || 0;
 
-
-  this.total = Math.max(0, accruals - latePenalties - absencePenalties - userFines);
-
+  this.total = Math.max(0, accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions);
 
   this.penalties = latePenalties + absencePenalties + userFines;
 

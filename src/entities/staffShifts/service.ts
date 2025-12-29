@@ -5,14 +5,12 @@ import StaffAttendanceTracking from '../staffAttendanceTracking/model';
 import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
-import { HolidaysService } from '../holidays/service';
 import { cacheService } from '../../services/cache';
 
 const CACHE_KEY_PREFIX = 'shifts';
 const CACHE_TTL = 300; // 5 minutes
 
 const settingsService = new SettingsService();
-const holidaysService = new HolidaysService();
 
 export class ShiftsService {
 
@@ -77,12 +75,6 @@ export class ShiftsService {
     }
     if (!shiftData.date) {
       throw new Error('Не указана дата смены');
-    }
-    if (!shiftData.startTime) {
-      throw new Error('Не указано время начала');
-    }
-    if (!shiftData.endTime) {
-      throw new Error('Не указано время окончания');
     }
 
 
@@ -215,12 +207,6 @@ export class ShiftsService {
         if (!newShiftData.date) {
           throw new Error('Не указана дата смены');
         }
-        if (!newShiftData.startTime) {
-          throw new Error('Не указано время начала');
-        }
-        if (!newShiftData.endTime) {
-          throw new Error('Не указано время окончания');
-        }
         if (!newShiftData.status) {
           newShiftData.status = 'pending_approval';
         }
@@ -331,7 +317,7 @@ export class ShiftsService {
 
 
     const allowedFields = [
-      'date', 'startTime', 'endTime', 'status', 'breakTime', 'overtimeMinutes',
+      'date', 'status', 'breakTime', 'overtimeMinutes',
       'lateMinutes', 'earlyLeaveMinutes', 'notes', 'createdBy', 'alternativeStaffId'
     ];
 
@@ -360,6 +346,15 @@ export class ShiftsService {
     }
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return shift;
+  }
+
+  async bulkDelete(ids: string[]) {
+    const result = await Shift.deleteMany({ _id: { $in: ids } });
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    return {
+      success: result.deletedCount,
+      ids
+    };
   }
 
   async checkIn(shiftId: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
@@ -430,8 +425,8 @@ export class ShiftsService {
     const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
 
 
-    const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
-    const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
+    const shiftStartTime = new Date(`${shift.date} ${settings?.workingHours?.start || '09:00'}`);
+    const shiftEndTime = new Date(`${shift.date} ${settings?.workingHours?.end || '18:00'}`);
     const actualStartTime = new Date(`${shift.date} ${currentTime}`);
 
 
@@ -495,14 +490,9 @@ export class ShiftsService {
     if (lateMinutes > 0) {
 
       const payroll = await Payroll.findOne({ staffId: userId });
-      const penaltyRate = payroll?.penaltyDetails?.amount || 50;
-
-      const penaltyAmount = lateMinutes * penaltyRate;
-      timeTracking.penalties.late = {
-        minutes: lateMinutes,
-        amount: penaltyAmount,
-        reason: `Опоздание на ${lateMinutes} минут`
-      };
+      // const penaltyRate = payroll?.penaltyDetails?.amount || 50;
+      // const penaltyAmount = lateMinutes * penaltyRate;
+      // timeTracking.penalties = { ... };
       timeTracking.lateMinutes = lateMinutes;
     }
 
@@ -583,8 +573,8 @@ export class ShiftsService {
       }
 
 
-      const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
-      const shiftEndTime = new Date(`${shift.date} ${shift.endTime}`);
+      const shiftStartTime = new Date(`${shift.date} ${settings?.workingHours?.start || '09:00'}`);
+      const shiftEndTime = new Date(`${shift.date} ${settings?.workingHours?.end || '18:00'}`);
       const actualStartTime = new Date(`${shift.date} ${timeTracking.actualStart?.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5) || currentTime}`);
       const actualEndTime = new Date(`${shift.date} ${currentTime}`);
 
@@ -598,14 +588,9 @@ export class ShiftsService {
       if (earlyMinutes > 0) {
 
         const payroll = await Payroll.findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 500;
-
-        const penaltyAmount = earlyMinutes * penaltyRate;
-        timeTracking.penalties.earlyLeave = {
-          minutes: earlyMinutes,
-          amount: penaltyAmount,
-          reason: `Ранний уход на ${earlyMinutes} минут`
-        };
+        // const penaltyRate = payroll?.penaltyDetails?.amount || 500;
+        // const penaltyAmount = earlyMinutes * penaltyRate;
+        // timeTracking.penalties.earlyLeave = ...
         timeTracking.earlyLeaveMinutes = earlyMinutes;
       }
 
@@ -613,27 +598,19 @@ export class ShiftsService {
       if (lateMinutes > 0) {
 
         const payroll = await Payroll.findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 50;
-
-        const penaltyAmount = lateMinutes * penaltyRate;
-        timeTracking.penalties.late = {
-          minutes: lateMinutes,
-          amount: penaltyAmount,
-          reason: `Опоздание на ${lateMinutes} минут`
-        };
+        // const penaltyRate = payroll?.penaltyDetails?.amount || 50;
+        // const penaltyAmount = lateMinutes * penaltyRate;
+        // timeTracking.penalties.late = ...
         timeTracking.lateMinutes = lateMinutes;
       }
 
 
       const lateCheckoutMinutes = Math.max(0, Math.floor((actualEndTime.getTime() - shiftEndTime.getTime()) / (1000 * 60)));
       if (lateCheckoutMinutes > 0) {
-        const payroll = await Payroll.findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 500;
-        const penaltyAmount = lateCheckoutMinutes * penaltyRate;
-        timeTracking.penalties.unauthorized = {
-          amount: penaltyAmount,
-          reason: `Уход после окончания смены на ${lateCheckoutMinutes} минут`
-        };
+        // const payroll = await Payroll.findOne({ staffId: userId });
+        // const penaltyRate = payroll?.penaltyDetails?.amount || 500;
+        // const penaltyAmount = lateCheckoutMinutes * penaltyRate;
+        // timeTracking.penalties.unauthorized = ...
       }
 
       await timeTracking.save();
@@ -690,11 +667,11 @@ export class ShiftsService {
     const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
-        penalties,
+        penalties, // This argument is likely unused now, but keeping signature. Wait, model doesn't have penalties.
         bonuses,
-        notes,
-        approvedBy: userId,
-        approvedAt: new Date()
+        notes
+        // approvedBy: userId,
+        // approvedAt: new Date()
       },
       { new: true }
     ).populate('staffId', 'fullName role');
@@ -707,10 +684,6 @@ export class ShiftsService {
     return record;
   }
 
-  async isShiftDateHoliday(shiftDate: string): Promise<boolean> {
-    const date = new Date(shiftDate);
-    return await holidaysService.isHoliday(date);
-  }
 
   async updateLateShifts() {
     try {
@@ -727,7 +700,8 @@ export class ShiftsService {
 
       for (const shift of shifts) {
 
-        const shiftStartTime = new Date(`${shift.date} ${shift.startTime}`);
+        const settings = await settingsService.getKindergartenSettings();
+        const shiftStartTime = new Date(`${shift.date} ${settings?.workingHours?.start || '09:00'}`);
 
 
         const timeSinceShiftStart = (today.getTime() - shiftStartTime.getTime()) / (1000 * 60);

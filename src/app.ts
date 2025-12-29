@@ -29,7 +29,6 @@ import childAttendanceRoutes from './entities/childAttendance/route';
 import payrollRoutes from './entities/payroll/route';
 import settingsRoutes from './entities/settings/route';
 import documentsRoutes from './entities/documents/route';
-import reportsRoutes from './entities/reports/route';
 import medicalJournalRoutes from './entities/medician/medicalJournals/route';
 import menuItemsRoutes from './entities/food/menuItems/route';
 import healthPassportRoutes from './entities/medician/healthPassport/route';
@@ -43,15 +42,16 @@ import mantouxJournalRoutes from './entities/medician/mantouxJournal/route';
 import somaticJournalRoutes from './entities/medician/somaticJournal/route';
 import staffAttendanceTrackingRoutes from './entities/staffAttendanceTracking/route';
 import qwen3ChatRoutes from './entities/qwen3Chat/route';
-import uiStateRoutes from './entities/uiState/route';
+
 import mainEventsRoutes from './entities/mainEvents/route';
-import holidayRoutes from './entities/holidays/route';
 import telegramRoutes from './api/telegram';
 import exportRoutes from './api/export';
 import importRoutes from './api/importRoutes';
 import cyclogramRoutes from './entities/cyclogram/routes';
 import fs from 'fs';
 import path from 'path';
+import commonRoutes from './api/commonRoutes';
+
 const app = express();
 
 
@@ -82,7 +82,6 @@ app.use('/payroll', payrollRoutes);
 app.use('/rent', rentRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/documents', documentsRoutes);
-app.use('/reports', reportsRoutes);
 app.use('/medical-journals', medicalJournalRoutes);
 app.use('/menu-items', menuItemsRoutes);
 app.use('/health-passport', healthPassportRoutes);
@@ -112,14 +111,15 @@ app.use('/weekly-menu-template', weeklyMenuTemplateRoutes);
 app.use('/product-purchases', productPurchaseRoutes);
 app.use('/product-reports', productReportsRoutes);
 app.use('/qwen3-chat', qwen3ChatRoutes);
-app.use('/api', uiStateRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/main-events', mainEventsRoutes);
-app.use('/holidays', holidayRoutes);
 app.use('/telegram', telegramRoutes);
 app.use('/export', exportRoutes);
 app.use('/cyclogram', cyclogramRoutes);
+
 app.use('/api/import', importRoutes);
+app.use('/api/common', commonRoutes);
 
 
 app.get('/health', (req, res) => {

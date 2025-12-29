@@ -5,12 +5,17 @@ import Shift from '../src/entities/staffShifts/model';
 import Payroll from '../src/entities/payroll/model';
 import User from '../src/entities/users/model';
 import { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } from '../src/services/payrollAutomationService';
+import { SettingsService } from '@src/entities/settings/service';
 
 
 const TIMEZONE_OFFSET = 5 * 60;
 
 
 const recalculateAllLateMinutes = async () => {
+    const settingsService = new SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+    const workingStart = settings?.workingHours?.start || '09:00';
+
     const attendanceRecords = await StaffAttendanceTracking.find({
         actualStart: { $exists: true, $ne: null }
     });
@@ -34,9 +39,12 @@ const recalculateAllLateMinutes = async () => {
                 date: dateStr
             });
 
-            if (!shift || !shift.startTime) continue;
+            if (!shift) continue;
 
-            const [schedStartH, schedStartM] = shift.startTime.split(':').map(Number);
+            const [schedStartH, schedStartM] = (shift as any).startTime ? (shift as any).startTime.split(':').map(Number) : [9, 0];
+            const [defStartH, defStartM] = [9, 0];
+            const schedStartH_fixed = 9;
+            const schedStartM_fixed = 0;
 
 
             const actualStartUTC = new Date(record.actualStart);
@@ -46,7 +54,7 @@ const recalculateAllLateMinutes = async () => {
             const actualMinutes = actualStartMinutesLocal >= 1440 ? actualStartMinutesLocal - 1440 : actualStartMinutesLocal;
 
 
-            const scheduledMinutes = schedStartH * 60 + schedStartM;
+            const scheduledMinutes = schedStartH_fixed * 60 + schedStartM_fixed;
 
 
             let lateMinutes = 0;

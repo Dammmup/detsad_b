@@ -13,8 +13,6 @@ export const clockIn = async (req: Request, res: Response) => {
 
     const result = await staffAttendanceTrackingService.clockIn(
       userId,
-      { latitude, longitude },
-      photo,
       notes
     );
 
@@ -129,9 +127,7 @@ export const getAllStaffAttendanceRecords = async (req: Request, res: Response) 
       date: date as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
       startDate: startDate as string,
-      endDate: endDate as string,
-      approvedBy: approvedBy as string,
-      approvedAt: approvedAt as string
+      endDate: endDate as string
     };
 
 
@@ -248,9 +244,7 @@ export const getStaffAttendanceRecordsByStaffId = async (req: Request, res: Resp
       date: date as string,
       inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
       startDate: startDate as string,
-      endDate: endDate as string,
-      approvedBy: approvedBy as string,
-      approvedAt: approvedAt as string
+      endDate: endDate as string
     };
 
 
@@ -292,9 +286,7 @@ export const getStaffAttendanceRecordsByDateRange = async (req: Request, res: Re
 
     const filters: any = {
       staffId: staffId as string,
-      inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined,
-      approvedBy: approvedBy as string,
-      approvedAt: approvedAt as string
+      inZone: inZone === 'true' ? true : inZone === 'false' ? false : undefined
     };
 
 
@@ -468,47 +460,7 @@ export const rejectStaffAttendance = async (req: Request, res: Response) => {
   }
 };
 
-export const getPendingApprovals = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const records = await staffAttendanceTrackingService.getPendingApprovals();
-    res.json(records);
-  } catch (err: any) {
-    console.error('Error fetching pending approvals:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения записей на подтверждение' });
-  }
-};
-
-export const getApprovedRecords = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const records = await staffAttendanceTrackingService.getApprovedRecords();
-    res.json(records);
-  } catch (err: any) {
-    console.error('Error fetching approved records:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения подтвержденных записей' });
-  }
-};
-
-export const getRejectedRecords = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const records = await staffAttendanceTrackingService.getRejectedRecords();
-    res.json(records);
-  } catch (err: any) {
-    console.error('Error fetching rejected records:', err);
-    res.status(500).json({ error: err.message || 'Ошибка получения отклоненных записей' });
-  }
-};
+// Methods getPendingApprovals, getApprovedRecords, getRejectedRecords removed as they are no longer supported
 
 export const getLateArrivals = async (req: Request, res: Response) => {
   try {

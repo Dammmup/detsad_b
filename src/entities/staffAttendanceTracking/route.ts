@@ -19,9 +19,9 @@ import {
   updateStaffAttendanceAdjustments,
   approveStaffAttendance,
   rejectStaffAttendance,
-  getPendingApprovals,
-  getApprovedRecords,
-  getRejectedRecords,
+  // getPendingApprovals,
+  // getApprovedRecords,
+  // getRejectedRecords,
   getLateArrivals,
   getEarlyLeaves,
   getOvertimeRecords,
@@ -138,13 +138,9 @@ router.patch('/:id/approve-time', authMiddleware, authorizeRole(['admin', 'manag
 router.patch('/:id/reject', authMiddleware, authorizeRole(['admin', 'manager']), rejectStaffAttendance);
 
 
-router.get('/approvals/pending', authMiddleware, authorizeRole(['admin', 'manager']), getPendingApprovals);
-
-
-router.get('/records/approved', authMiddleware, authorizeRole(['admin', 'manager']), getApprovedRecords);
-
-
-router.get('/records/rejected', authMiddleware, authorizeRole(['admin', 'manager']), getRejectedRecords);
+// router.get('/approvals/pending', authMiddleware, authorizeRole(['admin', 'manager']), getPendingApprovals);
+// router.get('/records/approved', authMiddleware, authorizeRole(['admin', 'manager']), getApprovedRecords);
+// router.get('/records/rejected', authMiddleware, authorizeRole(['admin', 'manager']), getRejectedRecords);
 
 
 router.get('/arrivals/late', authMiddleware, authorizeRole(['admin', 'manager']), getLateArrivals);

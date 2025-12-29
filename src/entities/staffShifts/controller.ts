@@ -152,6 +152,29 @@ export const deleteShift = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
+export const bulkDeleteShifts = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete shifts' });
+    }
+
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: 'Invalid IDs provided' });
+    }
+
+    const result = await shiftsService.bulkDelete(ids);
+    res.json(result);
+  } catch (err) {
+    console.error('Error bulk deleting shifts:', err);
+    res.status(500).json({ error: 'Ошибка массового удаления смен' });
+  }
+};
+
 export const checkInSimple = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {

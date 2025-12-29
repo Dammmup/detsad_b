@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { Qwen3Request } from './model';
-import { UIStateService } from '../uiState/service';
 import { executeQuery, QueryRequest } from './queryExecutor';
 import { ASSISTANT_PROMPT, DATA_ACCESS_PROMPT, DATABASE_PROMPT } from './prompts';
 
@@ -47,7 +46,15 @@ export class Qwen3ChatService {
   /**
    * Форматирует результат запроса для пользователя
    */
-  private static formatQueryResult(data: any, template?: string): string {
+  private static formatQueryResult(data: any, template?: string, message?: string): string {
+    // Если есть сообщение от CRUD операции, возвращаем его с шаблоном
+    if (message && template) {
+      return template;
+    }
+    if (message) {
+      return message;
+    }
+
     if (template) {
       let result = template;
 
@@ -158,21 +165,7 @@ export class Qwen3ChatService {
       const databasePrompt = DATABASE_PROMPT;
 
       const dateContext = this.getCurrentDateContext();
-      const combinedSystemPrompt = `${systemPrompt}\n\n${dataAccessPrompt}\n\n${databasePrompt}\n\n${dateContext}`;
-
-      let uiContext = '';
-      if (request.sessionId) {
-        try {
-          const lastUIState = await UIStateService.getLastUIState(request.sessionId);
-          if (lastUIState) {
-            uiContext = `\n\nКонтекст текущего интерфейса:\n- Текущая страница: ${lastUIState.route}\n- URL: ${lastUIState.url}`;
-          }
-        } catch (error) {
-          console.warn('Не удалось получить состояние UI:', error);
-        }
-      }
-
-      const enhancedSystemPrompt = combinedSystemPrompt + uiContext;
+      const enhancedSystemPrompt = `${systemPrompt}\n\n${dataAccessPrompt}\n\n${databasePrompt}\n\n${dateContext}`;
 
       const messages = await Promise.all(request.messages.map(async msg => {
         if (msg.sender === 'user') {
@@ -261,7 +254,8 @@ export class Qwen3ChatService {
 
             const formattedResult = this.formatQueryResult(
               queryResult.data ?? queryResult.count,
-              aiAction.responseTemplate
+              aiAction.responseTemplate,
+              queryResult.message
             );
 
             return {

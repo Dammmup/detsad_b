@@ -71,9 +71,12 @@ const ChildPaymentSchema = new Schema<IChildPayment>({
   timestamps: true
 });
 
+ChildPaymentSchema.index({ childId: 1, 'period.start': 1 }, { unique: true });
+
 
 ChildPaymentSchema.pre('validate', function (next) {
-  if (!this.childId && !this.userId) {
+  const doc = this as unknown as IChildPayment;
+  if (!doc.childId && !doc.userId) {
     this.invalidate('childId', 'Either childId or userId must be specified');
   }
   next();

@@ -6,7 +6,6 @@ import { IChildPayment } from '../childPayment/model';
 import { IShift } from '../staffShifts/model';
 import { IPayroll } from '../payroll/model';
 import { IRent } from '../rent/model';
-import { IReport } from '../reports/model';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
 import ChildAttendance from '../childAttendance/model';
 import ChildPayment from '../childPayment/model';

@@ -56,41 +56,7 @@ const getPayrollModel = () => {
 
 export class StaffAttendanceTrackingService {
 
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-  }
-
-
-  private async isUserInGeolocation(latitude: number, longitude: number): Promise<boolean> {
-    const settingsService = new SettingsService();
-    const geolocationSettings = await settingsService.getGeolocationSettings();
-
-    if (!geolocationSettings || !geolocationSettings.enabled) {
-      return true;
-    }
-
-    const distance = this.calculateDistance(
-      latitude,
-      longitude,
-      geolocationSettings.coordinates.latitude,
-      geolocationSettings.coordinates.longitude
-    );
-
-    return distance <= geolocationSettings.radius;
-  }
-
-  async clockIn(userId: string, locationData: { latitude: number, longitude: number }, photo?: string, notes?: string) {
+  async clockIn(userId: string, notes?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
@@ -115,15 +81,6 @@ export class StaffAttendanceTrackingService {
     }
 
 
-    const inZone = await this.isUserInGeolocation(locationData.latitude, locationData.longitude);
-    if (!inZone) {
-      throw new Error(JSON.stringify({
-        error: 'Clock-in not allowed',
-        details: 'You are not within the allowed geolocation area for clock-in'
-      }));
-    }
-
-
     const user = await User.findById(userId);
     if (!user) {
       throw new Error('User not found');
@@ -135,32 +92,27 @@ export class StaffAttendanceTrackingService {
       staffId: userId,
       date: new Date(),
       actualStart: new Date(),
-      clockInLocation: {
-        name: 'Current Location',
-        coordinates: {
-          latitude: locationData.latitude,
-          longitude: locationData.longitude
-        },
-        radius: 10,
-        timestamp: new Date()
-      },
-      photoClockIn: photo,
       notes,
-      inZone: inZone
+      isManualEntry: false
     });
 
     const dateStr = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+
+    // Получаем настройки для начала рабочего дня
+    const settingsService = new SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+    const workingStart = settings?.workingHours?.start || '09:00';
 
     const scheduledShift = await Shift.findOne({
       staffId: userId,
       date: dateStr
     });
 
-    if (scheduledShift && scheduledShift.startTime) {
+    if (scheduledShift) {
       attendanceRecord.shiftId = scheduledShift._id as any;
 
       const actualStart = new Date();
-      const [hours, minutes] = scheduledShift.startTime.split(':').map(Number);
+      const [hours, minutes] = workingStart.split(':').map(Number);
 
 
       const scheduledStart = new Date(actualStart);
@@ -171,17 +123,7 @@ export class StaffAttendanceTrackingService {
       const latenessMinutes = Math.floor(latenessMs / (1000 * 60));
 
       if (latenessMinutes > 0) {
-
-        const payroll = await Payroll.findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 500;
-
-        const penaltyAmount = latenessMinutes * penaltyRate;
-
-        attendanceRecord.penalties.late = {
-          minutes: latenessMinutes,
-          amount: penaltyAmount,
-          reason: `Опоздание на ${latenessMinutes} минут`
-        };
+        attendanceRecord.lateMinutes = latenessMinutes;
       }
     }
 
@@ -190,30 +132,16 @@ export class StaffAttendanceTrackingService {
     await attendanceRecord.populate('staffId', 'fullName role');
 
     try {
-      const settingsService = new SettingsService();
       const notificationSettings = await settingsService.getNotificationSettings();
       const adminChatId = notificationSettings?.telegram_chat_id;
 
       let timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-      let inRangeText = '';
-      if (scheduledShift && scheduledShift.startTime && scheduledShift.endTime) {
-        const now = new Date();
-        const startT = scheduledShift.startTime.split(':').map(Number);
-        const endT = scheduledShift.endTime.split(':').map(Number);
-        const nowMin = now.getHours() * 60 + now.getMinutes();
-        const stMin = startT[0] * 60 + startT[1] - 30;
-        const etMin = endT[0] * 60 + endT[1] + 30;
-        const rangeOk = (nowMin >= stMin && nowMin <= etMin);
-        inRangeText = rangeOk ? 'В диапазоне смены' : 'ВНЕ диапазона смены';
-      } else {
-        inRangeText = 'Нет графика смены';
-      }
 
-      const message = `Сотрудник ${user.fullName} отметил ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`;
+      const message = `Сотрудник ${user.fullName} отметил ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr}`;
 
 
       if ((user as any).telegramChatId) {
-        await sendLogToTelegram(`Вы отметили ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`);
+        await sendLogToTelegram(`Вы отметили ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr}`);
       }
 
       if (adminChatId) {
@@ -229,8 +157,7 @@ export class StaffAttendanceTrackingService {
 
     return {
       message: 'Successfully clocked in',
-      attendanceRecord,
-      location: attendanceRecord.clockInLocation?.name
+      attendanceRecord
     };
   }
 
@@ -268,9 +195,13 @@ export class StaffAttendanceTrackingService {
       date: dateStr
     });
 
-    if (scheduledShift && scheduledShift.endTime) {
+    const settingsService = new SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+    const workingEnd = settings?.workingHours?.end || '18:00';
+
+    if (scheduledShift) {
       const actualEnd = new Date();
-      const [hours, minutes] = scheduledShift.endTime.split(':').map(Number);
+      const [hours, minutes] = workingEnd.split(':').map(Number);
 
 
       const scheduledEnd = new Date(actualEnd);
@@ -281,17 +212,6 @@ export class StaffAttendanceTrackingService {
       const earlyLeaveMinutes = Math.floor(earlyLeaveMs / (1000 * 60));
 
       if (earlyLeaveMinutes > 0) {
-
-        const payroll = await PayrollModel.findOne({ staffId: userId });
-        const penaltyRate = payroll?.penaltyDetails?.amount || 50;
-
-        const penaltyAmount = earlyLeaveMinutes * penaltyRate;
-
-        attendanceRecord.penalties.earlyLeave = {
-          minutes: earlyLeaveMinutes,
-          amount: penaltyAmount,
-          reason: `Ранний уход за ${earlyLeaveMinutes} минут до окончания смены`
-        };
         attendanceRecord.earlyLeaveMinutes = earlyLeaveMinutes;
       }
 
@@ -301,16 +221,9 @@ export class StaffAttendanceTrackingService {
       }
     }
 
-    attendanceRecord.clockOutLocation = {
-      name: 'Current Location',
-      coordinates: {
-        latitude: locationData.latitude,
-        longitude: locationData.longitude
-      },
-      radius: 10,
-      timestamp: new Date()
-    };
-    attendanceRecord.photoClockOut = photo;
+    // Удалено использование clockOutLocation и photoClockOut
+    // attendanceRecord.clockOutLocation = ...
+    // attendanceRecord.photoClockOut = photo;
     if (notes) {
       attendanceRecord.notes = attendanceRecord.notes ? `${attendanceRecord.notes}\n${notes}` : notes;
     }
@@ -327,10 +240,13 @@ export class StaffAttendanceTrackingService {
 
       let timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
       let inRangeText = '';
-      if (scheduledShift && scheduledShift.startTime && scheduledShift.endTime) {
+      if (scheduledShift) {
+        // Using global settings instead of shift start/end time
+        const workingStart = settings?.workingHours?.start || '09:00';
+        const workingEnd = settings?.workingHours?.end || '18:00';
         const now = new Date();
-        const startT = scheduledShift.startTime.split(':').map(Number);
-        const endT = scheduledShift.endTime.split(':').map(Number);
+        const startT = workingStart.split(':').map(Number);
+        const endT = workingEnd.split(':').map(Number);
         const nowMin = now.getHours() * 60 + now.getMinutes();
         const stMin = startT[0] * 60 + startT[1] - 30;
         const etMin = endT[0] * 60 + endT[1] + 30;
@@ -360,21 +276,19 @@ export class StaffAttendanceTrackingService {
 
     return {
       message: 'Successfully clocked out',
-      attendanceRecord,
-      totalHours: attendanceRecord.totalHours,
-      regularHours: attendanceRecord.regularHours,
-      overtimeHours: attendanceRecord.overtimeHours
+      attendanceRecord
     };
   }
 
 
-  async getAll(filters: { staffId?: string, date?: string, status?: string, inZone?: boolean, startDate?: string, endDate?: string, approvedBy?: string, approvedAt?: string }) {
+  async getAll(filters: { staffId?: string, date?: string, status?: string, inZone?: boolean, startDate?: string, endDate?: string }) {
     const filter: any = {};
 
     if (filters.staffId) filter.staffId = filters.staffId;
-    if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
-    if (filters.status) filter.status = filters.status;
-    if (filters.inZone !== undefined) filter.inZone = filters.inZone;
+    // Removed approvedBy filter
+    // if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
+    // Removed inZone filter as field is deleted
+    // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
     if (filters.date) {
       filter.date = new Date(filters.date);
@@ -384,15 +298,10 @@ export class StaffAttendanceTrackingService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    if (filters.approvedAt) {
-      filter.approvedAt = new Date(filters.approvedAt);
-    }
-
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
     return await cacheService.getOrSet(cacheKey, async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
-        .populate('approvedBy', 'fullName role')
         .sort({ date: -1 });
 
       return records;
@@ -403,8 +312,7 @@ export class StaffAttendanceTrackingService {
     const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
     return await cacheService.getOrSet(cacheKey, async () => {
       const record = await StaffAttendanceTracking.findById(id)
-        .populate('staffId', 'fullName role')
-        .populate('approvedBy', 'fullName role');
+        .populate('staffId', 'fullName role');
 
       if (!record) {
         throw new Error('Запись посещаемости сотрудника не найдена');
@@ -430,23 +338,14 @@ export class StaffAttendanceTrackingService {
     }
 
 
-    if (recordData.approvedBy) {
-      const approver = await UserModel.findById(recordData.approvedBy);
-      if (!approver) {
-        throw new Error('Утверждающий не найден');
-      }
-    }
-
     const record = new StaffAttendanceTracking({
-      ...recordData,
-      approvedBy: userId
+      ...recordData
     });
 
     await record.save();
 
     const populatedRecord = await StaffAttendanceTracking.findById(record._id)
-      .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role');
+      .populate('staffId', 'fullName role');
 
     try {
       await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -474,8 +373,7 @@ export class StaffAttendanceTrackingService {
 
     // Populate and return
     const updatedRecord = await StaffAttendanceTracking.findById(id)
-      .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role');
+      .populate('staffId', 'fullName role');
 
     try {
       await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -502,12 +400,12 @@ export class StaffAttendanceTrackingService {
     return { message: 'Запись посещаемости сотрудника успешно удалена' };
   }
 
-  async getByStaffId(staffId: string, filters: { date?: string, status?: string, inZone?: boolean, startDate?: string, endDate?: string, approvedBy?: string, approvedAt?: string }) {
+  async getByStaffId(staffId: string, filters: { date?: string, status?: string, inZone?: boolean, startDate?: string, endDate?: string }) {
     const filter: any = { staffId };
 
-    if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
-    if (filters.status) filter.status = filters.status;
-    if (filters.inZone !== undefined) filter.inZone = filters.inZone;
+    // if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
+    // if (filters.status) filter.status = filters.status;
+    // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
     if (filters.date) {
       filter.date = new Date(filters.date);
@@ -517,22 +415,17 @@ export class StaffAttendanceTrackingService {
       if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
     }
 
-    if (filters.approvedAt) {
-      filter.approvedAt = new Date(filters.approvedAt);
-    }
-
     const cacheKey = `${CACHE_KEY_PREFIX}:getByStaffId:${staffId}:${JSON.stringify(filters)}`;
     return await cacheService.getOrSet(cacheKey, async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
-        .populate('approvedBy', 'fullName role')
         .sort({ date: -1 });
 
       return records;
     }, CACHE_TTL);
   }
 
-  async getByDateRange(startDate: string, endDate: string, filters: { staffId?: string, status?: string, inZone?: boolean, approvedBy?: string, approvedAt?: string }) {
+  async getByDateRange(startDate: string, endDate: string, filters: { staffId?: string, status?: string, inZone?: boolean }) {
     const filter: any = {
       date: {
         $gte: new Date(startDate),
@@ -541,19 +434,15 @@ export class StaffAttendanceTrackingService {
     };
 
     if (filters.staffId) filter.staffId = filters.staffId;
-    if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
-    if (filters.status) filter.status = filters.status;
-    if (filters.inZone !== undefined) filter.inZone = filters.inZone;
+    // if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
+    // if (filters.status) filter.status = filters.status;
+    // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
-    if (filters.approvedAt) {
-      filter.approvedAt = new Date(filters.approvedAt);
-    }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getByDateRange:${startDate}:${endDate}:${JSON.stringify(filters)}`;
     return await cacheService.getOrSet(cacheKey, async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
-        .populate('approvedBy', 'fullName role')
         .sort({ date: -1 });
 
       return records;
@@ -609,9 +498,11 @@ export class StaffAttendanceTrackingService {
 
     const summary = {
       totalRecords: records.length,
-      totalHours: records.reduce((sum, record) => sum + record.totalHours, 0),
-      regularHours: records.reduce((sum, record) => sum + record.regularHours, 0),
-      overtimeHours: records.reduce((sum, record) => sum + record.overtimeHours, 0),
+      // totalHours: records.reduce((sum, record) => sum + record.totalHours, 0),
+      // regularHours: records.reduce((sum, record) => sum + record.regularHours, 0),
+      // overtimeHours: records.reduce((sum, record) => sum + record.overtimeHours, 0),
+      // Use workDuration instead if available, or 0
+      totalHours: records.reduce((sum, record) => sum + (record.workDuration || 0) / 60, 0),
       totalBreakTime: records.reduce((sum, record) => sum + (record.breakDuration || 0), 0),
       averageHoursPerDay: 0,
       daysWorked: records.length
@@ -636,7 +527,6 @@ export class StaffAttendanceTrackingService {
       }
     })
       .populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role')
       .sort({ date: 1 });
 
     return records;
@@ -671,8 +561,7 @@ export class StaffAttendanceTrackingService {
       id,
       { notes },
       { new: true }
-    ).populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role');
+    ).populate('staffId', 'fullName role');
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
@@ -695,8 +584,7 @@ export class StaffAttendanceTrackingService {
         approvedAt: new Date()
       },
       { new: true }
-    ).populate('staffId', 'fullName role')
-      .populate('approvedBy', 'fullName role');
+    ).populate('staffId', 'fullName role');
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
@@ -719,11 +607,12 @@ export class StaffAttendanceTrackingService {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    record.penalties = penalties;
-    record.bonuses = bonuses;
+    // record.penalties = penalties;
+    // record.bonuses = bonuses;
     record.notes = notes;
-    (record as any).approvedByTimeTracking = userId;
-    (record as any).approvedAtTimeTracking = new Date();
+    // Removed approvedByTimeTracking assignment as field is deleted
+    // (record as any).approvedByTimeTracking = userId;
+    // (record as any).approvedAtTimeTracking = new Date();
 
     await record.save();
 
@@ -773,8 +662,8 @@ export class StaffAttendanceTrackingService {
     const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
       {
-        approvedByTimeTracking: userId,
-        approvedAtTimeTracking: new Date(),
+        // approvedByTimeTracking: userId,
+        // approvedAtTimeTracking: new Date(),
         notes: reason ? `${existingRecord.notes || ''}\nRejection reason: ${reason}` : existingRecord.notes
       },
       { new: true }
@@ -793,40 +682,10 @@ export class StaffAttendanceTrackingService {
     return record;
   }
 
-  async getPendingApprovals() {
-    const records = await StaffAttendanceTracking.find({
-      approvedAtTimeTracking: { $exists: false },
-      approvedByTimeTracking: { $exists: false }
-    })
-      .populate('staffId', 'fullName role')
-      .sort({ date: -1 });
-
-    return records;
-  }
-
-  async getApprovedRecords() {
-    const records = await StaffAttendanceTracking.find({
-      approvedAtTimeTracking: { $exists: true },
-      approvedByTimeTracking: { $exists: true }
-    })
-      .populate('staffId', 'fullName role')
-      .sort({ date: -1 });
-
-    return records;
-  }
-
-  async getRejectedRecords() {
-    const records = await StaffAttendanceTracking.find({
-      approvedAtTimeTracking: { $exists: true },
-      approvedByTimeTracking: { $exists: true }
-
-
-    })
-      .populate('staffId', 'fullName role')
-      .sort({ date: -1 });
-
-    return records;
-  }
+  // Removed getPendingApprovals, getApprovedRecords, getRejectedRecords as approval logic is removed
+  // async getPendingApprovals() { ... }
+  // async getApprovedRecords() { ... }
+  // async getRejectedRecords() { ... }
 
   async getLateArrivals(thresholdMinutes: number = 15) {
     const records = await StaffAttendanceTracking.find({
@@ -850,7 +709,7 @@ export class StaffAttendanceTrackingService {
 
   async getOvertimeRecords(thresholdMinutes: number = 30) {
     const records = await StaffAttendanceTracking.find({
-      'bonuses.overtime.minutes': { $gte: thresholdMinutes }
+      'overtimeDuration': { $gte: thresholdMinutes }
     })
       .populate('staffId', 'fullName role')
       .sort({ date: -1 });
@@ -1056,7 +915,7 @@ export class StaffAttendanceTrackingService {
         $gte: new Date(startDate),
         $lte: new Date(endDate)
       },
-      'bonuses.overtime.minutes': { $gte: thresholdMinutes }
+      'overtimeDuration': { $gte: thresholdMinutes }
     });
 
     return {

@@ -142,6 +142,13 @@ export const initializeTaskScheduler = () => {
         date: { $gte: startOfDay, $lt: endOfDay }
       }).populate('staffId', 'fullName');
 
+      // Get settings for working hours
+      const { SettingsService } = await import('../entities/settings/service');
+      const settingsService = new SettingsService();
+      const settings = await settingsService.getKindergartenSettings();
+      const workingStart = settings?.workingHours?.start || '09:00';
+      const workingEnd = settings?.workingHours?.end || '18:00';
+
       // Получаем данные о сотрудниках
       const staffIds = shifts.map(shift => shift.staffId);
       const users = await User.find({ _id: { $in: staffIds } });
@@ -162,7 +169,7 @@ export const initializeTaskScheduler = () => {
 
         if (!attendance || !attendance.actualStart) {
           // Не отметил приход
-          noCheckIn.push({ name: staffName, shift: `${shift.startTime}-${shift.endTime}` });
+          noCheckIn.push({ name: staffName, shift: `${workingStart}-${workingEnd}` });
         } else if (!attendance.actualEnd) {
           // Не отметил уход
           const checkInTime = new Date(attendance.actualStart).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
