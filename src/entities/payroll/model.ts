@@ -24,6 +24,11 @@ export interface IPayroll extends Document {
     absencePenalties?: number;
     userFines?: number;
   };
+  bonusDetails?: {
+    weekendWork?: number;
+    performance?: number;
+    holidayWork?: number;
+  };
 
   fines?: Array<{
     amount: number;
@@ -43,7 +48,6 @@ export interface IPayroll extends Document {
 
   penalties?: number;
   latePenalties?: number;
-  latePenaltyRate?: number;
   absencePenalties?: number;
   userFines?: number;
   history?: Array<{
@@ -115,6 +119,11 @@ const PayrollSchema = new Schema<IPayroll>({
       userFines: Number
     }
   },
+  bonusDetails: {
+    weekendWork: Number,
+    performance: Number,
+    holidayWork: Number
+  },
   fines: [{
     amount: {
       type: Number,
@@ -155,7 +164,6 @@ const PayrollSchema = new Schema<IPayroll>({
   }],
   penalties: Number,
   latePenalties: Number,
-  latePenaltyRate: Number,
   absencePenalties: Number,
   userFines: Number,
   history: [{

@@ -184,7 +184,8 @@ export const updatePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
 
-    const payroll = await payrollService.update(req.params.id, req.body, req.user.id);
+    const updaterId = (req.user.role === 'admin' || req.user.role === 'manager') ? undefined : req.user.id;
+    const payroll = await payrollService.update(req.params.id, req.body, updaterId);
     res.json(payroll);
   } catch (err: any) {
     console.error('Error updating payroll:', err);
@@ -202,7 +203,8 @@ export const deletePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const payroll = await payrollService.getById(req.params.id, req.user.id);
+    const checkUser = (req.user.role === 'admin' || req.user.role === 'manager') ? undefined : req.user.id;
+    const payroll = await payrollService.getById(req.params.id, checkUser);
     const result = await payrollService.delete(req.params.id);
     res.json(result);
   } catch (err: any) {

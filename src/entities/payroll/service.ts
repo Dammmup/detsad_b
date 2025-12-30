@@ -9,31 +9,42 @@ import {
   shouldCountAttendance
 } from '../../services/payrollAutomationService';
 import { isNonWorkingDay } from '../../utils/productionCalendar';
-import { cacheService } from '../../services/cache';
 
-const CACHE_KEY_PREFIX = 'payroll';
-const CACHE_TTL = 300; // 5 minutes
+
 
 export class PayrollService {
   async getPayrollBreakdown(id: string) {
-    return await cacheService.getOrSet(`${CACHE_KEY_PREFIX}:breakdown:${id}`, async () => {
-      return Payroll.findById(id).populate('staffId', 'fullName role');
-    }, CACHE_TTL);
+    const payroll = await Payroll.findById(id).populate('staffId', 'fullName role');
+    if (!payroll) return null;
+
+    const pObj = payroll.toObject();
+    const startDate = new Date(`${pObj.period}-01`);
+    (pObj as any).normDays = await getWorkingDaysInMonth(startDate);
+    return pObj;
   }
   async getAll(filters: { staffId?: string, period?: string, status?: string }) {
-    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      const filter: any = {};
+    const filter: any = {};
 
-      if (filters.staffId) filter.staffId = filters.staffId;
-      const targetPeriod = filters.period || new Date().toISOString().slice(0, 7);
-      if (targetPeriod) filter.period = targetPeriod;
-      if (filters.status) filter.status = filters.status;
+    if (filters.staffId) filter.staffId = filters.staffId;
+    const targetPeriod = filters.period || new Date().toISOString().slice(0, 7);
+    if (targetPeriod) filter.period = targetPeriod;
+    if (filters.status) filter.status = filters.status;
 
-      return Payroll.find(filter)
-        .populate('staffId', 'fullName role')
-        .sort({ period: -1 });
-    }, CACHE_TTL);
+    const payrolls = await Payroll.find(filter)
+      .populate('staffId', 'fullName role')
+      .sort({ period: -1 });
+
+    return await Promise.all(payrolls.map(async (p) => {
+      const pObj = p.toObject();
+      const targetPeriod = p.period;
+      let workingDays = 0;
+      if (targetPeriod) {
+        const startDate = new Date(`${targetPeriod}-01`);
+        workingDays = await getWorkingDaysInMonth(startDate);
+      }
+      (pObj as any).normDays = workingDays;
+      return pObj;
+    }));
   }
 
   async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
@@ -74,11 +85,20 @@ export class PayrollService {
       const payroll = user._id ? payrollMap.get((user._id as any).toString()) : null;
 
       if (payroll) {
+        const pObj = payroll.toObject();
+        const targetPeriod = payroll.period;
 
-        if (payroll.total === 0 && (payroll.accruals > 0 || payroll.workedShifts > 0)) {
-          payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0));
+        let workingDays = 0;
+        if (targetPeriod) {
+          const startDate = new Date(`${targetPeriod}-01`);
+          workingDays = await getWorkingDaysInMonth(startDate);
         }
-        return payroll;
+        pObj.normDays = workingDays;
+
+        if (pObj.total === 0 && (pObj.accruals > 0 || pObj.workedShifts > 0)) {
+          pObj.total = Math.max(0, (pObj.accruals || 0) - (pObj.penalties || 0));
+        }
+        return pObj;
       } else {
 
         // Ищем baseSalary из предыдущих периодов этого сотрудника
@@ -124,7 +144,11 @@ export class PayrollService {
           workedDays = countedRecords.length;
 
 
-          accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
+          if (salaryType === 'shift') {
+            accruals = workedShifts * (shiftRate || baseSalary);
+          } else {
+            accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
+          }
 
           // Holiday Pay Logic
           const dailyRate = workingDaysInPeriod > 0 ? baseSalary / workingDaysInPeriod : 0;
@@ -201,7 +225,6 @@ export class PayrollService {
           shiftRate: shiftRate,
           penalties,
           latePenalties,
-          latePenaltyRate: 1000,
           absencePenalties,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -211,6 +234,7 @@ export class PayrollService {
 
           workedDays: workedDays,
           workedShifts: workedShifts,
+          normDays: countOfWorkdays,
 
           shiftDetails: shiftDetails
         };
@@ -220,47 +244,44 @@ export class PayrollService {
   }
 
   async getById(id: string, userId?: string) {
-    const cacheKey = `${CACHE_KEY_PREFIX}:${id}:${userId || ''}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      const payroll = await Payroll.findById(id)
-        .populate('staffId', 'fullName role');
+    const payroll = await Payroll.findById(id)
+      .populate('staffId', 'fullName role');
 
-      if (!payroll) {
-        throw new Error('Зарплата не найдена');
+    if (!payroll) {
+      throw new Error('Зарплата не найдена');
+    }
+
+    let staffIdStr: string | undefined;
+    if (payroll.staffId) {
+      if (typeof payroll.staffId === 'object' && '_id' in payroll.staffId) {
+        staffIdStr = (payroll.staffId as any)._id?.toString();
+      } else {
+        staffIdStr = String(payroll.staffId);
       }
+    }
 
-      let staffIdStr: string | undefined;
-      if (payroll.staffId) {
-        if (typeof payroll.staffId === 'object' && '_id' in payroll.staffId) {
-          staffIdStr = (payroll.staffId as any)._id?.toString();
-        } else {
-          staffIdStr = String(payroll.staffId);
-        }
-      }
+    if (userId && staffIdStr !== userId) {
+      throw new Error('Forbidden: Payroll record does not belong to user');
+    }
 
-      if (userId && staffIdStr !== userId) {
-        throw new Error('Forbidden: Payroll record does not belong to user');
-      }
-
-      return payroll;
-    }, CACHE_TTL);
+    return payroll;
   }
 
   async getPayrollForUser(userId: string, period: string) {
-    const cacheKey = `${CACHE_KEY_PREFIX}:user:${userId}:${period}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      // Logic inside ensurePayrollForUser involves creation/calculation, might not be safe to cache purely?
-      // But getPayrollForUser returns the record.
-      // ensurePayrollForUser is a side-effect. We shoud keep it outside cache or cache the result AFTER ensuring.
-      // But ensurePayrollForUser involves DB writes.
 
-      await this.ensurePayrollForUser(userId, period);
 
-      const payroll = await Payroll.findOne({ staffId: userId, period })
-        .populate('staffId', 'fullName role');
+    await this.ensurePayrollForUser(userId, period);
 
-      return payroll;
-    }, CACHE_TTL);
+    const payroll = await Payroll.findOne({ staffId: userId, period })
+      .populate('staffId', 'fullName role');
+
+    if (!payroll) return null;
+
+    const pObj = payroll.toObject();
+    const startDate = new Date(`${pObj.period}-01`);
+    (pObj as any).normDays = await getWorkingDaysInMonth(startDate);
+
+    return pObj;
   }
 
   async create(payrollData: Partial<IPayroll>) {
@@ -281,7 +302,9 @@ export class PayrollService {
 
     const populatedPayroll = await Payroll.findById(payroll._id).populate('staffId', 'fullName role telegramChatId');
 
-    if (populatedPayroll?.staffId && (populatedPayroll.staffId as any).telegramChatId) {
+    if (!populatedPayroll) return null;
+
+    if (populatedPayroll.staffId && (populatedPayroll.staffId as any).telegramChatId) {
       let msg = `Ваша зарплата за период ${populatedPayroll.period}:\n` +
         `Основная: ${populatedPayroll.baseSalary} тг\n` +
         `Бонусы: ${populatedPayroll.bonuses} тг\n` +
@@ -291,8 +314,12 @@ export class PayrollService {
         `Статус: ${(populatedPayroll.status === 'paid') ? 'Выплачено' : 'Начислено'}`;
       await sendTelegramNotification((populatedPayroll.staffId as any).telegramChatId, msg);
     }
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    return populatedPayroll;
+
+    const pObj = populatedPayroll.toObject();
+    const startDate = new Date(`${pObj.period}-01`);
+    (pObj as any).normDays = await getWorkingDaysInMonth(startDate);
+
+    return pObj;
   }
 
   async update(id: string, data: Partial<IPayroll>, userId: string) {
@@ -302,7 +329,7 @@ export class PayrollService {
     }
 
 
-    if (payroll.staffId?.toString() !== userId) {
+    if (userId && payroll.staffId?.toString() !== userId) {
       throw new Error('Forbidden: Payroll record does not belong to user');
     }
 
@@ -319,38 +346,7 @@ export class PayrollService {
       let currentPenalties = payroll.penalties || 0;
 
 
-      if (data.latePenaltyRate !== undefined && data.latePenaltyRate !== payroll.latePenaltyRate) {
-
-        if (payroll.staffId && payroll.period) {
-          try {
-            const staffId = typeof payroll.staffId === 'object' ? (payroll.staffId as any)._id : payroll.staffId;
-            const staff = await User.findById(staffId);
-
-            if (staff) {
-              const safeRate = (data.latePenaltyRate !== undefined) ? Number(data.latePenaltyRate) : 50;
-
-              const recalc = await calculatePenalties(staffId.toString(), payroll.period, staff as any, safeRate);
-
-
-              payroll.latePenalties = recalc.latePenalties;
-              payroll.latePenaltyRate = safeRate;
-              payroll.absencePenalties = recalc.absencePenalties;
-
-
-              const userFines = payroll.userFines || 0;
-              payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + userFines;
-
-
-              data.latePenalties = payroll.latePenalties;
-              data.latePenaltyRate = payroll.latePenaltyRate;
-              data.absencePenalties = payroll.absencePenalties;
-              data.penalties = payroll.penalties;
-            }
-          } catch (e) {
-            console.error('Error recalculating penalties on rate change:', e);
-          }
-        }
-      } else if (data.penalties !== undefined) {
+      if (data.penalties !== undefined) {
         currentPenalties = data.penalties;
       }
 
@@ -365,7 +361,7 @@ export class PayrollService {
 
     const allowedFields = [
       'period', 'baseSalary', 'baseSalaryType', 'shiftRate', 'bonuses', 'deductions', 'accruals',
-      'penalties', 'latePenalties', 'latePenaltyRate', 'absencePenalties', 'userFines', 'workedDays',
+      'penalties', 'latePenalties', 'absencePenalties', 'userFines', 'workedDays',
       'workedShifts', 'fines', 'status', 'total', 'paymentDate', 'history'
     ];
 
@@ -396,13 +392,11 @@ export class PayrollService {
     }
 
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
+    const pObj = updatedPayroll.toObject();
+    const startDate = new Date(`${pObj.period}-01`);
+    (pObj as any).normDays = await getWorkingDaysInMonth(startDate);
 
-    return updatedPayroll;
+    return pObj;
   }
 
   async delete(id: string) {
@@ -410,12 +404,6 @@ export class PayrollService {
 
     if (!result) {
       throw new Error('Зарплата не найдена');
-    }
-
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
     }
 
     return { message: 'Зарплата успешно удалена' };
@@ -435,12 +423,6 @@ export class PayrollService {
       throw new Error('Зарплата не найдена');
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
-
     return payroll;
   }
 
@@ -456,12 +438,6 @@ export class PayrollService {
 
     if (!payroll) {
       throw new Error('Зарплата не найдена');
-    }
-
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
     }
 
     return payroll;
@@ -495,12 +471,6 @@ export class PayrollService {
 
     await payroll.save();
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
-
     return Payroll.findById(payroll._id).populate('staffId', 'fullName role');
   }
 
@@ -532,12 +502,6 @@ export class PayrollService {
     payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
 
     await payroll.save();
-
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return Payroll.findById(payroll._id).populate('staffId', 'fullName role');
   }
@@ -712,7 +676,6 @@ export class PayrollService {
         penalties: totalPenalties,
         fines: newFines,
         latePenalties: latePenalties,
-        latePenaltyRate: 1000,
         absencePenalties: absencePenalties,
         userFines: 0,
         workedDays: workedDays,
@@ -883,7 +846,6 @@ export class PayrollService {
           penalties: totalPenalties,
           fines: newFines,
           latePenalties: latePenalties,
-          latePenaltyRate: 1000,
           absencePenalties: absencePenalties,
           userFines: 0,
           workedDays: workedDays,

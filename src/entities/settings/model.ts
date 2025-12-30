@@ -15,6 +15,9 @@ export interface IKindergartenSettings extends Document {
   timezone: string;
   language: string;
   currency: string;
+  payroll?: {
+    latePenaltyRate: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }

@@ -24,6 +24,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   const settingsService = new SettingsService();
   const settings = await settingsService.getKindergartenSettings();
   const timezone = settings?.timezone || 'Asia/Almaty';
+  const globalLatePenaltyRate = settings?.payroll?.latePenaltyRate || 50;
 
 
   const attendanceRecords = await StaffAttendanceTracking.find({
@@ -46,7 +47,8 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   if (rateOverride !== undefined) {
     penaltyAmount = rateOverride;
   } else {
-    penaltyAmount = (employee as any).penaltyAmount || 1000;
+
+    penaltyAmount = (employee as any).penaltyAmount || globalLatePenaltyRate;
   }
 
 
@@ -55,6 +57,11 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     date: { $regex: new RegExp(`^${month}`) }
   });
   const shiftsMap = new Map(shifts.map((s: any) => [s.date, s]));
+
+
+  const workDaysInMonth = await getWeekdaysInMonth(startDate.getFullYear(), startDate.getMonth());
+  const baseSalary = (employee as any).baseSalary || 180000;
+  const dailyRate = workDaysInMonth > 0 ? Math.round(baseSalary / workDaysInMonth) : 0;
 
   for (const record of attendanceRecords) {
 
@@ -84,11 +91,9 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     let schedStartH = 8;
     let schedStartM = 0;
 
-    // Use global settings for start time if available
     if (settings && settings.workingHours && settings.workingHours.start) {
       [schedStartH, schedStartM] = settings.workingHours.start.split(':').map(Number);
     } else if (shift && (shift as any).startTime) {
-      // Legacy fallback: if shift still has startTime
       [schedStartH, schedStartM] = (shift as any).startTime.split(':').map(Number);
     }
 
@@ -110,12 +115,14 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     let lateMinutes = 0;
     if (actualMinutes > scheduledMinutes) {
       lateMinutes = actualMinutes - scheduledMinutes;
+      // Round to nearest integer per user request
+      lateMinutes = Math.round(lateMinutes);
 
       console.log(`[PENALTY-DEBUG] User: ${employee.fullName}`);
       console.log(`  Shift Time: ${shift.startTime} (${scheduledMinutes} min from midnight)`);
       console.log(`  Actual Start (UTC): ${actualStartUTC.toISOString()}`);
       console.log(`  Actual Local Time: ${Math.floor(actualMinutes / 60)}:${String(actualMinutes % 60).padStart(2, '0')}`);
-      console.log(`  Late Minutes: ${lateMinutes}`);
+      console.log(`  Late Minutes (Rounded): ${lateMinutes}`);
     }
 
 
@@ -125,12 +132,22 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
 
     if (lateMinutes > 0 && penaltyAmount > 0) {
+      // Calculate penalty
+      let penalty = lateMinutes * penaltyAmount;
 
+      // Cap single day penalty to daily rate
+      // Daily Rate must be strictly checked
+      const maxPenalty = dailyRate > 0 ? dailyRate : Infinity;
 
+      if (penalty > maxPenalty) {
+        console.log(`[PENALTY-CAP] User ${employee.fullName}: Capping penalty ${penalty} to daily rate ${maxPenalty}`);
+        penalty = maxPenalty;
+      }
 
+      // Store the capped penalty temporarily on the record for upstream usage if needed
+      (record as any).calculatedPenalty = penalty;
 
-
-      latePenalties += lateMinutes * penaltyAmount;
+      latePenalties += penalty;
     }
 
 
@@ -270,7 +287,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
 
         if (workDaysInMonth > 0) {
           // Calculate accruals
-          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
+          accruals = Math.round(baseSalary / workDaysInMonth) * workedShifts;
 
           // Holiday Pay Logic
           const dailyRate = Math.round(baseSalary / workDaysInMonth);
@@ -336,13 +353,19 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       const lateRate = Number(attendancePenalties.details.penaltyAmount || 0);
       for (const record of attendancePenalties.attendanceRecords) {
         if (record.lateMinutes > 0) {
-          const amount = record.lateMinutes * lateRate;
-          if (amount > 0) {
 
+          // Use pre-calculated capped penalty from calculatePenalties if available
+          let amount = (record as any).calculatedPenalty;
+          if (amount === undefined) {
+            // Fallback if not set (should not happen with new logic)
+            amount = record.lateMinutes * lateRate;
+          }
+
+          if (amount > 0) {
             const fineDate = new Date(record.actualStart);
             newFines.push({
               amount: amount,
-              reason: `Опоздание: ${record.lateMinutes} мин`,
+              reason: `Опоздание: ${Math.round(record.lateMinutes)} мин`,
               type: 'late',
               date: fineDate,
               createdAt: new Date()
@@ -408,7 +431,6 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         existingPayroll.userFines = manualFines.reduce((sum, f) => sum + f.amount, 0);
 
         existingPayroll.latePenalties = attendancePenalties.latePenalties;
-        existingPayroll.latePenaltyRate = lateRate;
         existingPayroll.absencePenalties = attendancePenalties.absencePenalties;
 
         existingPayroll.total = total;
@@ -429,7 +451,6 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           penalties: totalPenalties,
           fines: allFines,
           latePenalties: attendancePenalties.latePenalties,
-          latePenaltyRate: lateRate,
           absencePenalties: attendancePenalties.absencePenalties,
           userFines: 0,
           baseSalary: baseSalary,
