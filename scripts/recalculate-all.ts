@@ -197,7 +197,6 @@ const recalculateAllPayrolls = async () => {
                 payroll.shiftDetails = shiftDetails;
                 payroll.fines = allFines;
                 payroll.latePenalties = latePenalties;
-                payroll.latePenaltyRate = 13;
                 payroll.absencePenalties = absencePenalties;
                 payroll.userFines = userFines;
                 payroll.penalties = totalPenalties;
