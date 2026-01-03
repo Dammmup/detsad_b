@@ -18,13 +18,29 @@ export const getSalarySummary = async (req: AuthenticatedRequest, res: Response)
       return res.status(400).json({ error: 'startDate and endDate are required' });
     }
 
-    const filter: any = {};
-    if (userId) {
-      filter.staffId = new mongoose.Types.ObjectId(userId as string);
-    }
-
     const startPeriod = (startDate as string).substring(0, 7);
     const endPeriod = (endDate as string).substring(0, 7);
+
+    // Гарантируем наличие записей за указанные периоды
+    const periods = [];
+    if (startPeriod === endPeriod) {
+      periods.push(startPeriod);
+    } else {
+      // Для простоты берем только начало и конец, если диапазон широкий (обычно это 1 месяц)
+      periods.push(startPeriod, endPeriod);
+    }
+
+    for (const p of [...new Set(periods)]) {
+      await payrollService.ensurePayrollRecordsForPeriod(p);
+    }
+
+    const filter: any = {};
+
+    // Если администратор, всегда показываем общую сводку по всем сотрудникам.
+    // Если не админ (хотя роут защищен), или если в будущем разрешим сотрудникам смотреть свою сводку.
+    if (req.user.role !== 'admin' && userId) {
+      filter.staffId = new mongoose.Types.ObjectId(userId as string);
+    }
 
     if (startPeriod === endPeriod) {
       filter.period = startPeriod;
