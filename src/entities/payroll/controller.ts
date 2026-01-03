@@ -4,6 +4,60 @@ import { AuthUser } from '../../middlewares/authMiddleware';
 import { autoCalculatePayroll } from '../../services/payrollAutomationService';
 import Payroll from './model';
 import User from '../users/model';
+import mongoose from 'mongoose';
+
+export const getSalarySummary = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const { startDate, endDate, userId } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' });
+    }
+
+    const filter: any = {};
+    if (userId) {
+      filter.staffId = new mongoose.Types.ObjectId(userId as string);
+    }
+
+    const startPeriod = (startDate as string).substring(0, 7);
+    const endPeriod = (endDate as string).substring(0, 7);
+
+    if (startPeriod === endPeriod) {
+      filter.period = startPeriod;
+    } else {
+      filter.period = { $gte: startPeriod, $lte: endPeriod };
+    }
+
+    const payrolls = await Payroll.find(filter);
+
+    const stats = payrolls.reduce((acc: any, p: any) => {
+      acc.totalAccruals += (p.accruals || 0);
+      acc.totalAdvance += (p.advance || 0);
+      acc.totalPenalties += (p.penalties || 0);
+      acc.totalPayout += (p.total || 0);
+      acc.totalAccrualsCount += (p.accruals > 0 ? 1 : 0);
+      acc.totalPenaltiesCount += (p.penalties > 0 ? 1 : 0);
+      return acc;
+    }, {
+      totalAccruals: 0,
+      totalAdvance: 0,
+      totalPenalties: 0,
+      totalPayout: 0,
+      totalEmployees: new Set(payrolls.map(p => p.staffId?.toString())).size,
+      totalAccrualsCount: 0,
+      totalPenaltiesCount: 0
+    });
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error in getSalarySummary:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
 
 
 interface AuthenticatedRequest extends Request {

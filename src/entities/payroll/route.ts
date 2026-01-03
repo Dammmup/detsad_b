@@ -15,7 +15,8 @@ import {
   removeFine,
   getTotalFines,
   getMyPayrolls,
-  getPayrollBreakdown
+  getPayrollBreakdown,
+  getSalarySummary
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -30,6 +31,7 @@ router.get('/', authMiddleware, authorizeRole(['admin', 'manager']), getAllPayro
 
 
 router.get('/by-users', authMiddleware, authorizeRole(['admin', 'manager']), getAllPayrollsByUsers);
+router.get('/summary', authMiddleware, authorizeRole(['admin']), getSalarySummary);
 
 
 router.get('/breakdown/:id', authMiddleware, getPayrollBreakdown);
