@@ -60,23 +60,37 @@ export class Qwen3ChatService {
 
       // Замена {count}
       if (typeof data === 'number') {
-        result = result.replace('{count}', data.toString());
+        result = result.replace(/{count}/g, data.toString());
       } else if (Array.isArray(data)) {
-        result = result.replace('{count}', data.length.toString());
+        result = result.replace(/{count}/g, data.length.toString());
 
-        // Замена {list}
+        // Замена {list} и {result}
         if (data.length > 0) {
           const list = data.map((item: any, index: number) => {
             if (item.fullName) {
               const role = item.role ? ` (${Qwen3ChatService.translateRole(item.role)})` : '';
-              return `${index + 1}. ${item.fullName}${role}`;
+              const phone = item.phone ? `, тел: ${item.phone}` : '';
+              return `${index + 1}. ${item.fullName}${role}${phone}`;
+            }
+            if (item.name) {
+              return `${index + 1}. ${item.name}`;
             }
             return `${index + 1}. ${JSON.stringify(item)}`;
           }).join('\n');
-          result = result.replace('{list}', list);
+
+          result = result.replace(/{list}/g, list);
+          result = result.replace(/{result}/g, list);
         } else {
-          result = result.replace('{list}', 'Список пуст');
+          result = result.replace(/{list}/g, 'Список пуст');
+          result = result.replace(/{result}/g, 'Данные не найдены');
         }
+      } else if (data && typeof data === 'object') {
+        // Одиночный объект
+        const itemStr = data.fullName
+          ? `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`
+          : JSON.stringify(data);
+
+        result = result.replace(/{result}/g, itemStr);
       }
 
       return result;
@@ -95,7 +109,8 @@ export class Qwen3ChatService {
       const formatted = data.slice(0, 10).map((item: any, index: number) => {
         if (item.fullName) {
           const role = item.role ? ` (${Qwen3ChatService.translateRole(item.role)})` : '';
-          return `${index + 1}. ${item.fullName}${role}`;
+          const phone = item.phone ? `, тел: ${item.phone}` : '';
+          return `${index + 1}. ${item.fullName}${role}${phone}`;
         }
         if (item.name) {
           return `${index + 1}. ${item.name}`;
@@ -109,7 +124,7 @@ export class Qwen3ChatService {
 
     if (data && typeof data === 'object') {
       if (data.fullName) {
-        return `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}`;
+        return `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`;
       }
       return JSON.stringify(data, null, 2);
     }
