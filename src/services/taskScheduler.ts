@@ -82,13 +82,14 @@ export const initializeTaskScheduler = () => {
       const now = new Date();
       const timeInAstana = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
       if (timeInAstana.getHours() === 11) {
-        const shifts = await Shift.find({ date: now.toISOString().split('T')[0] });
+        const todayStr = now.toISOString().split('T')[0];
+        const staffShifts = await Shift.find({ [`shifts.${todayStr}`]: { $exists: true } });
         const attendanceRecords = await StaffAttendanceTracking.find({
           date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 59, 999)) },
           actualStart: { $ne: null }
         });
         const users = await User.find({
-          _id: { $in: shifts.map(shift => shift.staffId) }
+          _id: { $in: staffShifts.map(s => s.staffId) }
         });
         await sendLogToTelegram(`В 11:00 по времени Астаны: отмечен приход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
       }
@@ -103,13 +104,14 @@ export const initializeTaskScheduler = () => {
       const now = new Date();
       const timeInAstana = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
       if (timeInAstana.getHours() === 18) {
-        const shifts = await Shift.find({ date: now.toISOString().split('T')[0] });
+        const todayStr = now.toISOString().split('T')[0];
+        const staffShifts = await Shift.find({ [`shifts.${todayStr}`]: { $exists: true } });
         const attendanceRecords = await StaffAttendanceTracking.find({
           date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 999)) },
           actualEnd: { $ne: null }
         });
         const users = await User.find({
-          _id: { $in: shifts.map(shift => shift.staffId) }
+          _id: { $in: staffShifts.map(s => s.staffId) }
         });
         await sendLogToTelegram(`В 18:00 по времени Астаны: отмечен уход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
       }
@@ -125,12 +127,23 @@ export const initializeTaskScheduler = () => {
       const today = now.toISOString().split('T')[0];
 
       // Получаем все смены на сегодня
-      const shifts = await Shift.find({ date: today });
+      const staffShifts = await Shift.find({ [`shifts.${today}`]: { $exists: true } });
 
-      if (shifts.length === 0) {
+      if (staffShifts.length === 0) {
         await sendLogToTelegram(`📊 <b>Итоги дня: ${new Date().toLocaleDateString('ru-RU')}</b>\n\nНа сегодня нет назначенных смен.`);
         return;
       }
+
+      // Разворачиваем смены для совместимости с логикой ниже
+      const shifts = staffShifts.map(doc => {
+        const detail = doc.shifts.get(today)!;
+        return {
+          ...detail,
+          staffId: doc.staffId,
+          date: today,
+          _id: `${doc.staffId}_${today}`
+        };
+      });
 
       // Получаем записи посещаемости за сегодня
       const startOfDay = new Date(now);
@@ -150,7 +163,7 @@ export const initializeTaskScheduler = () => {
       const workingEnd = settings?.workingHours?.end || '18:00';
 
       // Получаем данные о сотрудниках
-      const staffIds = shifts.map(shift => shift.staffId);
+      const staffIds = staffShifts.map(s => s.staffId);
       const users = await User.find({ _id: { $in: staffIds } });
       const usersMap = new Map(users.map((u: any) => [u._id.toString(), u.fullName]));
 

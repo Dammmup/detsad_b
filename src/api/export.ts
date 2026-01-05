@@ -516,8 +516,11 @@ router.post('/staff-schedule', authMiddleware, authorizeRole(['admin', 'manager'
     const { format, startDate, endDate, staffId, groupId, status } = req.body;
 
     const query: any = {};
-    if (startDate && endDate) {
-      query.date = { $gte: startDate, $lte: endDate };
+    if (startDate) {
+      query.startDate = startDate;
+    }
+    if (endDate) {
+      query.endDate = endDate;
     }
     if (staffId) {
       query.staffId = staffId;

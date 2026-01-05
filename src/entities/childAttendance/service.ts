@@ -20,53 +20,53 @@ export class ChildAttendanceService {
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
     const filter: any = {};
 
-
     if (role === 'teacher' || role === 'assistant') {
-
       if (filters.groupId) {
-        filter.groupId = filters.groupId;
+        filter['attendance'] = { $elemMatch: { groupId: filters.groupId } };
       } else {
-
         const teacherGroups = await Group.find({ teacherId: userId });
-        filter.groupId = { $in: teacherGroups.map(g => g._id) };
+        const groupIds = teacherGroups.map(g => g._id);
+        filter['attendance'] = { $elemMatch: { groupId: { $in: groupIds } } };
       }
     } else if (filters.groupId) {
-      filter.groupId = filters.groupId;
+      filter['attendance'] = { $elemMatch: { groupId: filters.groupId } };
     }
 
     if (filters.childId) {
       filter.childId = filters.childId;
     }
 
-    if (filters.date) {
-
-      const targetDateStr = filters.date as string;
-      const targetDate = new Date(`${targetDateStr}T00:00:00.000Z`);
-      filter.date = {
-        $gte: targetDate,
-        $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
-      };
-    } else if (filters.startDate && filters.endDate) {
-
-      const startDate = new Date(`${filters.startDate as string}T00:00:00.000Z`);
-      const endDate = new Date(`${filters.endDate as string}T00:00:00.000Z`);
-
-      endDate.setDate(endDate.getDate() + 1);
-      filter.date = {
-        $gte: startDate,
-        $lte: endDate
-      };
-    }
-
-    if (filters.status) {
-      filter.status = filters.status;
-    }
-
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      return await ChildAttendance.find(filter)
-        .sort({ date: -1, childId: 1 });
+    const results = await cacheService.getOrSet(cacheKey, async () => {
+      return await ChildAttendance.find(filter);
     }, CACHE_TTL);
+
+    // Flattening for frontend compatibility
+    const flattened: any[] = [];
+    results.forEach((doc: any) => {
+      doc.attendance.forEach((detail: any, date: string) => {
+        // Apply date filters if any
+        let include = true;
+        if (filters.date && date !== filters.date) include = false;
+        if (filters.startDate && date < filters.startDate) include = false;
+        if (filters.endDate && date > filters.endDate) include = false;
+        if (filters.status && detail.status !== filters.status) include = false;
+
+        // Filter by groupId if needed after flattening (since elemMatch is at document level)
+        if (filters.groupId && detail.groupId.toString() !== filters.groupId) include = false;
+
+        if (include) {
+          flattened.push({
+            ...detail.toObject ? detail.toObject() : detail,
+            _id: `${doc.childId}_${date}`,
+            childId: doc.childId,
+            date: date,
+          });
+        }
+      });
+    });
+
+    return flattened.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async createOrUpdate(attendanceData: any, userId: string) {
@@ -76,23 +76,20 @@ export class ChildAttendanceService {
       throw new Error('Обязательные поля: childId, groupId, date, status');
     }
 
-
     const canMarkAttendance = await this.checkAttendancePermission(userId, groupId, date);
     if (!canMarkAttendance) {
       throw new Error('Нет прав для отметки посещаемости в этой группе');
     }
 
+    const dateStr = date.split('T')[0];
 
-    const dateObj = new Date(`${date}T0:00:00.000Z`);
-    const existingRecord = await ChildAttendance.findOne({
-      childId,
-      date: dateObj
-    });
+    let doc = await ChildAttendance.findOne({ childId });
+    if (!doc) {
+      doc = new ChildAttendance({ childId, attendance: {} });
+    }
 
-    const newAttendanceData = {
-      childId,
+    const newDetail = {
       groupId,
-      date: dateObj,
       status,
       actualStart: actualStart ? new Date(actualStart) : undefined,
       actualEnd: actualEnd ? new Date(actualEnd) : undefined,
@@ -100,23 +97,10 @@ export class ChildAttendanceService {
       markedBy: userId
     };
 
-    let attendance;
-    if (existingRecord) {
-
-      attendance = await ChildAttendance.findOneAndUpdate(
-        { childId, date: dateObj },
-        newAttendanceData,
-        { new: true }
-      );
-    } else {
-
-      attendance = new ChildAttendance(newAttendanceData);
-      await attendance.save();
-    }
+    doc.attendance.set(dateStr, newDetail as any);
+    await doc.save();
 
     try {
-
-
       if (this.adminChatId) {
         const child = await Child.findById(childId);
         const group = await Group.findById(groupId);
@@ -125,7 +109,7 @@ export class ChildAttendanceService {
           absent: 'отсутствует',
           sick: 'болеет',
           vacation: 'в отпуске'
-        }
+        };
         const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
         const message = `Ребенок ${child?.fullName} из группы "${group?.name}" отмечен как ${statusMap[status] || status} в ${timeStr}`;
         await sendLogToTelegram(message);
@@ -134,27 +118,15 @@ export class ChildAttendanceService {
       console.error('Telegram notify error:', e);
     }
 
-    try {
-
-
-      if (this.adminChatId) {
-        const child = await Child.findById(childId);
-        const group = await Group.findById(groupId);
-        const statusMap: any = {
-          present: 'присутствует',
-          absent: 'отсутствует',
-          sick: 'болеет',
-          vacation: 'в отпуске'
-        }
-        const message = `Ребенок ${child?.fullName} из группы "${group?.name}" отмечен как ${statusMap[status] || status}`;
-        await sendLogToTelegram(message);
-      }
-    } catch (e) {
-      console.error('Telegram notify error:', e);
-    }
-
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    return attendance;
+
+    // Return flattened version for frontend
+    return {
+      ...newDetail,
+      _id: `${childId}_${dateStr}`,
+      childId,
+      date: dateStr
+    };
   }
 
   async bulkCreateOrUpdate(records: any[], groupId: string, userId: string) {
@@ -165,84 +137,49 @@ export class ChildAttendanceService {
     const results: any[] = [];
     const errors: Array<{ record: any; error: string }> = [];
 
+    // Group records by childId for efficiency
+    const recordsByChild: Record<string, any[]> = {};
     for (const record of records) {
+      const cid = record.childId.toString();
+      if (!recordsByChild[cid]) recordsByChild[cid] = [];
+      recordsByChild[cid].push(record);
+    }
+
+    for (const [childId, childRecords] of Object.entries(recordsByChild)) {
       try {
-        const { childId, date, status, notes } = record;
-
-        if (!childId || !date || !status) {
-          errors.push({ record, error: `Отсутствуют обязательные поля: childId=${!!childId}, date=${!!date}, status=${!!status}` });
-          continue;
+        let doc = await ChildAttendance.findOne({ childId });
+        if (!doc) {
+          doc = new ChildAttendance({ childId, attendance: {} });
         }
 
+        for (const record of childRecords) {
+          const { date, status, notes } = record;
+          if (!date || !status) continue;
 
-        const canMarkAttendance = await this.checkAttendancePermission(userId, groupId, date);
-        if (!canMarkAttendance) {
-          errors.push({ record, error: 'Нет прав для отметки посещаемости в этой группе' });
-          continue;
+          const canMarkAttendance = await this.checkAttendancePermission(userId, groupId, date);
+          if (!canMarkAttendance) continue;
+
+          const dateStr = date.split('T')[0];
+          const newDetail = {
+            groupId,
+            status,
+            actualStart: record.actualStart ? new Date(record.actualStart) : undefined,
+            actualEnd: record.actualEnd ? new Date(record.actualEnd) : undefined,
+            notes,
+            markedBy: userId
+          };
+
+          doc.attendance.set(dateStr, newDetail as any);
+          results.push({ ...newDetail, childId, date: dateStr, _id: `${childId}_${dateStr}` });
         }
 
-
-        let childObjectId: mongoose.Types.ObjectId;
-        let groupObjectId: mongoose.Types.ObjectId;
-
-        try {
-          childObjectId = typeof childId === 'string' ? new mongoose.Types.ObjectId(childId) : childId;
-        } catch (e) {
-          errors.push({ record, error: `Неверный формат childId: ${childId}` });
-          continue;
-        }
-
-        try {
-          groupObjectId = typeof groupId === 'string' ? new mongoose.Types.ObjectId(groupId) : groupId;
-        } catch (e) {
-          errors.push({ record, error: `Неверный формат groupId: ${groupId}` });
-          continue;
-        }
-
-
-        const dateObj = new Date(`${date}T00:00:00.000Z`);
-        const existingRecord = await ChildAttendance.findOne({
-          childId: childObjectId,
-          groupId: groupObjectId,
-          date: dateObj
-        });
-
-        const attendanceData = {
-          childId: childObjectId,
-          groupId: groupObjectId,
-          date: dateObj,
-          status,
-          actualStart: record.actualStart ? new Date(record.actualStart) : undefined,
-          actualEnd: record.actualEnd ? new Date(record.actualEnd) : undefined,
-          notes,
-          markedBy: typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId
-        };
-
-        let attendance;
-        if (existingRecord) {
-          attendance = await ChildAttendance.findByIdAndUpdate(
-            existingRecord._id,
-            attendanceData,
-            { new: true }
-          );
-        } else {
-          attendance = new ChildAttendance(attendanceData);
-          await attendance.save();
-        }
-
-        if (!attendance) {
-          errors.push({ record, error: 'Не удалось создать или обновить запись посещаемости' });
-          continue;
-        }
-
-        results.push(attendance);
+        await doc.save();
       } catch (err: any) {
-        errors.push({ record, error: err.message });
+        errors.push({ record: childRecords[0], error: err.message });
       }
     }
 
     try {
-
       if (this.adminChatId && results.length > 0) {
         const group = await Group.findById(groupId);
         const statusMap: any = {
@@ -250,58 +187,16 @@ export class ChildAttendanceService {
           absent: 'отсутствует',
           sick: 'болеет',
           vacation: 'в отпуске'
-        }
-        const childNames = await Child.find({ _id: { $in: results.map(r => r.childId) } }).select('fullName');
-        const childNameMap = childNames.reduce((acc: any, child: any) => {
-          acc[child._id.toString()] = child.fullName;
-          return acc;
-        }, {});
-
-        const messages = results.map(r => {
-          return `Ребенок ${childNameMap[r.childId.toString()]} отмечен как ${statusMap[r.status] || r.status}`;
-        });
-
-        const message = `Массовое обновление посещаемости для группы "${group?.name}":\n- ${messages.join('\n- ')}`;
-        await sendLogToTelegram(message);
-      }
-    } catch (e) {
-      console.error('Telegram notify error:', e);
-    }
-
-    try {
-
-
-      if (this.adminChatId && results.length > 0) {
-        const group = await Group.findById(groupId);
-        const statusMap: any = {
-          present: 'присутствует',
-          absent: 'отсутствует',
-          sick: 'болеет',
-          vacation: 'в отпуске'
-        }
-        const childNames = await Child.find({ _id: { $in: results.map(r => r.childId) } }).select('fullName');
-        const childNameMap = childNames.reduce((acc: any, child: any) => {
-          acc[child._id.toString()] = child.fullName;
-          return acc;
-        }, {});
-
+        };
         const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        const messages = results.map(r => {
-          return `Ребенок ${childNameMap[r.childId.toString()]} отмечен как ${statusMap[r.status] || r.status}`;
-        });
-
-        const message = `Массовое обновление посещаемости для группы "${group?.name}" в ${timeStr}:\n- ${messages.join('\n- ')}`;
+        const message = `Массовое обновление посещаемости для группы "${group?.name}" в ${timeStr}. Обновлено ${results.length} записей.`;
         await sendLogToTelegram(message);
       }
     } catch (e) {
       console.error('Telegram notify error:', e);
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
+    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
 
     return {
       success: results.length,
@@ -314,52 +209,38 @@ export class ChildAttendanceService {
   async getStats(filters: { groupId?: string, startDate?: string, endDate?: string }) {
     const cacheKey = `${CACHE_KEY_PREFIX}:stats:${JSON.stringify(filters)}`;
     return await cacheService.getOrSet(cacheKey, async () => {
-      const filter: any = {};
+      const records = await this.getAll(filters, 'admin', 'admin');
 
-      if (filters.groupId) {
-        filter.groupId = filters.groupId;
-      }
+      const stats: Record<string, number> = {};
+      records.forEach((r: any) => {
+        stats[r.status] = (stats[r.status] || 0) + 1;
+      });
 
-      if (filters.startDate && filters.endDate) {
-        filter.date = {
-          $gte: new Date(filters.startDate as string),
-          $lte: new Date(filters.endDate as string)
-        };
-      }
-
-      const stats = await ChildAttendance.aggregate([
-        { $match: filter },
-        {
-          $group: {
-            _id: '$status',
-            count: { $sum: 1 }
-          }
-        }
-      ]);
-
-      const totalRecords = await ChildAttendance.countDocuments(filter);
-
-      const result = {
-        total: totalRecords,
-        byStatus: stats.reduce((acc: any, stat: any) => {
-          acc[stat._id] = stat.count;
-          return acc;
-        }, {}),
-        attendanceRate: totalRecords > 0
-          ? Math.round(((stats.find((s: any) => s._id === 'present')?.count || 0) / totalRecords) * 100)
+      const total = records.length;
+      return {
+        total,
+        byStatus: stats,
+        attendanceRate: total > 0
+          ? Math.round(((stats['present'] || 0) / total) * 100)
           : 0
       };
-
-      return result;
     }, CACHE_TTL);
   }
 
   async delete(id: string) {
-    const attendance = await ChildAttendance.findByIdAndDelete(id);
+    // Expected id format: "childId_dateStr"
+    const [childId, dateStr] = id.split('_');
+    if (!childId || !dateStr) {
+      throw new Error('Неверный формат ID для удаления (ожидается childId_YYYY-MM-DD)');
+    }
 
-    if (!attendance) {
+    const doc = await ChildAttendance.findOne({ childId });
+    if (!doc || !doc.attendance.has(dateStr)) {
       throw new Error('Запись не найдена');
     }
+
+    doc.attendance.delete(dateStr);
+    await doc.save();
 
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { message: 'Запись удалена успешно' };
@@ -368,7 +249,7 @@ export class ChildAttendanceService {
   async debug() {
     const totalRecords = await ChildAttendance.countDocuments();
     const recentRecords = await ChildAttendance.find()
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1 })
       .limit(5);
 
     return {
@@ -378,39 +259,26 @@ export class ChildAttendanceService {
     };
   }
 
-
   private async checkAttendancePermission(userId: string, groupId: string, date: string): Promise<boolean> {
-
     const user = await User.findById(userId);
     if (user && (user.role === 'admin' || user.role === 'manager')) {
       return true;
     }
-
 
     const group = await Group.findById(groupId);
     if (group && (group.teacherId?.toString() === userId || group.assistantId?.toString() === userId)) {
       return true;
     }
 
-
-    const shiftDate = new Date(date).toISOString().split('T')[0];
+    const shiftDate = date.split('T')[0];
     const shift = await Shift.findOne({
-      date: shiftDate,
       $or: [
-        { staffId: new mongoose.Types.ObjectId(userId) },
-        { alternativeStaffId: new mongoose.Types.ObjectId(userId) }
+        { staffId: new mongoose.Types.ObjectId(userId), [`shifts.${shiftDate}`]: { $exists: true } },
+        { [`shifts.${shiftDate}.alternativeStaffId`]: new mongoose.Types.ObjectId(userId) }
       ]
     });
 
-    if (shift) {
-
-
-
-
-      return true;
-    }
-
-    return false;
+    return !!shift;
   }
 }
 export const getChildAttendance = async (filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) => {

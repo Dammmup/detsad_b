@@ -105,7 +105,7 @@ async function importStaffAttendance() {
         if (!db) throw new Error('База данных не доступна');
 
         const usersCollection = db.collection('users');
-        const shiftsCollection = db.collection('shifts');
+        const shiftsCollection = db.collection('staff_shifts');
         const staffAttendanceCollection = db.collection('staff_attendance_tracking');
 
         console.log('📚 Загружаем данные...');
@@ -177,20 +177,20 @@ async function importStaffAttendance() {
 
                 const dateStr = dateInfo.date.toISOString().split('T')[0];
 
-                const shiftRecord: any = {
-                    staffId: user._id,
-                    date: dateStr,
-                    startTime: start,
-                    endTime: end || '18:00',
+                const shiftDetail: any = {
                     status: 'completed',
                     createdBy: adminId,
                     updatedAt: new Date(),
+                    createdAt: new Date()
                 };
 
                 const shiftResult = await shiftsCollection.updateOne(
-                    { staffId: user._id, date: dateStr },
+                    { staffId: user._id },
                     {
-                        $set: shiftRecord,
+                        $set: {
+                            [`shifts.${dateStr}`]: shiftDetail,
+                            updatedAt: new Date()
+                        },
                         $setOnInsert: { createdAt: new Date() }
                     },
                     { upsert: true }

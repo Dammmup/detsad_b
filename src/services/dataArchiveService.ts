@@ -43,15 +43,29 @@ interface CollectionExportResult {
  */
 async function exportChildAttendance(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
+    const archiveDateStr = archiveDate.toISOString().split('T')[0];
 
-    const records = await ChildAttendance.find({
-        date: { $lt: archiveDate }
-    }).populate('childId', 'fullName').populate('groupId', 'name');
+    const childAttendanceDocs = await ChildAttendance.find({}).populate('childId', 'fullName').populate('groupId', 'name');
+    const records: any[] = [];
+
+    childAttendanceDocs.forEach(doc => {
+        doc.attendance.forEach((detail: any, date: string) => {
+            if (date < archiveDateStr) {
+                records.push({
+                    childName: (doc.childId as any)?.fullName || 'Неизвестно',
+                    groupName: (detail.groupId as any)?.name || (doc.attendance.get(date) as any)?.groupId?.name || '-',
+                    date: date,
+                    status: detail.status,
+                    notes: detail.notes || '-'
+                });
+            }
+        });
+    });
 
     const data = records.map((r: any) => ({
-        childName: r.childId?.fullName || 'Неизвестно',
-        groupName: r.groupId?.name || '-',
-        date: new Date(r.date).toLocaleDateString('ru-RU'),
+        childName: r.childName,
+        groupName: r.groupName,
+        date: r.date,
         status: r.status,
         notes: r.notes || '-'
     }));
@@ -180,9 +194,23 @@ async function exportStaffShifts(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
     const archiveDateStr = archiveDate.toISOString().split('T')[0];
 
-    const records = await StaffShift.find({
-        date: { $lt: archiveDateStr }
-    }).populate('staffId', 'fullName');
+    const staffShiftsDocs = await StaffShift.find({}).populate('staffId', 'fullName');
+    const records: any[] = [];
+
+    staffShiftsDocs.forEach(doc => {
+        doc.shifts.forEach((detail: any, date: string) => {
+            if (date < archiveDateStr) {
+                records.push({
+                    staffId: doc.staffId,
+                    date: date,
+                    startTime: detail.startTime || '-',
+                    endTime: detail.endTime || '-',
+                    status: detail.status || '-',
+                    notes: detail.notes || '-'
+                });
+            }
+        });
+    });
 
     const data = records.map((r: any) => ({
         staffName: r.staffId?.fullName || 'Неизвестно',
@@ -279,10 +307,20 @@ async function deleteArchivedRecords(): Promise<void> {
     console.log(`🗑️ Удаление записей старше ${archiveDate.toLocaleDateString('ru-RU')}...`);
 
     // Удаляем посещаемость детей
-    const childAttendanceResult = await ChildAttendance.deleteMany({
-        date: { $lt: archiveDate }
-    });
-    console.log(`  - childAttendance: удалено ${childAttendanceResult.deletedCount} записей`);
+    const childAttendanceDocs = await ChildAttendance.find({});
+    let deletedChildAttendanceCount = 0;
+    for (const doc of childAttendanceDocs) {
+        let modified = false;
+        doc.attendance.forEach((_, date) => {
+            if (date < archiveDateStr) {
+                doc.attendance.delete(date);
+                modified = true;
+                deletedChildAttendanceCount++;
+            }
+        });
+        if (modified) await doc.save();
+    }
+    console.log(`  - childAttendance: удалено ${deletedChildAttendanceCount} записей`);
 
     // Удаляем оплаты детей
     const childPaymentResult = await ChildPayment.deleteMany({
@@ -296,11 +334,21 @@ async function deleteArchivedRecords(): Promise<void> {
     });
     console.log(`  - staffAttendanceTracking: удалено ${staffAttendanceResult.deletedCount} записей`);
 
-    // Удаляём смены сотрудников
-    const shiftsResult = await StaffShift.deleteMany({
-        date: { $lt: archiveDateStr }
-    });
-    console.log(`  - staffShifts: удалено ${shiftsResult.deletedCount} записей`);
+    // Удаляем смены сотрудников
+    const staffShiftsDocs = await StaffShift.find({});
+    let deletedShiftsCount = 0;
+    for (const doc of staffShiftsDocs) {
+        let modified = false;
+        doc.shifts.forEach((_, date) => {
+            if (date < archiveDateStr) {
+                doc.shifts.delete(date);
+                modified = true;
+                deletedShiftsCount++;
+            }
+        });
+        if (modified) await doc.save();
+    }
+    console.log(`  - staffShifts: удалено ${deletedShiftsCount} записей`);
 
     // Удаляём зарплаты
     const payrollResult = await Payroll.deleteMany({

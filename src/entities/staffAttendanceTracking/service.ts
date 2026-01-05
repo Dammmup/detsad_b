@@ -103,13 +103,13 @@ export class StaffAttendanceTrackingService {
     const settings = await settingsService.getKindergartenSettings();
     const workingStart = settings?.workingHours?.start || '09:00';
 
-    const scheduledShift = await Shift.findOne({
-      staffId: userId,
-      date: dateStr
-    });
+    // Ищем запись смен сотрудника
+    const staffShifts = await Shift.findOne({ staffId: userId });
+    const scheduledShift = staffShifts?.shifts.get(dateStr);
 
     if (scheduledShift) {
-      attendanceRecord.shiftId = scheduledShift._id as any;
+      // Подставляем виртуальный ID для совместимости
+      attendanceRecord.shiftId = `${userId}_${dateStr}` as any;
 
       const actualStart = new Date();
       const [hours, minutes] = workingStart.split(':').map(Number);
@@ -190,10 +190,8 @@ export class StaffAttendanceTrackingService {
 
 
     const dateStr = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
-    const scheduledShift = await ShiftModel.findOne({
-      staffId: userId,
-      date: dateStr
-    });
+    const staffShifts = await Shift.findOne({ staffId: userId });
+    const scheduledShift = staffShifts?.shifts.get(dateStr);
 
     const settingsService = new SettingsService();
     const settings = await settingsService.getKindergartenSettings();
@@ -216,8 +214,9 @@ export class StaffAttendanceTrackingService {
       }
 
 
+      // Используем виртуальный ID если его еще нет
       if (!attendanceRecord.shiftId) {
-        attendanceRecord.shiftId = scheduledShift._id;
+        attendanceRecord.shiftId = `${userId}_${dateStr}` as any;
       }
     }
 
@@ -532,7 +531,7 @@ export class StaffAttendanceTrackingService {
     return records;
   }
 
-  async updateStatus(id: string, status: 'on_break' | 'overtime' | 'absent' | 'active' | 'completed' | 'missed' | 'pending_approval' | 'late') {
+  async updateStatus(id: string, status: 'absent' | 'completed' | 'pending_approval' | 'late') {
 
     const record = await StaffAttendanceTracking.findById(id);
     if (!record) {
@@ -540,11 +539,19 @@ export class StaffAttendanceTrackingService {
     }
 
     if (record.shiftId) {
-      const shift = await Shift.findByIdAndUpdate(
-        record.shiftId,
-        { status },
-        { new: true }
-      );
+      // Парсим виртуальный ID: staffId_date
+      const shiftIdStr = record.shiftId.toString();
+      if (shiftIdStr.includes('_')) {
+        const [staffId, date] = shiftIdStr.split('_');
+
+        const staffShifts = await Shift.findOne({ staffId });
+        if (staffShifts && staffShifts.shifts.has(date)) {
+          const shiftDetail = staffShifts.shifts.get(date)!;
+          shiftDetail.status = status;
+          staffShifts.shifts.set(date, shiftDetail);
+          await staffShifts.save();
+        }
+      }
     }
 
     try {

@@ -1,27 +1,21 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface IShift extends Document {
-  staffId: mongoose.Types.ObjectId;
-  date: string;
+export interface IShiftDetail {
   status: 'absent' | 'scheduled' | 'completed' | 'in_progress' | 'pending_approval' | 'late';
   notes?: string;
   createdBy: mongoose.Types.ObjectId;
+  alternativeStaffId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-  alternativeStaffId?: mongoose.Types.ObjectId;
 }
 
-const Shiftschema: Schema = new Schema({
-  staffId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
-  },
-  date: {
-    type: String,
-    required: true,
-    index: true
-  },
+export interface IStaffShifts extends Document {
+  staffId: mongoose.Types.ObjectId;
+  shifts: Map<string, IShiftDetail>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ShiftDetailSchema: Schema = new Schema({
   status: {
     type: String,
     enum: ['absent', 'scheduled', 'completed', 'in_progress', 'pending_approval', 'late'],
@@ -42,28 +36,25 @@ const Shiftschema: Schema = new Schema({
   timestamps: true
 });
 
-// Enforce unique shift per staff per day
-Shiftschema.index({ staffId: 1, date: 1 }, { unique: true });
-
-
-Shiftschema.pre('save', function (this: IShift, next) {
-
-  if (this.isModified('status')) {
-    next();
-    return;
+const StaffShiftsSchema: Schema = new Schema({
+  staffId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true,
+    index: true
+  },
+  shifts: {
+    type: Map,
+    of: ShiftDetailSchema,
+    default: {}
   }
-
-
-
-  if (!this.status || this.status === 'scheduled') {
-    this.status = 'scheduled';
-  }
-
-  next();
+}, {
+  timestamps: true
 });
 
 
-export default mongoose.model<IShift>('Shift', Shiftschema, 'shifts');
+export default mongoose.model<IStaffShifts>('Shift', StaffShiftsSchema, 'shifts');
 
 
 import '../users/model';

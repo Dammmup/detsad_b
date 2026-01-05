@@ -176,21 +176,27 @@ export const importChildAttendance = async (req: Request, res: Response) => {
                 const { start, end, isWeekend } = parseTimeCell(cellValue);
                 if (isWeekend) continue;
 
-                const attendanceRecord: any = {
-                    childId: child._id,
+                const dateStr = dateInfo.date.toISOString().split('T')[0];
+                const attendanceDetail: any = {
                     groupId: groupId,
-                    date: dateInfo.date,
                     status: start ? 'present' : 'absent',
                     markedBy: adminId,
                     updatedAt: new Date(),
+                    createdAt: new Date()
                 };
 
-                if (start) attendanceRecord.actualStart = createDateTime(dateInfo.date, start);
-                if (end) attendanceRecord.actualEnd = createDateTime(dateInfo.date, end);
+                if (start) attendanceDetail.actualStart = createDateTime(dateInfo.date, start);
+                if (end) attendanceDetail.actualEnd = createDateTime(dateInfo.date, end);
 
                 const result = await childAttendanceCollection.updateOne(
-                    { childId: child._id, date: dateInfo.date },
-                    { $set: attendanceRecord, $setOnInsert: { createdAt: new Date() } },
+                    { childId: child._id },
+                    {
+                        $set: {
+                            [`attendance.${dateStr}`]: attendanceDetail,
+                            updatedAt: new Date()
+                        },
+                        $setOnInsert: { createdAt: new Date() }
+                    },
                     { upsert: true }
                 );
 
@@ -221,7 +227,7 @@ export const importStaffAttendance = async (req: Request, res: Response) => {
         if (!db) throw new Error('База данных не доступна');
 
         const usersCollection = db.collection('users');
-        const shiftsCollection = db.collection('shifts');
+        const shiftsCollection = db.collection('staff_shifts');
         const staffAttendanceCollection = db.collection('staff_attendance_tracking');
 
         const users = await usersCollection.find({}).toArray();
@@ -273,19 +279,22 @@ export const importStaffAttendance = async (req: Request, res: Response) => {
                 const dateStr = dateInfo.date.toISOString().split('T')[0];
 
                 // Shift
-                const shiftRecord = {
-                    staffId: user._id,
-                    date: dateStr,
-                    startTime: start,
-                    endTime: end || '18:00',
+                const shiftDetail: any = {
                     status: 'completed',
                     createdBy: adminId,
                     updatedAt: new Date(),
+                    createdAt: new Date()
                 };
 
                 const shiftResult = await shiftsCollection.updateOne(
-                    { staffId: user._id, date: dateStr },
-                    { $set: shiftRecord, $setOnInsert: { createdAt: new Date() } },
+                    { staffId: user._id },
+                    {
+                        $set: {
+                            [`shifts.${dateStr}`]: shiftDetail,
+                            updatedAt: new Date()
+                        },
+                        $setOnInsert: { createdAt: new Date() }
+                    },
                     { upsert: true }
                 );
 

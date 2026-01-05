@@ -1,8 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface IChildAttendance extends Document {
-  childId: mongoose.Types.ObjectId;
+
+export interface IAttendanceDetail {
   groupId: mongoose.Types.ObjectId;
-  date: Date;
   status: 'present' | 'absent' | 'late' | 'sick' | 'vacation';
   actualStart?: Date;
   actualEnd?: Date;
@@ -12,23 +11,18 @@ export interface IChildAttendance extends Document {
   updatedAt: Date;
 }
 
-const ChildAttendanceSchema: Schema = new Schema({
-  childId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-    index: true
-  },
+export interface IChildAttendance extends Document {
+  childId: mongoose.Types.ObjectId;
+  attendance: Map<string, IAttendanceDetail>; // Key could be date string (e.g., "YYYY-MM-DD") or group ID if multiple groups per day
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const AttendanceDetailSchema: Schema = new Schema({
   groupId: {
     type: Schema.Types.ObjectId,
     ref: 'Group',
-    required: true,
-    index: true
-  },
-  date: {
-    type: Date,
-    required: true,
-    index: true
+    required: true
   },
   status: {
     type: String,
@@ -51,23 +45,21 @@ const ChildAttendanceSchema: Schema = new Schema({
   timestamps: true
 });
 
-
-
-ChildAttendanceSchema.virtual('duration').get(function (this: IChildAttendance) {
-  if (!this.actualStart || !this.actualEnd) return 0;
-  return this.actualEnd.getTime() - this.actualStart.getTime();
+const ChildAttendanceSchema: Schema = new Schema({
+  childId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true,
+    index: true
+  },
+  attendance: {
+    type: Map,
+    of: AttendanceDetailSchema,
+    default: {}
+  }
+}, {
+  timestamps: true
 });
-
-
-ChildAttendanceSchema.methods.isLate = function (scheduledTime: string = '08:00') {
-  if (!this.actualStart || this.status !== 'present') return false;
-
-  const [hours, minutes] = scheduledTime.split(':').map(Number);
-  const scheduled = new Date(this.date);
-  scheduled.setHours(hours, minutes, 0, 0);
-
-  return this.actualStart > scheduled;
-};
-
 
 export default mongoose.model<IChildAttendance>('ChildAttendance', ChildAttendanceSchema, 'childattendances');

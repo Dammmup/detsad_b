@@ -52,11 +52,15 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   }
 
 
-  const shifts = await Shift.find({
-    staffId,
-    date: { $regex: new RegExp(`^${month}`) }
-  });
-  const shiftsMap = new Map(shifts.map((s: any) => [s.date, s]));
+  const staffShiftsDoc = await Shift.findOne({ staffId });
+  const shiftsMap = new Map();
+  if (staffShiftsDoc) {
+    staffShiftsDoc.shifts.forEach((detail: any, date: string) => {
+      if (date.startsWith(month)) {
+        shiftsMap.set(date, { ...detail.toObject(), date });
+      }
+    });
+  }
 
 
   const workDaysInMonth = await getWeekdaysInMonth(startDate.getFullYear(), startDate.getMonth());
@@ -93,8 +97,6 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
     if (settings && settings.workingHours && settings.workingHours.start) {
       [schedStartH, schedStartM] = settings.workingHours.start.split(':').map(Number);
-    } else if (shift && (shift as any).startTime) {
-      [schedStartH, schedStartM] = (shift as any).startTime.split(':').map(Number);
     }
 
 

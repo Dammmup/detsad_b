@@ -187,15 +187,14 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
 
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
-    const result = await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData);
-    const shift = await Shift.findById(shiftId);
+    const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData)) as any;
     const user = await User.findById(req.user.id);
-    if (user && shift) {
-      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену за ${shift.date}`);
-    } else if (user) {
-      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену ${shiftId}`);
+    const date = result.shift?.date || 'неизвестную дату';
+
+    if (user) {
+      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену за ${date}`);
     } else {
-      await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил приход на смену ${shiftId}`);
+      await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил приход на смену за ${date}`);
     }
     res.json(result);
   } catch (err) {
@@ -209,7 +208,6 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    const { date } = req.params;
 
     const { shiftId } = req.params;
     const { latitude, longitude } = req.body;
@@ -217,15 +215,14 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
 
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
-    const result = await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData);
-    const shift = await Shift.findById(shiftId);
+    const result = (await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData)) as any;
     const user = await User.findById(req.user.id);
-    if (user && shift) {
-      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены за ${shift.date}`);
-    } else if (user) {
-      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены ${shiftId}`);
+    const date = result.shift?.date || 'неизвестную дату';
+
+    if (user) {
+      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены за ${date}`);
     } else {
-      await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил уход со смены ${shiftId}`);
+      await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил уход со смены за ${date}`);
     }
     res.json(result);
   } catch (err) {

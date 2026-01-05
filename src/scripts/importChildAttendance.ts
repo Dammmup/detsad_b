@@ -184,33 +184,29 @@ async function importChildAttendance() {
 
                 if (isWeekend) continue;
 
-                let status: string;
-                if (start) {
-                    status = 'present';
-                } else {
-                    status = 'absent';
-                }
-
-                const attendanceRecord: any = {
-                    childId: child._id,
+                const dateStr = dateInfo.date.toISOString().split('T')[0];
+                const attendanceDetail: any = {
                     groupId: groupId,
-                    date: dateInfo.date,
-                    status: status,
+                    status: start ? 'present' : 'absent',
                     markedBy: adminId,
                     updatedAt: new Date(),
+                    createdAt: new Date()
                 };
 
                 if (start) {
-                    attendanceRecord.actualStart = createDateTime(dateInfo.date, start);
+                    attendanceDetail.actualStart = createDateTime(dateInfo.date, start);
                 }
                 if (end) {
-                    attendanceRecord.actualEnd = createDateTime(dateInfo.date, end);
+                    attendanceDetail.actualEnd = createDateTime(dateInfo.date, end);
                 }
 
                 const result = await childAttendanceCollection.updateOne(
-                    { childId: child._id, date: dateInfo.date },
+                    { childId: child._id },
                     {
-                        $set: attendanceRecord,
+                        $set: {
+                            [`attendance.${dateStr}`]: attendanceDetail,
+                            updatedAt: new Date()
+                        },
                         $setOnInsert: { createdAt: new Date() }
                     },
                     { upsert: true }

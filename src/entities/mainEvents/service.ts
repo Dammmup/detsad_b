@@ -3,15 +3,16 @@ import MainEvent from './model';
 import EmailService from '../../services/emailService';
 import { IChildAttendance } from '../childAttendance/model';
 import { IChildPayment } from '../childPayment/model';
-import { IShift } from '../staffShifts/model';
 import { IPayroll } from '../payroll/model';
 import { IRent } from '../rent/model';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
 import ChildAttendance from '../childAttendance/model';
 import ChildPayment from '../childPayment/model';
+import { IStaffShifts } from '../staffShifts/model';
 import StaffShift from '../staffShifts/model';
 import Payroll from '../payroll/model';
 import Rent from '../rent/model';
+import { SettingsService } from '../settings/service';
 
 
 
@@ -234,10 +235,29 @@ export class MainEventsService {
 
 
 
-  private async exportChildAttendance(): Promise<IChildAttendance[]> {
-
+  private async exportChildAttendance(): Promise<any[]> {
     console.log('Экспорт данных посещаемости детей');
-    return [] as IChildAttendance[];
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0];
+
+    const docs = await ChildAttendance.find({
+      [`attendance.${dateString}`]: { $exists: true }
+    }).populate('childId', 'fullName');
+
+    const records: any[] = [];
+    docs.forEach(doc => {
+      const detail = doc.attendance.get(dateString);
+      if (detail) {
+        records.push({
+          childName: (doc.childId as any)?.fullName || 'Неизвестно',
+          date: dateString,
+          status: detail.status,
+          notes: detail.notes || '-'
+        });
+      }
+    });
+
+    return records;
   }
 
 
@@ -248,10 +268,33 @@ export class MainEventsService {
   }
 
 
-  private async exportStaffShifts(): Promise<IShift[]> {
-
+  private async exportStaffShifts(): Promise<any[]> {
     console.log('Экспорт данных смен сотрудников');
-    return [] as IShift[];
+    const today = new Date();
+    const dateString = today.toISOString().split('T')[0];
+
+    const settingsService = new SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+
+    const docs = await StaffShift.find({
+      [`shifts.${dateString}`]: { $exists: true }
+    }).populate('staffId', 'fullName');
+
+    const records: any[] = [];
+    docs.forEach(doc => {
+      const detail = doc.shifts.get(dateString);
+      if (detail) {
+        records.push({
+          staffName: (doc.staffId as any)?.fullName || 'Неизвестно',
+          date: dateString,
+          startTime: settings?.workingHours?.start || '08:00',
+          endTime: settings?.workingHours?.end || '18:00',
+          status: detail.status
+        });
+      }
+    });
+
+    return records;
   }
 
 
@@ -298,14 +341,10 @@ export class MainEventsService {
 
   private async deleteChildAttendanceRecords(): Promise<void> {
     const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const dateString = today.toISOString().split('T')[0];
 
-    await ChildAttendance.deleteMany({
-      date: {
-        $gte: startOfDay,
-        $lt: endOfDay
-      }
+    await ChildAttendance.updateMany({}, {
+      $unset: { [`attendance.${dateString}`]: "" }
     });
   }
 
@@ -328,8 +367,8 @@ export class MainEventsService {
     const today = new Date();
     const dateString = today.toISOString().split('T')[0];
 
-    await StaffShift.deleteMany({
-      date: dateString
+    await StaffShift.updateMany({}, {
+      $unset: { [`shifts.${dateString}`]: "" }
     });
   }
 
