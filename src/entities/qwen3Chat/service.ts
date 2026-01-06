@@ -34,11 +34,24 @@ export class Qwen3ChatService {
       // Пытаемся найти JSON в ответе
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        let jsonStr = jsonMatch[0];
+
+        // Очистка: заменяем физические переносы строк внутри кавычек на \n
+        // Это часто ломает JSON.parse, когда AI вставляет длинные тексты
+        jsonStr = jsonStr.replace(/"([^"]*)"/g, (match, p1) => {
+          return '"' + p1.replace(/\n/g, '\\n').replace(/\r/g, '\\r') + '"';
+        });
+
+        return JSON.parse(jsonStr);
       }
       return null;
     } catch (error) {
       console.error('Ошибка парсинга JSON ответа AI:', error);
+      // Если не получилось распарсить после очистки, пробуем исходный вариант
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return JSON.parse(jsonMatch[0]);
+      } catch (e) { }
       return null;
     }
   }
@@ -155,6 +168,8 @@ export class Qwen3ChatService {
   private static translateRole(role: string): string {
     const roles: Record<string, string> = {
       'admin': 'Администратор',
+      'manager': 'Менеджер',
+      'user': 'Пользователь',
       'teacher': 'Воспитатель',
       'assistant': 'Помощник воспитателя',
       'nurse': 'Медсестра',

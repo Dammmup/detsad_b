@@ -99,6 +99,38 @@ function containsForbiddenOperators(obj: any): boolean {
 }
 
 /**
+ * Преобразует специальные типы MongoDB (даты и ObjectId) из строкового формата
+ */
+function convertMongoTypes(obj: any): any {
+    if (!obj || typeof obj !== 'object') return obj;
+
+    if (Array.isArray(obj)) {
+        return obj.map(convertMongoTypes);
+    }
+
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+        const value = obj[key];
+
+        // 1. Проверка на $oid (ObjectId)
+        if (value && typeof value === 'object' && value.$oid) {
+            result[key] = new mongoose.Types.ObjectId(value.$oid);
+        }
+        // 2. Проверка, похоже ли значение на ISO дату
+        else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+            result[key] = new Date(value);
+        }
+        // 3. Рекурсивный обход
+        else if (typeof value === 'object') {
+            result[key] = convertMongoTypes(value);
+        } else {
+            result[key] = value;
+        }
+    }
+    return result;
+}
+
+/**
  * Валидирует запрос перед выполнением
  */
 function validateQuery(query: QueryRequest): { valid: boolean; error?: string } {
@@ -130,32 +162,6 @@ function validateQuery(query: QueryRequest): { valid: boolean; error?: string } 
 }
 
 /**
- * Преобразует строковые даты в объекты Date
- */
-function convertDates(obj: any): any {
-    if (!obj || typeof obj !== 'object') return obj;
-
-    if (Array.isArray(obj)) {
-        return obj.map(convertDates);
-    }
-
-    const result: any = {};
-    for (const key of Object.keys(obj)) {
-        const value = obj[key];
-
-        // Проверяем, похоже ли значение на ISO дату
-        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-            result[key] = new Date(value);
-        } else if (typeof value === 'object') {
-            result[key] = convertDates(value);
-        } else {
-            result[key] = value;
-        }
-    }
-    return result;
-}
-
-/**
  * Безопасно выполняет запрос к MongoDB
  */
 export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
@@ -172,7 +178,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
         }
 
         const collection = db.collection(query.collection);
-        const filter = query.filter ? convertDates(query.filter) : {};
+        const filter = query.filter ? convertMongoTypes(query.filter) : {};
         const limit = Math.min(query.limit || MAX_LIMIT, MAX_LIMIT);
 
         let result: any;
@@ -208,7 +214,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                     return { success: false, error: 'Pipeline обязателен для aggregate' };
                 }
                 // Добавляем $limit в конец pipeline если его нет
-                const pipeline = convertDates(query.pipeline);
+                const pipeline = convertMongoTypes(query.pipeline);
                 const hasLimit = pipeline.some((stage: any) => '$limit' in stage);
                 if (!hasLimit) {
                     pipeline.push({ $limit: limit });
@@ -221,7 +227,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 if (!query.document) {
                     return { success: false, error: 'Документ обязателен для insertOne' };
                 }
-                const documentToInsert = convertDates(query.document);
+                const documentToInsert = convertMongoTypes(query.document);
                 // Добавляем timestamps
                 documentToInsert.createdAt = new Date();
                 documentToInsert.updatedAt = new Date();
@@ -232,7 +238,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 if (!query.update) {
                     return { success: false, error: 'Обновление обязательно для updateOne' };
                 }
-                const updateOne = convertDates(query.update);
+                const updateOne = convertMongoTypes(query.update);
                 // Добавляем updatedAt
                 if (updateOne.$set) {
                     updateOne.$set.updatedAt = new Date();
@@ -246,7 +252,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 if (!query.update) {
                     return { success: false, error: 'Обновление обязательно для updateMany' };
                 }
-                const updateMany = convertDates(query.update);
+                const updateMany = convertMongoTypes(query.update);
                 // Добавляем updatedAt
                 if (updateMany.$set) {
                     updateMany.$set.updatedAt = new Date();
