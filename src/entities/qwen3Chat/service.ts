@@ -56,44 +56,61 @@ export class Qwen3ChatService {
     }
 
     if (template) {
-      let result = template;
+      let resultText = template;
 
-      // Замена {count}
-      if (typeof data === 'number') {
-        result = result.replace(/{count}/g, data.toString());
-      } else if (Array.isArray(data)) {
-        result = result.replace(/{count}/g, data.length.toString());
-
-        // Замена {list} и {result}
-        if (data.length > 0) {
-          const list = data.map((item: any, index: number) => {
-            if (item.fullName) {
-              const role = item.role ? ` (${Qwen3ChatService.translateRole(item.role)})` : '';
-              const phone = item.phone ? `, тел: ${item.phone}` : '';
-              return `${index + 1}. ${item.fullName}${role}${phone}`;
-            }
-            if (item.name) {
-              return `${index + 1}. ${item.name}`;
-            }
-            return `${index + 1}. ${JSON.stringify(item)}`;
-          }).join('\n');
-
-          result = result.replace(/{list}/g, list);
-          result = result.replace(/{result}/g, list);
-        } else {
-          result = result.replace(/{list}/g, 'Список пуст');
-          result = result.replace(/{result}/g, 'Данные не найдены');
+      // Функция для получения значения из объекта по пути (например, "fullName" или "role")
+      const getValueByPath = (obj: any, path: string): any => {
+        if (!obj || !path) return undefined;
+        const value = obj[path];
+        if (path === 'role' && typeof value === 'string') {
+          return Qwen3ChatService.translateRole(value);
         }
-      } else if (data && typeof data === 'object') {
-        // Одиночный объект
-        const itemStr = data.fullName
-          ? `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`
-          : JSON.stringify(data);
+        return value;
+      };
 
-        result = result.replace(/{result}/g, itemStr);
+      // 1. Замена {count}
+      const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : (data ? 1 : 0));
+      resultText = resultText.replace(/{count}/g, count.toString());
+
+      // 2. Универсальная замена {result} и {result.path}
+      resultText = resultText.replace(/{result(\.[a-zA-Z0-9_]+)?}/g, (match, path) => {
+        if (!path) {
+          // Если просто {result}, форматируем весь объект или список
+          if (Array.isArray(data)) {
+            if (data.length === 0) return 'Список пуст';
+            return data.map((item: any, index: number) => {
+              if (item.fullName) {
+                const role = item.role ? ` (${Qwen3ChatService.translateRole(item.role)})` : '';
+                const phone = item.phone ? `, тел: ${item.phone}` : '';
+                return `${index + 1}. ${item.fullName}${role}${phone}`;
+              }
+              return `${index + 1}. ${JSON.stringify(item)}`;
+            }).join('\n');
+          }
+          if (data && typeof data === 'object') {
+            return data.fullName
+              ? `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`
+              : JSON.stringify(data);
+          }
+          return String(data ?? 'Данные не найдены');
+        } else {
+          // Если {result.field}, берем конкретное поле
+          const field = path.substring(1); // убираем точку
+          const targetObj = Array.isArray(data) ? data[0] : data;
+          const val = getValueByPath(targetObj, field);
+          return val !== undefined ? String(val) : match;
+        }
+      });
+
+      // 3. Замена {list} для обратной совместимости
+      if (resultText.includes('{list}')) {
+        const listStr = Array.isArray(data)
+          ? data.map((item: any, index: number) => item.fullName ? `${index + 1}. ${item.fullName}` : JSON.stringify(item)).join('\n')
+          : String(data);
+        resultText = resultText.replace(/{list}/g, listStr);
       }
 
-      return result;
+      return resultText;
     }
 
     // Дефолтное форматирование

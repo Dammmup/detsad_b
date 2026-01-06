@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '../src/config/database';
 import StaffAttendanceTracking from '../src/entities/staffAttendanceTracking/model';
 import Shift from '../src/entities/staffShifts/model';
-import { SettingsService } from '@src/entities/settings/service';
+import { SettingsService } from '../src/entities/settings/service';
 
 
 const recalculateLateMinutes = async () => {
@@ -81,20 +81,17 @@ const recalculateLateMinutes = async () => {
 
 
 
-                const timezoneOffset = 5 * 60;
 
-                const actualStartUTC = new Date(actualStart);
-                const actualStartLocal = new Date(actualStartUTC.getTime() + timezoneOffset * 60000);
+                const almatyTimeStr = new Date(actualStart).toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+                const [actH, actM] = almatyTimeStr.split(':').map(Number);
+                const actualMinutes = actH * 60 + actM;
 
-
-                const scheduledStartLocal = new Date(actualStartLocal);
-                scheduledStartLocal.setHours(shiftHours, shiftMinutes, 0, 0);
+                const scheduledMinutes = shiftHours * 60 + shiftMinutes;
 
 
                 let lateMinutes = 0;
-                if (actualStartLocal > scheduledStartLocal) {
-                    const timeDiffMs = actualStartLocal.getTime() - scheduledStartLocal.getTime();
-                    lateMinutes = Math.floor(timeDiffMs / 60000);
+                if (actualMinutes > scheduledMinutes) {
+                    lateMinutes = actualMinutes - scheduledMinutes;
                 }
 
 

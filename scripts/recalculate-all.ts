@@ -5,10 +5,9 @@ import Shift from '../src/entities/staffShifts/model';
 import Payroll from '../src/entities/payroll/model';
 import User from '../src/entities/users/model';
 import { calculatePenalties, getWorkingDaysInMonth, shouldCountAttendance } from '../src/services/payrollAutomationService';
-import { SettingsService } from '@src/entities/settings/service';
+import { SettingsService } from '../src/entities/settings/service';
 
 
-const TIMEZONE_OFFSET = 5 * 60;
 
 
 const recalculateAllLateMinutes = async () => {
@@ -34,28 +33,16 @@ const recalculateAllLateMinutes = async () => {
                 String(recordDate.getDate()).padStart(2, '0')
             ].join('-');
 
-            const shift = await Shift.findOne({
-                staffId: record.staffId,
-                date: dateStr
-            });
+            // If no shift is found, we still calculate lateness against the default working start
+            // to ensure historical errors are cleared.
 
-            if (!shift) continue;
+            // Get actual start time in Almaty minutes
+            const almatyTimeStr = new Date(record.actualStart).toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+            const [actH, actM] = almatyTimeStr.split(':').map(Number);
+            const actualMinutes = actH * 60 + actM;
 
-            const [schedStartH, schedStartM] = (shift as any).startTime ? (shift as any).startTime.split(':').map(Number) : [9, 0];
-            const [defStartH, defStartM] = [9, 0];
-            const schedStartH_fixed = 9;
-            const schedStartM_fixed = 0;
-
-
-            const actualStartUTC = new Date(record.actualStart);
-            const actualStartMinutesUTC = actualStartUTC.getUTCHours() * 60 + actualStartUTC.getUTCMinutes();
-            const actualStartMinutesLocal = actualStartMinutesUTC + TIMEZONE_OFFSET;
-
-            const actualMinutes = actualStartMinutesLocal >= 1440 ? actualStartMinutesLocal - 1440 : actualStartMinutesLocal;
-
-
-            const scheduledMinutes = schedStartH_fixed * 60 + schedStartM_fixed;
-
+            const [sh, sm] = workingStart.split(':').map(Number);
+            const scheduledMinutes = sh * 60 + sm;
 
             let lateMinutes = 0;
             if (actualMinutes > scheduledMinutes) {
