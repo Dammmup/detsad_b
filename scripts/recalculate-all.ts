@@ -109,11 +109,21 @@ const recalculateAllPayrolls = async () => {
                 const staff = await User.findById(staffId);
                 if (!staff) continue;
 
-                const baseSalaryRaw = Number((staff as any).baseSalary);
-                const baseSalary = baseSalaryRaw > 0 ? baseSalaryRaw : 180000;
-                const baseSalaryType = ((staff as any).salaryType as string) || 'month';
-                const shiftRate = Number((staff as any).shiftRate || 0);
+                // Priority for base salary: 
+                // 1. Current payroll record (if already has value)
+                // 2. Previous months' payroll record
+                // 3. User model (if has value)
+                // 4. Default 180,000
+                let baseSalary = payroll.baseSalary;
+                let baseSalaryType = payroll.baseSalaryType || (staff as any).salaryType || 'month';
+                let shiftRate = payroll.shiftRate || Number((staff as any).shiftRate || 0);
 
+                if (!baseSalary || baseSalary <= 0) {
+                    const previousPayroll = await Payroll.findOne({ staffId }).sort({ period: -1 });
+                    baseSalary = previousPayroll?.baseSalary || Number((staff as any).baseSalary) || 180000;
+                    baseSalaryType = previousPayroll?.baseSalaryType || (staff as any).salaryType || 'month';
+                    shiftRate = previousPayroll?.shiftRate || Number((staff as any).shiftRate || 0) || shiftRate;
+                }
 
                 const attendancePenalties = await calculatePenalties(staffId, period, staff as any, 13);
                 const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
@@ -177,7 +187,7 @@ const recalculateAllPayrolls = async () => {
 
                 payroll.accruals = accruals;
                 payroll.baseSalary = baseSalary;
-                payroll.baseSalaryType = 'month';
+                payroll.baseSalaryType = baseSalaryType;
                 payroll.shiftRate = shiftRate;
                 payroll.workedDays = workedDays;
                 payroll.workedShifts = workedShifts;
