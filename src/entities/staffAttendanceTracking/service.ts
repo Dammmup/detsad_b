@@ -87,8 +87,7 @@ export class StaffAttendanceTrackingService {
     }
 
 
-    const staffAttendanceTrackingModel = StaffAttendanceTracking;
-    const attendanceRecord = new staffAttendanceTrackingModel({
+    const attendanceRecord = new StaffAttendanceTracking({
       staffId: userId,
       date: new Date(),
       actualStart: new Date(),
@@ -108,19 +107,21 @@ export class StaffAttendanceTrackingService {
     const scheduledShift = staffShifts?.shifts.get(dateStr);
 
     if (scheduledShift) {
-      // Подставляем виртуальный ID для совместимости
       attendanceRecord.shiftId = `${userId}_${dateStr}` as any;
 
-      const actualStart = new Date();
-      const [hours, minutes] = workingStart.split(':').map(Number);
+      const now = new Date();
+      // Calculate minutes late based on Asia/Almaty (UTC+5)
+      // Standardize to UTC for calculation
+      const [h, m] = workingStart.split(':').map(Number);
 
+      // Get current hours and minutes in Almaty
+      const almatyTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+      const [curH, curM] = almatyTimeStr.split(':').map(Number);
 
-      const scheduledStart = new Date(actualStart);
-      scheduledStart.setHours(hours, minutes, 0, 0);
+      const currentTotalMinutes = curH * 60 + curM;
+      const scheduledTotalMinutes = h * 60 + m;
 
-
-      const latenessMs = actualStart.getTime() - scheduledStart.getTime();
-      const latenessMinutes = Math.floor(latenessMs / (1000 * 60));
+      const latenessMinutes = Math.floor(currentTotalMinutes - scheduledTotalMinutes);
 
       if (latenessMinutes > 0) {
         attendanceRecord.lateMinutes = latenessMinutes;
@@ -128,26 +129,30 @@ export class StaffAttendanceTrackingService {
     }
 
     await attendanceRecord.save();
-
     await attendanceRecord.populate('staffId', 'fullName role');
 
+    // Consolidated Telegram notification
     try {
       const notificationSettings = await settingsService.getNotificationSettings();
       const adminChatId = notificationSettings?.telegram_chat_id;
 
-      let timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+      const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
 
-      const message = `Сотрудник ${user.fullName} отметил ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr}`;
+      const escapedName = (attendanceRecord.staffId as any)?.fullName ?
+        require('../../utils/telegramLogger').escapeHTML((attendanceRecord.staffId as any).fullName) : 'Сотрудник';
 
+      const message = `👤 <b>${escapedName}</b> отметил <b>ПРИХОД</b> на работу\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}`;
 
-      if ((user as any).telegramChatId) {
-        await sendLogToTelegram(`Вы отметили ПРИХОД на работу ${new Date().toLocaleDateString('ru-RU')} в ${timeStr}`);
-      }
-
+      // Отправляем админу
       if (adminChatId) {
+        await sendLogToTelegram(message, adminChatId);
+      } else {
         await sendLogToTelegram(message);
       }
-    } catch (e) { console.error('Telegram notify error:', e); }
+    } catch (e) {
+      console.error('Telegram notify error (clockIn):', e);
+    }
 
     try {
       await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -198,16 +203,16 @@ export class StaffAttendanceTrackingService {
     const workingEnd = settings?.workingHours?.end || '18:00';
 
     if (scheduledShift) {
-      const actualEnd = new Date();
-      const [hours, minutes] = workingEnd.split(':').map(Number);
+      const now = new Date();
+      const [h, m] = workingEnd.split(':').map(Number);
 
+      const almatyTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+      const [curH, curM] = almatyTimeStr.split(':').map(Number);
 
-      const scheduledEnd = new Date(actualEnd);
-      scheduledEnd.setHours(hours, minutes, 0, 0);
+      const currentTotalMinutes = curH * 60 + curM;
+      const scheduledTotalMinutes = h * 60 + m;
 
-
-      const earlyLeaveMs = scheduledEnd.getTime() - actualEnd.getTime();
-      const earlyLeaveMinutes = Math.floor(earlyLeaveMs / (1000 * 60));
+      const earlyLeaveMinutes = Math.floor(scheduledTotalMinutes - currentTotalMinutes);
 
       if (earlyLeaveMinutes > 0) {
         attendanceRecord.earlyLeaveMinutes = earlyLeaveMinutes;
@@ -228,44 +233,47 @@ export class StaffAttendanceTrackingService {
     }
 
     await attendanceRecord.save();
-
     await attendanceRecord.populate('staffId', 'fullName role');
 
-
-    const user = await UserModel.findById(userId);
-    if (!user) throw new Error('User not found');
+    // Consolidated Telegram notification
     try {
-      const adminChatId = process.env.TELEGRAM_CHAT_ID;
+      const notificationSettings = await settingsService.getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
 
-      let timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+      const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+
+      const escapedName = (attendanceRecord.staffId as any)?.fullName ?
+        require('../../utils/telegramLogger').escapeHTML((attendanceRecord.staffId as any).fullName) : 'Сотрудник';
+
       let inRangeText = '';
       if (scheduledShift) {
-        // Using global settings instead of shift start/end time
         const workingStart = settings?.workingHours?.start || '09:00';
         const workingEnd = settings?.workingHours?.end || '18:00';
         const now = new Date();
-        const startT = workingStart.split(':').map(Number);
-        const endT = workingEnd.split(':').map(Number);
-        const nowMin = now.getHours() * 60 + now.getMinutes();
-        const stMin = startT[0] * 60 + startT[1] - 30;
-        const etMin = endT[0] * 60 + endT[1] + 30;
+        const almatyTimeStrFull = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+        const [curH, curM] = almatyTimeStrFull.split(':').map(Number);
+        const nowMin = curH * 60 + curM;
+
+        const [startH, startM] = workingStart.split(':').map(Number);
+        const [endH, endM] = workingEnd.split(':').map(Number);
+
+        const stMin = startH * 60 + startM - 30;
+        const etMin = endH * 60 + endM + 30;
         const rangeOk = (nowMin >= stMin && nowMin <= etMin);
-        inRangeText = rangeOk ? 'В диапазоне смены' : 'ВНЕ диапазона смены';
+        inRangeText = rangeOk ? '✅ (в диапазоне смены)' : '⚠️ (ВНЕ диапазона смены)';
       } else {
-        inRangeText = 'Нет графика смены';
+        inRangeText = '❓ (график не назначен)';
       }
 
-      const message = `Сотрудник ${user.fullName} отметил УХОД с работы ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`;
-
-
-      if ((user as any).telegramChatId) {
-        await sendLogToTelegram(`Вы отметили УХОД с работы ${new Date().toLocaleDateString('ru-RU')} в ${timeStr} (${inRangeText})`);
-      }
+      const message = `👤 <b>${escapedName}</b> отметил <b>УХОД</b> с работы\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}\n📍 Статус: ${inRangeText}`;
 
       if (adminChatId) {
-        await sendLogToTelegram(message);
+        await sendLogToTelegram(message, adminChatId);
       }
-    } catch (e) { console.error('Telegram notify error:', e); }
+    } catch (e) {
+      console.error('Telegram notify error (clockOut):', e);
+    }
 
     try {
       await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);

@@ -6,7 +6,7 @@ import User from '../users/model';
 import mongoose from 'mongoose';
 import Child from '../children/model';
 import { SettingsService } from '../settings/service';
-import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { sendLogToTelegram, escapeHTML } from '../../utils/telegramLogger';
 import { cacheService } from '../../services/cache';
 
 const CACHE_KEY_PREFIX = 'childAttendance';
@@ -15,7 +15,6 @@ const CACHE_TTL = 300; // 5 minutes
 
 
 export class ChildAttendanceService {
-  adminChatId = process.env.TELEGRAM_CHAT_ID;
 
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
     const filter: any = {};
@@ -101,21 +100,30 @@ export class ChildAttendanceService {
     await doc.save();
 
     try {
-      if (this.adminChatId) {
+      const notificationSettings = await new SettingsService().getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
+
+      if (adminChatId) {
         const child = await Child.findById(childId);
         const group = await Group.findById(groupId);
+
         const statusMap: any = {
-          present: 'присутствует',
-          absent: 'отсутствует',
-          sick: 'болеет',
-          vacation: 'в отпуске'
+          present: '✅ присутствует',
+          absent: '🔴 отсутствует',
+          sick: '🤒 болеет',
+          vacation: '🌴 в отпуске',
+          late: '🕒 опоздал'
         };
-        const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        const message = `Ребенок ${child?.fullName} из группы "${group?.name}" отмечен как ${statusMap[status] || status} в ${timeStr}`;
-        await sendLogToTelegram(message);
+
+        const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+        const escapedChildName = child?.fullName ? escapeHTML(child.fullName) : 'Ребенок';
+        const escapedGroupName = group?.name ? escapeHTML(group.name) : 'группа';
+
+        const message = `👶 <b>${escapedChildName}</b> (${escapedGroupName})\nСтатус: <b>${statusMap[status] || status}</b>\n🕒 Время: ${almatyTimeStr}`;
+        await sendLogToTelegram(message, adminChatId);
       }
     } catch (e) {
-      console.error('Telegram notify error:', e);
+      console.error('Telegram notify error (childAttendance):', e);
     }
 
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -180,20 +188,19 @@ export class ChildAttendanceService {
     }
 
     try {
-      if (this.adminChatId && results.length > 0) {
+      const notificationSettings = await new SettingsService().getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
+
+      if (adminChatId && results.length > 0) {
         const group = await Group.findById(groupId);
-        const statusMap: any = {
-          present: 'присутствует',
-          absent: 'отсутствует',
-          sick: 'болеет',
-          vacation: 'в отпуске'
-        };
-        const timeStr = (new Date()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        const message = `Массовое обновление посещаемости для группы "${group?.name}" в ${timeStr}. Обновлено ${results.length} записей.`;
-        await sendLogToTelegram(message);
+        const escapedGroupName = group?.name ? escapeHTML(group.name) : 'группа';
+
+        const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+        const message = `👥 Массовое обновление посещаемости\nГруппа: <b>${escapedGroupName}</b>\nОбновлено записей: <b>${results.length}</b>\n🕒 Время: ${almatyTimeStr}`;
+        await sendLogToTelegram(message, adminChatId);
       }
     } catch (e) {
-      console.error('Telegram notify error:', e);
+      console.error('Telegram notify error (bulkChildAttendance):', e);
     }
 
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);

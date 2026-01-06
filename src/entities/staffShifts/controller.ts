@@ -188,14 +188,31 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
     const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData)) as any;
-    const user = await User.findById(req.user.id);
-    const date = result.shift?.date || 'неизвестную дату';
 
-    if (user) {
-      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил приход на смену за ${date}`);
-    } else {
-      await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил приход на смену за ${date}`);
+    // Telegram notification
+    try {
+      const { SettingsService } = require('../settings/service');
+      const settingsService = new SettingsService();
+      const notificationSettings = await settingsService.getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
+
+      const user = await User.findById(req.user.id);
+      const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+      const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+
+      const escapedName = user?.fullName ?
+        require('../../utils/telegramLogger').escapeHTML(user.fullName) : 'Сотрудник';
+
+      const message = `👤 <b>${escapedName}</b> отметил <b>ПРИХОД</b> на смену\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}`;
+
+      if (adminChatId) {
+        const { sendLogToTelegram } = require('../../utils/telegramLogger');
+        await sendLogToTelegram(message, adminChatId);
+      }
+    } catch (telegramError) {
+      console.warn('Telegram log failed (checkInSimple):', telegramError);
     }
+
     res.json(result);
   } catch (err) {
     console.error('Error checking in:', err);
@@ -211,19 +228,34 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
 
     const { shiftId } = req.params;
     const { latitude, longitude } = req.body;
-
-
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
     const result = (await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData)) as any;
-    const user = await User.findById(req.user.id);
-    const date = result.shift?.date || 'неизвестную дату';
 
-    if (user) {
-      await sendLogToTelegram(`Сотрудник ${user.fullName} отметил уход со смены за ${date}`);
-    } else {
-      await sendLogToTelegram(`Сотрудник с ID ${req.user.id} отметил уход со смены за ${date}`);
+    // Telegram notification
+    try {
+      const { SettingsService } = require('../settings/service');
+      const settingsService = new SettingsService();
+      const notificationSettings = await settingsService.getNotificationSettings();
+      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
+
+      const user = await User.findById(req.user.id);
+      const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+      const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
+
+      const escapedName = user?.fullName ?
+        require('../../utils/telegramLogger').escapeHTML(user.fullName) : 'Сотрудник';
+
+      const message = `👤 <b>${escapedName}</b> отметил <b>УХОД</b> со смены\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}`;
+
+      if (adminChatId) {
+        const { sendLogToTelegram } = require('../../utils/telegramLogger');
+        await sendLogToTelegram(message, adminChatId);
+      }
+    } catch (telegramError) {
+      console.warn('Telegram log failed (checkOutSimple):', telegramError);
     }
+
     res.json(result);
   } catch (err) {
     console.error('Error checking out:', err);

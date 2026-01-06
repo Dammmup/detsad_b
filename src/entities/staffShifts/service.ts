@@ -47,7 +47,7 @@ export class ShiftsService {
       const flattenedShifts: any[] = [];
 
       for (const staffRecord of allStaffShifts) {
-        if (!staffRecord.shifts) continue;
+        if (!staffRecord.staffId || !staffRecord.shifts) continue;
 
         for (const [date, detail] of staffRecord.shifts.entries()) {
           // Apply filters
@@ -247,12 +247,17 @@ export class ShiftsService {
     }
 
     const settings = await settingsService.getKindergartenSettings();
-    const timezone = settings?.timezone || 'Asia/Almaty';
     const now = new Date();
-    const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
-    const shiftStartTime = new Date(`${date} ${settings?.workingHours?.start || '09:00'}`);
-    const actualStartTime = new Date(`${date} ${currentTime}`);
-    const lateMinutes = Math.max(0, Math.floor((actualStartTime.getTime() - shiftStartTime.getTime()) / (1000 * 60)));
+
+    // Get current time in Almaty for comparison
+    const almatyTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+    const [curH, curM] = almatyTimeStr.split(':').map(Number);
+    const currentTotalMinutes = curH * 60 + curM;
+
+    const [startH, startM] = (settings?.workingHours?.start || '09:00').split(':').map(Number);
+    const scheduledTotalMinutes = startH * 60 + startM;
+
+    const lateMinutes = Math.max(0, currentTotalMinutes - scheduledTotalMinutes);
 
     if (lateMinutes >= 15) {
       shift.status = 'late';
@@ -267,13 +272,18 @@ export class ShiftsService {
     if (!timeTracking) {
       timeTracking = new StaffAttendanceTracking({ staffId, date });
     }
-    const astanaTime = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
-    timeTracking.actualStart = astanaTime;
+
+    // Always store as UTC (new Date() in Vercel is UTC)
+    timeTracking.actualStart = now;
     timeTracking.lateMinutes = lateMinutes;
     await timeTracking.save();
 
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    return { shift: { ...shift, date, staffId }, timeTracking, message: lateMinutes >= 15 ? 'Опоздание на смену' : 'Успешно отмечен приход' };
+    return {
+      shift: { ...shift, date, staffId },
+      timeTracking,
+      message: lateMinutes >= 15 ? `Опоздание на ${lateMinutes} мин` : 'Успешно отмечен приход'
+    };
   }
 
   async checkOut(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
@@ -298,22 +308,24 @@ export class ShiftsService {
     await record.save();
 
     const settings = await settingsService.getKindergartenSettings();
-    const timezone = settings?.timezone || 'Asia/Almaty';
     const now = new Date();
-    const currentTime = now.toLocaleTimeString('en-GB', { timeZone: timezone }).slice(0, 5);
 
     const timeTracking = await StaffAttendanceTracking.findOne({ staffId, date });
     if (timeTracking) {
-      const astanaTime = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
-      timeTracking.actualEnd = astanaTime;
+      timeTracking.actualEnd = now;
       if (timeTracking.actualStart) {
-        const duration = astanaTime.getTime() - timeTracking.actualStart.getTime();
-        timeTracking.workDuration = Math.floor(duration / (1000 * 60)) - (timeTracking.breakDuration || 0);
+        const durationMs = now.getTime() - timeTracking.actualStart.getTime();
+        timeTracking.workDuration = Math.floor(durationMs / (1000 * 60)) - (timeTracking.breakDuration || 0);
       }
 
-      const shiftEndTime = new Date(`${date} ${settings?.workingHours?.end || '18:00'}`);
-      const actualEndTime = new Date(`${date} ${currentTime}`);
-      const earlyMinutes = Math.max(0, Math.floor((shiftEndTime.getTime() - actualEndTime.getTime()) / (1000 * 60)));
+      const almatyTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+      const [curH, curM] = almatyTimeStr.split(':').map(Number);
+      const currentTotalMinutes = curH * 60 + curM;
+
+      const [endH, endM] = (settings?.workingHours?.end || '18:00').split(':').map(Number);
+      const scheduledTotalMinutes = endH * 60 + endM;
+
+      const earlyMinutes = Math.max(0, scheduledTotalMinutes - currentTotalMinutes);
       timeTracking.earlyLeaveMinutes = earlyMinutes;
       await timeTracking.save();
     }

@@ -7,12 +7,18 @@ import mongoose from 'mongoose';
 const DEFAULT_AMOUNT = 35000;
 
 export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise<void> => {
-  const targetDate = dateForMonth || new Date();
-  console.log(`Запуск генерации ежемесячных оплат за детей для месяца: ${targetDate.toISOString()}`);
-  await sendLogToTelegram(`Начало генерации ежемесячных оплат за детей для месяца: ${targetDate.toISOString()}`);
+  const now = new Date();
+  const almatyDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' });
+  const almatyNow = new Date(almatyDateStr);
+
+  const targetDate = dateForMonth || almatyNow;
+  console.log(`Запуск генерации ежемесячных оплат за детей для месяца: ${targetDate.toISOString()} (Almaty Local)`);
 
   const currentMonthStart = startOfMonth(targetDate);
   const currentMonthEnd = endOfMonth(targetDate);
+
+  const almatyDisplayDate = targetDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  await sendLogToTelegram(`🚀 Начало генерации ежемесячных оплат за детей для месяца: <b>${almatyDisplayDate}</b>`);
 
   const previousMonth = subMonths(targetDate, 1);
   const previousMonthStart = startOfMonth(previousMonth);

@@ -92,27 +92,13 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
 
 
-    let schedStartH = 8;
-    let schedStartM = 0;
-
-    if (settings && settings.workingHours && settings.workingHours.start) {
-      [schedStartH, schedStartM] = settings.workingHours.start.split(':').map(Number);
-    }
-
-
-
-    const timezoneOffsetMinutes = 5 * 60;
-
-
-    const actualStartUTC = new Date(record.actualStart);
-    const actualStartMinutesUTC = actualStartUTC.getUTCHours() * 60 + actualStartUTC.getUTCMinutes() + actualStartUTC.getUTCSeconds() / 60;
-    const actualStartMinutesLocal = actualStartMinutesUTC + timezoneOffsetMinutes;
-
-    const actualMinutes = actualStartMinutesLocal >= 1440 ? actualStartMinutesLocal - 1440 : actualStartMinutesLocal;
-
-
+    const [schedStartH, schedStartM] = (settings?.workingHours?.start || '09:00').split(':').map(Number);
     const scheduledMinutes = schedStartH * 60 + schedStartM;
 
+    // Get actual start time in Almaty minutes
+    const almatyTimeStr = new Date(record.actualStart).toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+    const [actH, actM] = almatyTimeStr.split(':').map(Number);
+    const actualMinutes = actH * 60 + actM;
 
     let lateMinutes = 0;
     if (actualMinutes > scheduledMinutes) {
@@ -121,12 +107,10 @@ export const calculatePenalties = async (staffId: string, month: string, employe
       lateMinutes = Math.round(lateMinutes);
 
       console.log(`[PENALTY-DEBUG] User: ${employee.fullName}`);
-      console.log(`  Shift Time: ${shift.startTime} (${scheduledMinutes} min from midnight)`);
-      console.log(`  Actual Start (UTC): ${actualStartUTC.toISOString()}`);
-      console.log(`  Actual Local Time: ${Math.floor(actualMinutes / 60)}:${String(actualMinutes % 60).padStart(2, '0')}`);
-      console.log(`  Late Minutes (Rounded): ${lateMinutes}`);
+      console.log(`  Shift Time: ${settings?.workingHours?.start} (${scheduledMinutes} min)`);
+      console.log(`  Actual Start (Local Almaty): ${actH}:${String(actM).padStart(2, '0')} (${actualMinutes} min)`);
+      console.log(`  Late Minutes: ${lateMinutes}`);
     }
-
 
     record.lateMinutes = lateMinutes;
 

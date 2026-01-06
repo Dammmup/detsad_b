@@ -10,17 +10,13 @@ import { archiveAndDeleteRecords } from './dataArchiveService';
 import { cacheService } from './cache';
 
 export const initializeTaskScheduler = () => {
-  console.log('Инициализация планировщика задач...');
+  const ALMATY_TZ = { timezone: "Asia/Almaty" };
+  console.log('Инициализация планировщика задач (Asia/Almaty)...');
 
-
-
-  console.log('Инициализация планировщика задач...');
-
-  // Ежемесячная очистка кэша (1-го числа каждого месяца в 00:00)
+  // Ежемесячная очистка кэша (1-го числа каждого месяца в 00:00 по Астане)
   cron.schedule('0 0 1 * *', async () => {
     console.log('Запуск запланированной задачи: ежемесячная очистка кэша Redis');
     try {
-      console.log('Очистка кэша для: staffAttendance, shifts, payroll, childAttendance, childPayment');
       await cacheService.invalidate('staffAttendance:*');
       await cacheService.invalidate('shifts:*');
       await cacheService.invalidate('payroll:*');
@@ -30,8 +26,9 @@ export const initializeTaskScheduler = () => {
     } catch (error) {
       console.error('Ошибка при очистке кэша:', error);
     }
-  });
+  }, ALMATY_TZ);
 
+  // Автоматический расчет зарплат (ежедневно в 01:00 по Астане)
   cron.schedule('0 1 * * *', async () => {
     console.log('Запуск запланированной задачи: автоматический расчет зарплат');
     try {
@@ -40,9 +37,9 @@ export const initializeTaskScheduler = () => {
     } catch (error) {
       console.error('Ошибка при выполнении запланированной задачи:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-
+  // Генерация ежемесячных оплат за детей (1-го числа каждого месяца в 02:00 по Астане)
   cron.schedule('0 2 1 * *', async () => {
     console.log('Запуск запланированной задачи: генерация ежемесячных оплат за детей');
     try {
@@ -51,123 +48,121 @@ export const initializeTaskScheduler = () => {
     } catch (error) {
       console.error('Ошибка при выполнении генерации ежемесячных оплат:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-
+  // Проверка событий mainEvents (ежедневно в 00:00 по Астане)
   cron.schedule('0 0 * * *', async () => {
     console.log('Запуск запланированной задачи: проверка событий mainEvents');
     try {
       const mainEventsService = new MainEventsService();
-      const results = await mainEventsService.checkAndExecuteScheduledEvents();
-      console.log('Задачи mainEvents выполнены успешно:', results);
+      await mainEventsService.checkAndExecuteScheduledEvents();
     } catch (error) {
       console.error('Ошибка при выполнении задач mainEvents:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-  // Автоматическое архивирование данных старше 3 месяцев (1-го числа каждого месяца в 03:00)
+  // Автоматическое архивирование (1-го числа каждого месяца в 03:00 по Астане)
   cron.schedule('0 3 1 * *', async () => {
-    console.log('Запуск запланированной задачи: архивирование старых данных');
     try {
       await archiveAndDeleteRecords();
       console.log('Архивирование данных выполнено успешно');
     } catch (error) {
       console.error('Ошибка при архивировании данных:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-
+  // Отчет о приходе сотрудников (ежедневно в 11:00 по Астане)
   cron.schedule('0 11 * * *', async () => {
     try {
       const now = new Date();
-      const timeInAstana = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
-      if (timeInAstana.getHours() === 11) {
-        const todayStr = now.toISOString().split('T')[0];
-        const staffShifts = await Shift.find({ [`shifts.${todayStr}`]: { $exists: true } });
-        const attendanceRecords = await StaffAttendanceTracking.find({
-          date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 59, 999)) },
-          actualStart: { $ne: null }
-        });
-        const users = await User.find({
-          _id: { $in: staffShifts.map(s => s.staffId) }
-        });
-        await sendLogToTelegram(`В 11:00 по времени Астаны: отмечен приход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
-      }
+      const almatyDayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' }); // YYYY-MM-DD
+
+      const staffShifts = await Shift.find({ [`shifts.${almatyDayStr}`]: { $exists: true } });
+
+      const startOfDay = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const attendanceRecords = await StaffAttendanceTracking.find({
+        date: { $gte: startOfDay, $lt: endOfDay },
+        actualStart: { $ne: null }
+      });
+
+      const assignedCount = staffShifts.length;
+      await sendLogToTelegram(`🕒 <b>Статус на 11:00 (Астана):</b>\nОтмечен приход <b>${attendanceRecords.length}</b> сотрудников из <b>${assignedCount}</b> назначенных на сегодня.`);
     } catch (error) {
       console.error('Ошибка при отправке уведомления о приходе сотрудников:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-
+  // Отчет об уходе сотрудников (ежедневно в 18:00 по Астане)
   cron.schedule('0 18 * * *', async () => {
     try {
       const now = new Date();
-      const timeInAstana = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
-      if (timeInAstana.getHours() === 18) {
-        const todayStr = now.toISOString().split('T')[0];
-        const staffShifts = await Shift.find({ [`shifts.${todayStr}`]: { $exists: true } });
-        const attendanceRecords = await StaffAttendanceTracking.find({
-          date: { $gte: new Date(now.setHours(0, 0, 0, 0)), $lt: new Date(now.setHours(23, 59, 999)) },
-          actualEnd: { $ne: null }
-        });
-        const users = await User.find({
-          _id: { $in: staffShifts.map(s => s.staffId) }
-        });
-        await sendLogToTelegram(`В 18:00 по времени Астаны: отмечен уход ${attendanceRecords.length} сотрудников из ${users.length} назначенных на текущий день`);
-      }
+      const almatyDayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' });
+
+      const staffShifts = await Shift.find({ [`shifts.${almatyDayStr}`]: { $exists: true } });
+
+      const startOfDay = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const attendanceRecords = await StaffAttendanceTracking.find({
+        date: { $gte: startOfDay, $lt: endOfDay },
+        actualEnd: { $ne: null }
+      });
+
+      const assignedCount = staffShifts.length;
+      await sendLogToTelegram(`🕒 <b>Статус на 18:00 (Астана):</b>\nОтмечен уход <b>${attendanceRecords.length}</b> сотрудников из <b>${assignedCount}</b> назначенных на сегодня.`);
     } catch (error) {
       console.error('Ошибка при отправке уведомления об уходе сотрудников:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-  // Ежедневный отчёт в 19:00 по Астане (14:00 UTC)
-  cron.schedule('0 14 * * *', async () => {
+  // Ежедневный итоговый отчёт в 19:00 по Астане
+  cron.schedule('0 19 * * *', async () => {
     try {
       const now = new Date();
-      const today = now.toISOString().split('T')[0];
+      const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' });
 
-      // Получаем все смены на сегодня
       const staffShifts = await Shift.find({ [`shifts.${today}`]: { $exists: true } });
 
       if (staffShifts.length === 0) {
-        await sendLogToTelegram(`📊 <b>Итоги дня: ${new Date().toLocaleDateString('ru-RU')}</b>\n\nНа сегодня нет назначенных смен.`);
+        await sendLogToTelegram(`📊 <b>Итоги дня: ${today} (Астана)</b>\n\nНа сегодня нет назначенных смен.`);
         return;
       }
 
-      // Разворачиваем смены для совместимости с логикой ниже
       const shifts = staffShifts.map(doc => {
         const detail = doc.shifts.get(today)!;
         return {
           ...detail,
           staffId: doc.staffId,
-          date: today,
-          _id: `${doc.staffId}_${today}`
+          date: today
         };
       });
 
-      // Получаем записи посещаемости за сегодня
-      const startOfDay = new Date(now);
+      const startOfDay = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
       startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(now);
+      const endOfDay = new Date(startOfDay);
       endOfDay.setHours(23, 59, 59, 999);
 
       const attendanceRecords = await StaffAttendanceTracking.find({
         date: { $gte: startOfDay, $lt: endOfDay }
       }).populate('staffId', 'fullName');
 
-      // Get settings for working hours
       const { SettingsService } = await import('../entities/settings/service');
       const settingsService = new SettingsService();
       const settings = await settingsService.getKindergartenSettings();
       const workingStart = settings?.workingHours?.start || '09:00';
       const workingEnd = settings?.workingHours?.end || '18:00';
 
-      // Получаем данные о сотрудниках
       const staffIds = staffShifts.map(s => s.staffId);
       const users = await User.find({ _id: { $in: staffIds } });
       const usersMap = new Map(users.map((u: any) => [u._id.toString(), u.fullName]));
+      const { escapeHTML } = require('../utils/telegramLogger');
 
-      // Анализируем данные
       const lateArrivals: Array<{ name: string; minutes: number }> = [];
       const noCheckIn: Array<{ name: string; shift: string }> = [];
       const noCheckOut: Array<{ name: string; checkIn: string }> = [];
@@ -179,24 +174,25 @@ export const initializeTaskScheduler = () => {
         const staffId = shift.staffId.toString();
         const staffName = usersMap.get(staffId) || 'Неизвестно';
         const attendance: any = attendanceMap.get(staffId);
+        const escapedName = escapeHTML(staffName);
 
         if (!attendance || !attendance.actualStart) {
-          // Не отметил приход
-          noCheckIn.push({ name: staffName, shift: `${workingStart}-${workingEnd}` });
+          noCheckIn.push({ name: escapedName, shift: `${workingStart}-${workingEnd}` });
         } else if (!attendance.actualEnd) {
-          // Не отметил уход
-          const checkInTime = new Date(attendance.actualStart).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-          noCheckOut.push({ name: staffName, checkIn: checkInTime });
+          const checkInTime = new Date(attendance.actualStart).toLocaleTimeString('ru-RU', {
+            timeZone: 'Asia/Almaty',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          noCheckOut.push({ name: escapedName, checkIn: checkInTime });
         } else if (attendance.lateMinutes && attendance.lateMinutes > 0) {
-          // Опоздал
-          lateArrivals.push({ name: staffName, minutes: attendance.lateMinutes });
+          lateArrivals.push({ name: escapedName, minutes: attendance.lateMinutes });
         } else {
           okCount++;
         }
       }
 
-      // Формируем сообщение
-      let message = `📊 <b>Итоги дня: ${new Date().toLocaleDateString('ru-RU')}</b>\n`;
+      let message = `📊 <b>Итоги дня: ${today} (Астана)</b>\n`;
 
       if (lateArrivals.length > 0) {
         message += `\n⚠️ <b>Опоздания (${lateArrivals.length}):</b>\n`;
@@ -219,10 +215,7 @@ export const initializeTaskScheduler = () => {
         });
       }
 
-      if (okCount > 0) {
-        message += `\n✅ Всё в порядке: ${okCount} сотрудников`;
-      }
-
+      if (okCount > 0) message += `\n✅ Всё в порядке: ${okCount} сотрудников`;
       if (lateArrivals.length === 0 && noCheckIn.length === 0 && noCheckOut.length === 0) {
         message += `\n✅ Все сотрудники отметились вовремя!`;
       }
@@ -233,11 +226,7 @@ export const initializeTaskScheduler = () => {
     } catch (error) {
       console.error('Ошибка при отправке ежедневного отчёта:', error);
     }
-  });
+  }, ALMATY_TZ);
 
-
-
-  console.log('Планировщик задач инициализирован. Автоматический расчет зарплат будет выполняться ежедневно в 01:00');
-  console.log('Проверка событий mainEvents будет выполняться ежедневно в 00:00');
-  console.log('Ежедневный отчёт в Telegram будет отправляться в 19:00 по Астане');
+  console.log('Планировщик задач инициализирован для часового пояса Asia/Almaty');
 };
