@@ -66,17 +66,23 @@ export class StaffAttendanceTrackingService {
       console.error('Telegram notify error (clockIn):', e);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0);
+    const now = new Date();
+    const almatyDay = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Almaty' }));
+    almatyDay.setHours(0, 0, 0, 0);
+
+    const today = almatyDay;
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    console.log(`[CLOCK-IN] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}`);
+
     const existingEntry = await StaffAttendanceTracking.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
-      date: { $gte: today, $lt: tomorrow }
+      date: today
     });
 
     if (existingEntry) {
+      console.log(`[CLOCK-IN] Existing entry found for ${userId} on ${today.toISOString()}`);
       throw new Error('You already have an active time entry today. Please clock out first.');
     }
 
@@ -89,7 +95,7 @@ export class StaffAttendanceTrackingService {
 
     const attendanceRecord = new StaffAttendanceTracking({
       staffId: userId,
-      date: new Date(),
+      date: almatyDay,
       actualStart: new Date(),
       notes,
       isManualEntry: false
@@ -176,14 +182,19 @@ export class StaffAttendanceTrackingService {
       console.error('Telegram notify error (clockOut):', e);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const almatyDay = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Almaty' }));
+    almatyDay.setHours(0, 0, 0, 0);
+
+    const today = almatyDay;
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    console.log(`[CLOCK-OUT] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}`);
+
     const attendanceRecord = await StaffAttendanceTracking.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
-      date: { $gte: today, $lt: tomorrow }
+      date: today
     });
 
     if (!attendanceRecord) {
@@ -298,7 +309,7 @@ export class StaffAttendanceTrackingService {
     // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
     if (filters.date) {
-      filter.date = new Date(filters.date);
+      const d = new Date(filters.date); d.setHours(0, 0, 0, 0); filter.date = d;
     } else if (filters.startDate || filters.endDate) {
       filter.date = {};
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
@@ -415,7 +426,7 @@ export class StaffAttendanceTrackingService {
     // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
     if (filters.date) {
-      filter.date = new Date(filters.date);
+      const d = new Date(filters.date); d.setHours(0, 0, 0, 0); filter.date = d;
     } else if (filters.startDate || filters.endDate) {
       filter.date = {};
       if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
@@ -433,10 +444,12 @@ export class StaffAttendanceTrackingService {
   }
 
   async getByDateRange(startDate: string, endDate: string, filters: { staffId?: string, status?: string, inZone?: boolean }) {
+    const sd = new Date(startDate); sd.setHours(0, 0, 0, 0);
+    const ed = new Date(endDate); ed.setHours(23, 59, 59, 999);
     const filter: any = {
       date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        $gte: sd,
+        $lte: ed
       }
     };
 
@@ -468,8 +481,12 @@ export class StaffAttendanceTrackingService {
 
     if (filters.startDate || filters.endDate) {
       query.date = {};
-      if (filters.startDate) query.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) query.date.$lte = new Date(filters.endDate);
+      if (filters.startDate) {
+        const sd = new Date(filters.startDate); sd.setHours(0, 0, 0, 0); query.date.$gte = sd;
+      }
+      if (filters.endDate) {
+        const ed = new Date(filters.endDate); ed.setHours(23, 59, 59, 999); query.date.$lte = ed;
+      }
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getEntries:${userId}:${JSON.stringify(filters)}`;
