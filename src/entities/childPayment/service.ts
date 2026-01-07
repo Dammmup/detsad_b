@@ -51,12 +51,20 @@ export const createChildPayment = async (paymentData: Partial<IChildPayment>): P
     }
   }
 
+  if (paymentData.period?.start && !paymentData.monthPeriod) {
+    const d = new Date(paymentData.period.start);
+    d.setUTCHours(d.getUTCHours() + 5);
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth() + 1;
+    paymentData.monthPeriod = `${year}-${String(month).padStart(2, '0')}`;
+  }
+
   const childPaymentModel = ChildPayment;
   const payment = new childPaymentModel(paymentData);
   await payment.save();
   await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
   return payment;
-};
+}
 
 export const getChildPayments = async (filters: any = {}): Promise<IChildPayment[]> => {
   const childPaymentModel = ChildPayment;
@@ -86,6 +94,9 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
   }
   if (filters.status) {
     query.status = filters.status;
+  }
+  if (filters.monthPeriod) {
+    query.monthPeriod = filters.monthPeriod;
   }
 
   const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
@@ -125,6 +136,14 @@ export const updateChildPayment = async (id: string, updateData: Partial<IChildP
     if (!user) {
       throw new Error('User not found');
     }
+  }
+
+  if (updateData.period?.start) {
+    const d = new Date(updateData.period.start);
+    d.setUTCHours(d.getUTCHours() + 5);
+    const year = d.getUTCFullYear();
+    const month = d.getUTCMonth() + 1;
+    updateData.monthPeriod = `${year}-${String(month).padStart(2, '0')}`;
   }
 
   const updated = await childPaymentModel.findByIdAndUpdate(id, updateData, { new: true })

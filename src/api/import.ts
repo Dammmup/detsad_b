@@ -383,9 +383,12 @@ export const importChildPayments = async (req: Request, res: Response) => {
                 continue;
             }
 
+            const monthPeriod = `${year}-${String(month + 1).padStart(2, '0')}`;
+
             const paymentRecord = {
                 childId: child._id,
                 period: { start: PERIOD_START, end: PERIOD_END },
+                monthPeriod,
                 amount: salary,
                 total: deductions,
                 status: 'active',
@@ -395,7 +398,7 @@ export const importChildPayments = async (req: Request, res: Response) => {
             };
 
             const result = await childPaymentsCollection.updateOne(
-                { childId: child._id, 'period.start': PERIOD_START, 'period.end': PERIOD_END },
+                { childId: child._id, monthPeriod },
                 { $set: paymentRecord, $setOnInsert: { createdAt: new Date() } },
                 { upsert: true }
             );

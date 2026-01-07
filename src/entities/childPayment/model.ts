@@ -18,6 +18,7 @@ export interface IChildPayment extends Document {
   accruals?: number;
   deductions?: number;
   comments?: string;
+  monthPeriod?: string; // Формат YYYY-MM для строгой уникальности в месяц
   paidAmount?: number;
   paymentDate?: Date;
   createdAt: Date;
@@ -45,6 +46,11 @@ const ChildPaymentSchema = new Schema<IChildPayment>({
       required: true
     }
   },
+  monthPeriod: {
+    type: String,
+    required: true,
+    index: true
+  },
   amount: {
     type: Number,
     required: true
@@ -71,7 +77,8 @@ const ChildPaymentSchema = new Schema<IChildPayment>({
   timestamps: true
 });
 
-ChildPaymentSchema.index({ childId: 1, 'period.start': 1 }, { unique: true });
+ChildPaymentSchema.index({ childId: 1, monthPeriod: 1 }, { unique: true });
+ChildPaymentSchema.index({ childId: 1, 'period.start': 1 }); // Оставляем обычным индексом
 
 
 ChildPaymentSchema.pre('validate', function (next) {

@@ -128,12 +128,15 @@ async function importChildPayments() {
             const amount = salary;
             const total = deductions;
 
+            const mp = `${PERIOD_START.getFullYear()}-${String(PERIOD_START.getMonth() + 1).padStart(2, '0')}`;
+
             const paymentRecord: any = {
                 childId: child._id,
                 period: {
                     start: PERIOD_START,
                     end: PERIOD_END
                 },
+                monthPeriod: mp,
                 amount: amount,
                 total: total,
                 status: 'active',
@@ -145,8 +148,7 @@ async function importChildPayments() {
             const result = await childPaymentsCollection.updateOne(
                 {
                     childId: child._id,
-                    'period.start': PERIOD_START,
-                    'period.end': PERIOD_END
+                    monthPeriod: mp
                 },
                 {
                     $set: paymentRecord,
