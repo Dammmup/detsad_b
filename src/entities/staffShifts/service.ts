@@ -44,6 +44,10 @@ export class ShiftsService {
         .populate('shifts.$*.createdBy', 'fullName')
         .populate('shifts.$*.alternativeStaffId', 'fullName');
 
+      const settings = await settingsService.getKindergartenSettings();
+      const defaultStart = settings?.workingHours?.start || '08:00';
+      const defaultEnd = settings?.workingHours?.end || '18:00';
+
       const flattenedShifts: any[] = [];
 
       for (const staffRecord of allStaffShifts) {
@@ -62,6 +66,8 @@ export class ShiftsService {
             staffId: staffRecord.staffId,
             date: date,
             status: detail.status,
+            startTime: settings?.workingHours?.start || defaultStart,
+            endTime: settings?.workingHours?.end || defaultEnd,
             notes: detail.notes,
             createdBy: detail.createdBy,
             alternativeStaffId: detail.alternativeStaffId,
@@ -111,12 +117,16 @@ export class ShiftsService {
       .populate('staffId', 'fullName role')
       .populate(`shifts.${date}.createdBy`, 'fullName');
 
+    const settings = await settingsService.getKindergartenSettings();
     const createdDetail = populated?.shifts.get(date);
+
     return {
       _id: `${staffId}_${date}`,
       id: `${staffId}_${date}`,
       staffId: populated?.staffId,
       date,
+      startTime: (createdDetail as any)?.startTime || settings?.workingHours?.start || '09:00',
+      endTime: (createdDetail as any)?.endTime || settings?.workingHours?.end || '18:00',
       ...(createdDetail as any)?.toObject ? (createdDetail as any).toObject() : createdDetail
     };
   }

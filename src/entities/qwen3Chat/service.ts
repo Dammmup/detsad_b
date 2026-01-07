@@ -71,14 +71,23 @@ export class Qwen3ChatService {
     if (template) {
       let resultText = template;
 
+      // Функция для красивого форматирования значений (числа с пробелами)
+      const formatValue = (val: any): string => {
+        if (val === undefined || val === null || val === '') return '—';
+        if (typeof val === 'number') {
+          return val.toLocaleString('ru-RU');
+        }
+        return String(val);
+      };
+
       // Функция для получения значения из объекта по пути (например, "fullName" или "role")
-      const getValueByPath = (obj: any, path: string): any => {
-        if (!obj || !path) return undefined;
+      const getValueByPath = (obj: any, path: string): string => {
+        if (!obj || !path) return '—';
         const value = obj[path];
         if (path === 'role' && typeof value === 'string') {
           return Qwen3ChatService.translateRole(value);
         }
-        return value;
+        return formatValue(value);
       };
 
       // 1. Замена {count}
@@ -105,13 +114,12 @@ export class Qwen3ChatService {
               ? `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`
               : JSON.stringify(data);
           }
-          return String(data ?? 'Данные не найдены');
+          return formatValue(data);
         } else {
           // Если {result.field}, берем конкретное поле
           const field = path.substring(1); // убираем точку
-          const targetObj = Array.isArray(data) ? data[0] : data;
-          const val = getValueByPath(targetObj, field);
-          return val !== undefined ? String(val) : match;
+          const targetObj = Array.isArray(data) ? (data.length > 0 ? data[0] : null) : data;
+          return getValueByPath(targetObj, field);
         }
       });
 
@@ -123,7 +131,18 @@ export class Qwen3ChatService {
         resultText = resultText.replace(/{list}/g, listStr);
       }
 
-      return resultText;
+      // 4. Добавление скрытых ID для контекста ИИ (невидимо для пользователя)
+      let hiddenMetadata = '';
+      if (Array.isArray(data) && data.length > 0) {
+        const ids = data.slice(0, 10).map((item: any) => item._id).filter(id => !!id);
+        if (ids.length > 0) {
+          hiddenMetadata = `\n\n[//]: # (ids: ${JSON.stringify(ids)})`;
+        }
+      } else if (data && typeof data === 'object' && data._id) {
+        hiddenMetadata = `\n\n[//]: # (ids: ${JSON.stringify([data._id])})`;
+      }
+
+      return resultText + hiddenMetadata;
     }
 
     // Дефолтное форматирование

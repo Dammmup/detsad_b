@@ -112,6 +112,7 @@ app.use('/product-purchases', productPurchaseRoutes);
 app.use('/product-reports', productReportsRoutes);
 app.use('/qwen3-chat', qwen3ChatRoutes);
 
+app.use('/auth', authRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/main-events', mainEventsRoutes);
 app.use('/telegram', telegramRoutes);
