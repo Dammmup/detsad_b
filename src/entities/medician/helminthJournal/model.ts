@@ -5,6 +5,8 @@ export interface IHelminthJournal extends Document {
   result?: string;
   notes?: string;
   examType?: string;
+  month?: string;
+  year?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,14 @@ const HelminthJournalSchema = new Schema<IHelminthJournal>({
     maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
   examType: {
+    type: String,
+    trim: true
+  },
+  month: {
+    type: String,
+    trim: true
+  },
+  year: {
     type: String,
     trim: true
   }

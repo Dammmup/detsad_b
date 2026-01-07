@@ -88,6 +88,31 @@ export class CacheService {
             console.warn(`Redis del error:`, error);
         }
     }
+
+    /**
+     * Checks if the given period is strictly in the past (before current month).
+     */
+    isArchivePeriod(startDate?: string | Date, endDate?: string | Date, period?: string): boolean {
+        const now = new Date();
+        // Начало текущего месяца (01 число)
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        // Если передан период в формате "YYYY-MM"
+        if (period && typeof period === 'string' && /^\d{4}-\d{2}$/.test(period)) {
+            const [year, month] = period.split('-').map(Number);
+            const periodDate = new Date(year, month - 1, 1);
+            return periodDate < currentMonthStart;
+        }
+
+        // Если дат нет, считаем что это текущие данные (список "всех")
+        if (!startDate && !endDate) return false;
+
+        // Если есть endDate, проверяем по нему. Если только startDate - по нему.
+        const end = endDate ? new Date(endDate) : new Date(startDate!);
+
+        // Если конец периода раньше начала текущего месяца — это архив
+        return end < currentMonthStart;
+    }
 }
 
 export const cacheService = new CacheService();

@@ -100,21 +100,24 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
   }
 
   const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
-  return await cacheService.getOrSet(cacheKey, async () => {
+  const fetcher = async () => {
     return await childPaymentModel.find(query)
       .populate('childId', 'fullName')
       .populate('userId', 'fullName');
-  }, CACHE_TTL);
+  };
+
+  if (cacheService.isArchivePeriod(filters.period?.start, filters.period?.end, filters.monthPeriod)) {
+    return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+  }
+
+  return await fetcher();
 };
 
 export const getChildPaymentById = async (id: string): Promise<IChildPayment | null> => {
-  const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
   const childPaymentModel = ChildPayment;
-  return await cacheService.getOrSet(cacheKey, async () => {
-    return await childPaymentModel.findById(id)
-      .populate('childId', 'fullName')
-      .populate('userId', 'fullName');
-  }, CACHE_TTL);
+  return await childPaymentModel.findById(id)
+    .populate('childId', 'fullName')
+    .populate('userId', 'fullName');
 };
 
 export const updateChildPayment = async (id: string, updateData: Partial<IChildPayment>): Promise<IChildPayment | null> => {
@@ -185,9 +188,15 @@ export const getChildPaymentByPeriod = async (
   }
 
   const cacheKey = `${CACHE_KEY_PREFIX}:period:${JSON.stringify(period)}:${childId || ''}:${userId || ''}`;
-  return await cacheService.getOrSet(cacheKey, async () => {
+  const fetcher = async () => {
     return await childPaymentModel.findOne(query)
       .populate('childId', 'fullName')
       .populate('userId', 'fullName');
-  }, CACHE_TTL);
+  };
+
+  if (cacheService.isArchivePeriod(period.start, period.end)) {
+    return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+  }
+
+  return await fetcher();
 };

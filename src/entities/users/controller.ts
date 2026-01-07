@@ -514,6 +514,20 @@ export const updatePayrollSettings = async (req: AuthenticatedRequest, res: Resp
 
     await payroll.save();
 
+    // Также обновляем глобальные настройки в модели User для будущего использования
+    if (user) {
+      if (req.body.salary !== undefined || req.body.baseSalary !== undefined) {
+        (user as any).baseSalary = Number(req.body.salary || req.body.baseSalary);
+      }
+      if (req.body.salaryType !== undefined) {
+        (user as any).baseSalaryType = req.body.salaryType;
+      }
+      if (req.body.shiftRate !== undefined) {
+        (user as any).shiftRate = Number(req.body.shiftRate);
+      }
+      await (user as any).save();
+    }
+
     res.json({
       message: 'Payroll settings updated',
       payroll: await Payroll.findById(payroll._id).populate('staffId', 'fullName role')

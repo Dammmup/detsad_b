@@ -21,6 +21,10 @@ export interface IUser extends Document {
   tenant?: boolean;
   telegramChatId?: string;
   telegramLinkCode?: string;
+
+  baseSalary?: number;
+  baseSalaryType?: 'month' | 'shift';
+  shiftRate?: number;
 }
 
 const UserSchema: Schema = new Schema({
@@ -93,6 +97,19 @@ const UserSchema: Schema = new Schema({
   telegramLinkCode: {
     type: String,
     required: false
+  },
+  baseSalary: {
+    type: Number,
+    default: 180000
+  },
+  baseSalaryType: {
+    type: String,
+    enum: ['month', 'shift'],
+    default: 'month'
+  },
+  shiftRate: {
+    type: Number,
+    default: 0
   }
 
 }, {

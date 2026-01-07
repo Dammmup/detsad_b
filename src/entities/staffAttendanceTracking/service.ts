@@ -303,17 +303,13 @@ export class StaffAttendanceTrackingService {
     const filter: any = {};
 
     if (filters.staffId) filter.staffId = filters.staffId;
-    // Removed approvedBy filter
-    // if (filters.approvedBy) filter.approvedBy = filters.approvedBy;
-    // Removed inZone filter as field is deleted
-    // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
     if (filters.date) {
-      const d = new Date(filters.date); d.setHours(0, 0, 0, 0); filter.date = d;
+      filter.date = new Date(`${filters.date}T00:00:00+05:00`);
     } else if (filters.startDate || filters.endDate) {
       filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
+      if (filters.startDate) filter.date.$gte = new Date(`${filters.startDate}T00:00:00+05:00`);
+      if (filters.endDate) filter.date.$lte = new Date(`${filters.endDate}T23:59:59+05:00`);
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
@@ -434,13 +430,19 @@ export class StaffAttendanceTrackingService {
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getByStaffId:${staffId}:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
         .sort({ date: -1 });
 
       return records;
-    }, CACHE_TTL);
+    };
+
+    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
+      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    }
+
+    return await fetcher();
   }
 
   async getByDateRange(startDate: string, endDate: string, filters: { staffId?: string, status?: string, inZone?: boolean }) {
@@ -460,13 +462,19 @@ export class StaffAttendanceTrackingService {
 
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getByDateRange:${startDate}:${endDate}:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
         .sort({ date: -1 });
 
       return records;
-    }, CACHE_TTL);
+    };
+
+    if (cacheService.isArchivePeriod(startDate, endDate)) {
+      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    }
+
+    return await fetcher();
   }
 
   async getEntries(userId: string, filters: { page?: number, limit?: number, startDate?: string, endDate?: string, status?: string }) {
@@ -490,7 +498,7 @@ export class StaffAttendanceTrackingService {
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getEntries:${userId}:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(query)
         .populate('staffId', 'fullName role')
         .sort({ date: -1 })
@@ -502,13 +510,19 @@ export class StaffAttendanceTrackingService {
       return {
         records,
         pagination: {
+          total,
           page,
           limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
+          pages: Math.ceil(total / limit),
+        },
       };
-    }, CACHE_TTL);
+    };
+
+    if (cacheService.isArchivePeriod(filters.startDate, filters.endDate)) {
+      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    }
+
+    return await fetcher();
   }
 
   async getSummary(userId: string, startDate: string, endDate: string) {

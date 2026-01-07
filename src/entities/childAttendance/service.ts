@@ -36,9 +36,16 @@ export class ChildAttendanceService {
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
-    const results = await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       return await ChildAttendance.find(filter);
-    }, CACHE_TTL);
+    };
+
+    let results;
+    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
+      results = await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    } else {
+      results = await fetcher();
+    }
 
     // Flattening for frontend compatibility
     const flattened: any[] = [];

@@ -38,7 +38,7 @@ export class ShiftsService {
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       const allStaffShifts = await Shift.find(filter)
         .populate('staffId', 'fullName role')
         .populate('shifts.$*.createdBy', 'fullName')
@@ -78,7 +78,13 @@ export class ShiftsService {
       }
 
       return flattenedShifts.sort((a, b) => a.date.localeCompare(b.date));
-    }, CACHE_TTL);
+    };
+
+    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
+      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    }
+
+    return await fetcher();
   }
 
   async create(shiftData: any, userId: string) {
@@ -223,7 +229,10 @@ export class ShiftsService {
   }
 
   async checkIn(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
-    // id here is usually shiftId (staffId_date) or null
+    const now = new Date();
+    const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
+    const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
+
     let staffId: string;
     let date: string;
 
@@ -231,7 +240,7 @@ export class ShiftsService {
       [staffId, date] = id.split('_');
     } else {
       staffId = userId;
-      date = new Date().toISOString().split('T')[0];
+      date = almatyDateStr;
     }
 
     const record = await Shift.findOne({ staffId });
@@ -257,7 +266,6 @@ export class ShiftsService {
     }
 
     const settings = await settingsService.getKindergartenSettings();
-    const now = new Date();
 
     // Get current time in Almaty for comparison
     const almatyTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
@@ -278,12 +286,14 @@ export class ShiftsService {
     record.shifts.set(date, shift);
     await record.save();
 
-    let timeTracking = await StaffAttendanceTracking.findOne({ staffId, date });
+    let timeTracking = await StaffAttendanceTracking.findOne({
+      staffId: new mongoose.Types.ObjectId(staffId),
+      date: almatyDay
+    });
     if (!timeTracking) {
-      timeTracking = new StaffAttendanceTracking({ staffId, date });
+      timeTracking = new StaffAttendanceTracking({ staffId, date: almatyDay });
     }
 
-    // Always store as UTC (new Date() in Vercel is UTC)
     timeTracking.actualStart = now;
     timeTracking.lateMinutes = lateMinutes;
     await timeTracking.save();
@@ -297,6 +307,10 @@ export class ShiftsService {
   }
 
   async checkOut(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
+    const now = new Date();
+    const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
+    const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
+
     let staffId: string;
     let date: string;
 
@@ -304,7 +318,7 @@ export class ShiftsService {
       [staffId, date] = id.split('_');
     } else {
       staffId = userId;
-      date = new Date().toISOString().split('T')[0];
+      date = almatyDateStr;
     }
 
     const record = await Shift.findOne({ staffId });
@@ -318,9 +332,11 @@ export class ShiftsService {
     await record.save();
 
     const settings = await settingsService.getKindergartenSettings();
-    const now = new Date();
 
-    const timeTracking = await StaffAttendanceTracking.findOne({ staffId, date });
+    const timeTracking = await StaffAttendanceTracking.findOne({
+      staffId: new mongoose.Types.ObjectId(staffId),
+      date: almatyDay
+    });
     if (timeTracking) {
       timeTracking.actualEnd = now;
       if (timeTracking.actualStart) {
@@ -356,11 +372,17 @@ export class ShiftsService {
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getTimeTracking:${userId}:${role}:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       return await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
         .sort({ date: -1 });
-    }, CACHE_TTL);
+    };
+
+    if (cacheService.isArchivePeriod(filters.startDate, filters.endDate)) {
+      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    }
+
+    return await fetcher();
   }
 
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {

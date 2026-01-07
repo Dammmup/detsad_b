@@ -246,9 +246,10 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       });
 
       // Если нет записи за текущий период - ищем из предыдущих периодов
-      let baseSalary = existingPayrollCheck?.baseSalary;
-      let salaryType = existingPayrollCheck?.baseSalaryType || 'month';
-      let shiftRate = existingPayrollCheck?.shiftRate || 0;
+      // Сначала ищем в текущем пейролле, потом в настройках пользователя, потом в предыдущих пейроллах
+      let baseSalary = existingPayrollCheck?.baseSalary || (employee as any).baseSalary;
+      let salaryType = existingPayrollCheck?.baseSalaryType || (employee as any).baseSalaryType || 'month';
+      let shiftRate = existingPayrollCheck?.shiftRate || (employee as any).shiftRate || 0;
 
       if (!baseSalary) {
         const previousPayroll = await Payroll.findOne({ staffId: (employee as any)._id }).sort({ period: -1 });
