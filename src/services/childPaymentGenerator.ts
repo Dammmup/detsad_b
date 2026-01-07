@@ -64,6 +64,19 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
       }
 
 
+      // Последняя проверка перед созданием (во избежание гонки условий)
+      const safetyCheck = await getChildPayments({
+        childId: child._id.toString(),
+        'period.start': currentMonthStart,
+        'period.end': currentMonthEnd,
+      });
+
+      if (safetyCheck.length > 0) {
+        console.log(`[Safety] Оплата для ребенка ${child.fullName} уже создана кем-то другим. Пропускаем.`);
+        skippedCount++;
+        continue;
+      }
+
       await createChildPayment({
         childId: child._id as mongoose.Types.ObjectId,
         period: {
