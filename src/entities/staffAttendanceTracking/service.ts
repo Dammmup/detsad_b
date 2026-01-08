@@ -67,12 +67,10 @@ export class StaffAttendanceTrackingService {
     }
 
     const now = new Date();
-    const almatyDay = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Almaty' }));
-    almatyDay.setHours(0, 0, 0, 0);
+    const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
+    const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
 
     const today = almatyDay;
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
     console.log(`[CLOCK-IN] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}`);
 
@@ -183,12 +181,10 @@ export class StaffAttendanceTrackingService {
     }
 
     const now = new Date();
-    const almatyDay = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Almaty' }));
-    almatyDay.setHours(0, 0, 0, 0);
+    const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
+    const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
 
     const today = almatyDay;
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
     console.log(`[CLOCK-OUT] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}`);
 
@@ -313,13 +309,19 @@ export class StaffAttendanceTrackingService {
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
+    const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
         .sort({ date: -1 });
 
       return records;
-    }, CACHE_TTL);
+    };
+
+    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
+      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
+    }
+
+    return await fetcher();
   }
 
   async getById(id: string) {
@@ -422,11 +424,11 @@ export class StaffAttendanceTrackingService {
     // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
     if (filters.date) {
-      const d = new Date(filters.date); d.setHours(0, 0, 0, 0); filter.date = d;
+      filter.date = new Date(`${filters.date}T00:00:00+05:00`);
     } else if (filters.startDate || filters.endDate) {
       filter.date = {};
-      if (filters.startDate) filter.date.$gte = new Date(filters.startDate);
-      if (filters.endDate) filter.date.$lte = new Date(filters.endDate);
+      if (filters.startDate) filter.date.$gte = new Date(`${filters.startDate}T00:00:00+05:00`);
+      if (filters.endDate) filter.date.$lte = new Date(`${filters.endDate}T23:59:59+05:00`);
     }
 
     const cacheKey = `${CACHE_KEY_PREFIX}:getByStaffId:${staffId}:${JSON.stringify(filters)}`;
@@ -446,8 +448,8 @@ export class StaffAttendanceTrackingService {
   }
 
   async getByDateRange(startDate: string, endDate: string, filters: { staffId?: string, status?: string, inZone?: boolean }) {
-    const sd = new Date(startDate); sd.setHours(0, 0, 0, 0);
-    const ed = new Date(endDate); ed.setHours(23, 59, 59, 999);
+    const sd = new Date(`${startDate}T00:00:00+05:00`);
+    const ed = new Date(`${endDate}T23:59:59+05:00`);
     const filter: any = {
       date: {
         $gte: sd,
@@ -490,10 +492,10 @@ export class StaffAttendanceTrackingService {
     if (filters.startDate || filters.endDate) {
       query.date = {};
       if (filters.startDate) {
-        const sd = new Date(filters.startDate); sd.setHours(0, 0, 0, 0); query.date.$gte = sd;
+        query.date.$gte = new Date(`${filters.startDate}T00:00:00+05:00`);
       }
       if (filters.endDate) {
-        const ed = new Date(filters.endDate); ed.setHours(23, 59, 59, 999); query.date.$lte = ed;
+        query.date.$lte = new Date(`${filters.endDate}T23:59:59+05:00`);
       }
     }
 
@@ -526,8 +528,8 @@ export class StaffAttendanceTrackingService {
   }
 
   async getSummary(userId: string, startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(`${startDate}T00:00:00+05:00`);
+    const end = new Date(`${endDate}T23:59:59+05:00`);
 
     const records = await StaffAttendanceTracking.find({
       staffId: userId,
@@ -554,8 +556,11 @@ export class StaffAttendanceTrackingService {
   }
 
   async getUpcomingAbsences(days: number = 7) {
-    const today = new Date();
-    const futureDate = new Date();
+    const now = new Date();
+    const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
+    const today = new Date(`${almatyDateStr}T00:00:00+05:00`);
+
+    const futureDate = new Date(today);
     futureDate.setDate(today.getDate() + days);
 
     const records = await StaffAttendanceTracking.find({
@@ -779,8 +784,8 @@ export class StaffAttendanceTrackingService {
       {
         $match: {
           date: {
-            $gte: new Date(startDate),
-            $lte: new Date(endDate)
+            $gte: new Date(`${startDate}T00:00:00+05:00`),
+            $lte: new Date(`${endDate}T23:59:59+05:00`)
           }
         }
       },
@@ -829,8 +834,8 @@ export class StaffAttendanceTrackingService {
       {
         $match: {
           date: {
-            $gte: new Date(startDate),
-            $lte: new Date(endDate)
+            $gte: new Date(`${startDate}T00:00:00+05:00`),
+            $lte: new Date(`${endDate}T23:59:59+05:00`)
           }
         }
       },
@@ -871,26 +876,22 @@ export class StaffAttendanceTrackingService {
   }
 
   async getAttendanceRate(startDate: string, endDate: string) {
+    const rangeFilter = {
+      $gte: new Date(`${startDate}T00:00:00+05:00`),
+      $lte: new Date(`${endDate}T23:59:59+05:00`)
+    };
+
     const totalRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+      date: rangeFilter
     });
 
     const presentRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      },
+      date: rangeFilter,
       actualStart: { $exists: true, $ne: null }
     });
 
     const absentRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      },
+      date: rangeFilter,
       actualStart: { $exists: false }
     });
 
@@ -903,18 +904,17 @@ export class StaffAttendanceTrackingService {
   }
 
   async getLateArrivalRate(startDate: string, endDate: string, thresholdMinutes: number = 15) {
+    const rangeFilter = {
+      $gte: new Date(`${startDate}T00:00:00+05:00`),
+      $lte: new Date(`${endDate}T23:59:59+05:00`)
+    };
+
     const totalRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+      date: rangeFilter
     });
 
     const lateRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      },
+      date: rangeFilter,
       'penalties.late.minutes': { $gte: thresholdMinutes }
     });
 
@@ -926,18 +926,17 @@ export class StaffAttendanceTrackingService {
   }
 
   async getEarlyLeaveRate(startDate: string, endDate: string, thresholdMinutes: number = 15) {
+    const rangeFilter = {
+      $gte: new Date(`${startDate}T00:00:00+05:00`),
+      $lte: new Date(`${endDate}T23:59:59+05:00`)
+    };
+
     const totalRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+      date: rangeFilter
     });
 
     const earlyLeaveRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      },
+      date: rangeFilter,
       'penalties.earlyLeave.minutes': { $gte: thresholdMinutes }
     });
 
@@ -949,18 +948,17 @@ export class StaffAttendanceTrackingService {
   }
 
   async getOvertimeRate(startDate: string, endDate: string, thresholdMinutes: number = 30) {
+    const rangeFilter = {
+      $gte: new Date(`${startDate}T00:00:00+05:00`),
+      $lte: new Date(`${endDate}T23:59:59+05:00`)
+    };
+
     const totalRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+      date: rangeFilter
     });
 
     const overtimeRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      },
+      date: rangeFilter,
       'overtimeDuration': { $gte: thresholdMinutes }
     });
 
@@ -972,18 +970,17 @@ export class StaffAttendanceTrackingService {
   }
 
   async getAbsenteeismRate(startDate: string, endDate: string) {
+    const rangeFilter = {
+      $gte: new Date(`${startDate}T00:00:00+05:00`),
+      $lte: new Date(`${endDate}T23:59:59+05:00`)
+    };
+
     const totalRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      }
+      date: rangeFilter
     });
 
     const absentRecords = await StaffAttendanceTracking.countDocuments({
-      date: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      },
+      date: rangeFilter,
       status: 'absent'
     });
 
