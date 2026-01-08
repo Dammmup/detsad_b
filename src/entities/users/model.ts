@@ -110,8 +110,7 @@ const UserSchema: Schema = new Schema({
   shiftRate: {
     type: Number,
     default: 0
-  }
-
+  },
 }, {
   timestamps: true
 });

@@ -177,7 +177,8 @@ export class PayrollService {
         if (salaryType === 'month' && countOfWorkdays > 0) {
           calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
         } else if (salaryType === 'shift') {
-          calculatedDailyPay = shiftRate;
+          // Если shiftRate не задан, используем baseSalary как ставку за смену
+          calculatedDailyPay = shiftRate > 0 ? shiftRate : baseSalary;
         } else if (countOfWorkdays > 0) {
 
           calculatedDailyPay = Math.round(baseSalary / countOfWorkdays);
@@ -543,15 +544,22 @@ export class PayrollService {
       }
 
 
+      // Обогащаем объект staff данными из payroll для корректного расчета штрафов
+      const staffWithPayrollData = {
+        ...staff.toObject(),
+        baseSalary,
+        baseSalaryType,
+        shiftRate
+      };
 
-      const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 1000); // Updated rate
+      const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staffWithPayrollData as any);
 
 
       const newFines = attendancePenalties.attendanceRecords
-        .filter((r: any) => r.lateMinutes > 0)
+        .filter((r: any) => r.lateMinutes > 0 && r.calculatedPenalty > 0)
         .map((r: any) => ({
-          amount: r.lateMinutes * 1000,
-          reason: `Опоздание: ${r.lateMinutes} мин`,
+          amount: r.calculatedPenalty || (r.lateMinutes * 50),
+          reason: `Опоздание: ${Math.round(r.lateMinutes)} мин`,
           type: 'late',
           date: new Date(r.actualStart),
           createdAt: new Date()
@@ -587,7 +595,9 @@ export class PayrollService {
         accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
       } else if (baseSalaryType === 'shift') {
         workedShifts = attendedRecords.length;
-        accruals = workedShifts * shiftRate;
+        // Если shiftRate не задан, используем baseSalary как ставку за смену
+        const effectiveShiftRate = shiftRate > 0 ? shiftRate : baseSalary;
+        accruals = workedShifts * effectiveShiftRate;
       } else {
 
         workedShifts = attendedRecords.length;
@@ -603,7 +613,8 @@ export class PayrollService {
       if ((baseSalaryType === 'month' || !baseSalaryType) && workDaysInMonth > 0) {
         calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
       } else if (baseSalaryType === 'shift') {
-        calculatedDailyPay = shiftRate;
+        // Если shiftRate не задан, используем baseSalary как ставку за смену
+        calculatedDailyPay = shiftRate > 0 ? shiftRate : baseSalary;
       } else if (workDaysInMonth > 0) {
 
         calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
@@ -656,7 +667,7 @@ export class PayrollService {
           existing.total = total;
 
           existing.baseSalary = baseSalary;
-          existing.baseSalaryType = 'month';
+          existing.baseSalaryType = baseSalaryType as any;
 
           await existing.save();
           return { message: 'Payroll updated', created: 0 };
@@ -699,187 +710,36 @@ export class PayrollService {
 
   async ensurePayrollRecordsForPeriod(period: string) {
     try {
-      console.log(`Проверка наличия расчетных листов для периода: ${period}`);
+      console.log(`Проверка и формирование расчетных листов для периода: ${period}`);
 
       const allStaff = await User.find({
         role: { $ne: 'admin' },
         active: true
       });
 
+      console.log(`Найдено ${allStaff.length} активных сотрудников.`);
 
-      const existingPayrolls = await Payroll.find({ period });
-      const existingStaffIds = existingPayrolls.map(p => p.staffId?.toString());
+      let created = 0;
+      let updated = 0;
 
-
-      const staffWithoutPayroll = allStaff.filter(staff =>
-        !existingStaffIds.includes(staff._id.toString())
-      );
-
-      console.log(`Найдено ${staffWithoutPayroll.length} сотрудников без расчетных листов для периода ${period}`);
-
-      if (staffWithoutPayroll.length === 0) {
-        console.log(`Все сотрудники имеют расчетные листы для периода ${period}`);
-        return {
-          message: `Все сотрудники имеют расчетные листы для периода ${period}`,
-          created: 0,
-          totalStaff: allStaff.length
-        };
+      for (const staff of allStaff) {
+        try {
+          const result = await this.ensurePayrollForUser(staff._id.toString(), period);
+          if (result.created) created++;
+          else updated++;
+        } catch (err) {
+          console.error(`Ошибка при обработке сотрудника ${staff.fullName}:`, err);
+        }
       }
-
-
-      const createdRecords = [];
-      for (const staff of staffWithoutPayroll) {
-
-        // Ищем baseSalary из предыдущих записей сотрудника
-        const previousPayroll = await Payroll.findOne({ staffId: staff._id }).sort({ period: -1 });
-        const baseSalary = previousPayroll?.baseSalary || 180000;
-        const baseSalaryType: string = previousPayroll?.baseSalaryType || 'month';
-        const shiftRate = previousPayroll?.shiftRate || 0;
-
-
-
-
-        const attendancePenalties = await calculatePenalties(staff._id.toString(), period, staff as any, 50);
-
-
-
-        const newFines = attendancePenalties.attendanceRecords
-          .filter((r: any) => r.lateMinutes > 0)
-          .map((r: any) => ({
-            amount: r.lateMinutes * 50,
-            reason: `Опоздание: ${r.lateMinutes} мин`,
-            type: 'late',
-            date: new Date(r.actualStart),
-            createdAt: new Date()
-          }));
-
-        const latePenalties = attendancePenalties.latePenalties;
-        const absencePenalties = attendancePenalties.absencePenalties;
-        const totalPenalties = latePenalties + absencePenalties;
-
-
-        let accruals = 0;
-        let workedDays = 0;
-        let workedShifts = 0;
-
-
-        const startDate = new Date(`${period}-01`);
-        let workDaysInMonth = await getWorkingDaysInMonth(startDate);
-
-        if (workDaysInMonth <= 0) {
-          const year = startDate.getFullYear();
-          const month = startDate.getMonth();
-          const lastDay = new Date(year, month + 1, 0).getDate();
-          for (let d = 1; d <= lastDay; d++) {
-            const dayOfWeek = new Date(year, month, d).getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysInMonth++;
-          }
-        }
-        const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
-
-
-        if (baseSalaryType === 'month' || !baseSalaryType) {
-          workedShifts = attendedRecords.length;
-          workedDays = workedShifts;
-          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
-        } else if (baseSalaryType === 'shift') {
-          workedShifts = attendedRecords.length;
-          accruals = workedShifts * shiftRate;
-        } else {
-
-          workedShifts = attendedRecords.length;
-          workedDays = workedShifts;
-          accruals = Math.round((baseSalary / workDaysInMonth) * workedShifts);
-        }
-
-
-        const shiftDetails: any[] = [];
-        let calculatedDailyPay = 0;
-
-
-        if ((baseSalaryType === 'month' || !baseSalaryType) && workDaysInMonth > 0) {
-          calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
-        } else if (baseSalaryType === 'shift') {
-          calculatedDailyPay = shiftRate;
-        } else if (workDaysInMonth > 0) {
-
-          calculatedDailyPay = Math.round(baseSalary / workDaysInMonth);
-        }
-
-        for (const record of attendedRecords) {
-
-          shiftDetails.push({
-            date: new Date(record.actualStart),
-            earnings: calculatedDailyPay,
-            fines: 0,
-            net: calculatedDailyPay,
-            reason: `Смена ${new Date(record.actualStart).toLocaleDateString('ru-RU')}`
-          });
-        }
-
-        // Holiday Pay Logic
-        if (baseSalaryType === 'month' || !baseSalaryType) {
-          const dailyRate = workDaysInMonth > 0 ? baseSalary / workDaysInMonth : 0;
-          const holidayRecords = attendedRecords.filter((r: any) => {
-            const d = new Date(r.actualStart);
-            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-            return isNonWorkingDay(d) && !isWeekend;
-          });
-          if (holidayRecords.length > 0) {
-            const holidayPay = Math.round(holidayRecords.length * dailyRate);
-            accruals += holidayPay;
-          }
-        }
-
-        const total = Math.max(0, accruals - totalPenalties);
-
-
-        const newPayroll = new Payroll({
-          staffId: staff._id,
-          period: period,
-          baseSalary: baseSalary,
-          baseSalaryType: baseSalaryType,
-          shiftRate: shiftRate,
-          bonuses: 0,
-          deductions: 0,
-          accruals: accruals,
-          penalties: totalPenalties,
-          fines: newFines,
-          latePenalties: latePenalties,
-          absencePenalties: absencePenalties,
-          userFines: 0,
-          workedDays: workedDays,
-          workedShifts: workedShifts,
-          shiftDetails: shiftDetails,
-          total: total,
-          status: 'draft',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-
-        await newPayroll.save();
-        createdRecords.push(newPayroll);
-
-        console.log(`Создан расчетный лист для сотрудника: ${staff.fullName}, ID: ${staff._id}`);
-      }
-
-      console.log(`Создано ${createdRecords.length} новых расчетных листов для периода ${period}`);
 
       return {
-        message: `Создано ${createdRecords.length} новых расчетных листов для периода ${period}`,
-        created: createdRecords.length,
-        totalStaff: allStaff.length,
-        staffWithoutPayroll: staffWithoutPayroll.map(s => ({ id: s._id, name: s.fullName }))
+        message: `Обработка завершена: создано ${created}, обновлено ${updated}`,
+        created,
+        totalStaff: allStaff.length
       };
     } catch (error) {
-      console.error('Ошибка при проверке и создании расчетных листов:', error);
-      let errorMessage = 'Неизвестная ошибка';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      throw new Error(`Ошибка при проверке и создании расчетных листов: ${errorMessage}`);
+      console.error('Ошибка при массовой проверке расчетных листов:', error);
+      throw new Error(`Ошибка при массовой проверке расчетных листов: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

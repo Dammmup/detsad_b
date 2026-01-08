@@ -41,14 +41,11 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
 
 
-  const penaltyType: string = (employee as any).penaltyType || 'per_minute';
-  let penaltyAmount: number = 0;
+  const penaltyType = settings?.payroll?.latePenaltyType || 'per_minute';
+  let penaltyAmount = settings?.payroll?.latePenaltyRate || 50;
 
   if (rateOverride !== undefined) {
     penaltyAmount = rateOverride;
-  } else {
-
-    penaltyAmount = (employee as any).penaltyAmount || globalLatePenaltyRate;
   }
 
 
@@ -65,7 +62,18 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
   const workDaysInMonth = await getWeekdaysInMonth(startDate.getFullYear(), startDate.getMonth());
   const baseSalary = (employee as any).baseSalary || 180000;
-  const dailyRate = workDaysInMonth > 0 ? Math.round(baseSalary / workDaysInMonth) : 0;
+  const salaryType = (employee as any).baseSalaryType || 'month';
+  const shiftRate = (employee as any).shiftRate || 0;
+
+  // Рассчитываем дневную ставку в зависимости от типа зарплаты
+  let dailyRate = 0;
+  if (salaryType === 'shift') {
+    // Для типа 'shift' - дневная ставка равна ставке за смену (или baseSalary как fallback)
+    dailyRate = shiftRate > 0 ? shiftRate : baseSalary;
+  } else {
+    // Для типа 'month' - делим месячный оклад на количество рабочих дней
+    dailyRate = workDaysInMonth > 0 ? Math.round(baseSalary / workDaysInMonth) : 0;
+  }
 
   for (const record of attendanceRecords) {
 
@@ -119,7 +127,18 @@ export const calculatePenalties = async (staffId: string, month: string, employe
 
     if (lateMinutes > 0 && penaltyAmount > 0) {
       // Calculate penalty
-      let penalty = lateMinutes * penaltyAmount;
+      let penalty = 0;
+      if (penaltyType === 'fixed') {
+        penalty = penaltyAmount;
+      } else if (penaltyType === 'per_minute') {
+        penalty = lateMinutes * penaltyAmount;
+      } else if (penaltyType === 'per_5_minutes') {
+        penalty = Math.ceil(lateMinutes / 5) * penaltyAmount;
+      } else if (penaltyType === 'per_10_minutes') {
+        penalty = Math.ceil(lateMinutes / 10) * penaltyAmount;
+      } else {
+        penalty = lateMinutes * penaltyAmount;
+      }
 
       // Cap single day penalty to daily rate
       // Daily Rate must be strictly checked
@@ -259,8 +278,15 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       }
 
 
+      // Обогащаем объект employee данными из payroll для корректного расчета штрафов
+      const employeeWithPayrollData = {
+        ...(employee as any).toObject ? (employee as any).toObject() : employee,
+        baseSalary,
+        baseSalaryType: salaryType,
+        shiftRate
+      };
 
-      const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employee, 50);
+      const attendancePenalties = await calculatePenalties((employee as any)._id.toString(), month, employeeWithPayrollData as any);
       const attendedRecords = attendancePenalties.attendanceRecords.filter((r: any) => shouldCountAttendance(r));
 
       let accruals = 0;
@@ -320,8 +346,9 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       } else if (salaryType === 'shift') {
 
         workedShifts = attendedRecords.length;
-
-        accruals = workedShifts * shiftRate;
+        // Если shiftRate не задан, используем baseSalary как ставку за смену
+        const effectiveShiftRate = shiftRate > 0 ? shiftRate : baseSalary;
+        accruals = workedShifts * effectiveShiftRate;
       } else {
 
         accruals = baseSalary;

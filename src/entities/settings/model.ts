@@ -17,6 +17,7 @@ export interface IKindergartenSettings extends Document {
   currency: string;
   payroll?: {
     latePenaltyRate: number;
+    latePenaltyType: 'fixed' | 'per_minute' | 'per_5_minutes' | 'per_10_minutes';
   };
   createdAt: Date;
   updatedAt: Date;

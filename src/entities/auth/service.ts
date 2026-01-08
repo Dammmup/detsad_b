@@ -27,8 +27,28 @@ export class AuthService {
   }
 
   async login(phone: string, password: string) {
+    // Нормализация входящего номера: удаляем всё кроме цифр и плюса
+    const normalizedPhone = (phone || '').replace(/[^\d+]/g, '');
 
-    const user = await this.userModel.findOne({ phone: phone || '' }).select('+initialPassword +passwordHash');
+    // Пробуем найти пользователя сначала по точному совпадению, затем по нормализованному номеру
+    let user = await this.userModel.findOne({
+      $or: [
+        { phone: phone || '' },
+        { phone: normalizedPhone }
+      ]
+    }).select('+initialPassword +passwordHash');
+
+    // Если не нашли, пробуем найти всех и сравнить нормализованные версии (для случаев, когда в БД пробелы, а вводят без них)
+    if (!user && normalizedPhone) {
+      // Ищем пользователей, у которых номер похож (содержит те же цифры в конце)
+      const partialPhone = normalizedPhone.slice(-10);
+      const candidates = await this.userModel.find({
+        phone: { $regex: partialPhone }
+      }).select('+initialPassword +passwordHash');
+
+      user = candidates.find(u => (u.phone || '').replace(/[^\d+]/g, '') === normalizedPhone) || null;
+    }
+
     if (!user) {
       throw new Error('No account with this data');
     }

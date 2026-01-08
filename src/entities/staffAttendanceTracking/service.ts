@@ -311,10 +311,11 @@ export class StaffAttendanceTrackingService {
     const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
-        .populate('staffId', 'fullName role')
+        .populate('staffId', 'fullName role penaltyType penaltyAmount')
         .sort({ date: -1 });
 
-      return records;
+      // Рассчитываем штрафы (penalties) на лету на основе lateMinutes и настроек сотрудника
+      return await Promise.all(records.map(record => this._applyPenalties(record)));
     };
 
     if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
@@ -328,14 +329,60 @@ export class StaffAttendanceTrackingService {
     const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
     return await cacheService.getOrSet(cacheKey, async () => {
       const record = await StaffAttendanceTracking.findById(id)
-        .populate('staffId', 'fullName role');
+        .populate('staffId', 'fullName role penaltyType penaltyAmount');
 
       if (!record) {
         throw new Error('Запись посещаемости сотрудника не найдена');
       }
 
-      return record;
+      return await this._applyPenalties(record);
     }, CACHE_TTL);
+  }
+
+  private async _applyPenalties(record: any) {
+    const doc = record.toObject();
+    const staff = record.staffId as any;
+    let penalties = 0;
+
+    if (doc.lateMinutes > 0 && staff) {
+      const settingsService = new SettingsService();
+      const settings = await settingsService.getKindergartenSettings();
+      const amount = settings?.payroll?.latePenaltyRate || 50;
+      const type = settings?.payroll?.latePenaltyType || 'per_minute';
+
+      if (type === 'fixed') {
+        penalties = amount;
+      } else if (type === 'per_minute') {
+        // Если ставка за минуту, пользователь считает, что 10 мин = 500 тг (т.е. 50/мин)
+        // Если база 50, то 10 * 50 = 500. Работает верно.
+        penalties = doc.lateMinutes * amount;
+      } else if (type === 'per_5_minutes') {
+        penalties = Math.ceil(doc.lateMinutes / 5) * amount;
+      } else if (type === 'per_10_minutes') {
+        penalties = Math.ceil(doc.lateMinutes / 10) * amount;
+      } else {
+        penalties = doc.lateMinutes * amount;
+      }
+      // Ограничение штрафа ценой смены (дневным окладом)
+      const baseSalary = staff.baseSalary || 180000;
+      const salaryType = staff.baseSalaryType || 'month';
+      const shiftRate = staff.shiftRate || 0;
+
+      let dailyRate = 0;
+      if (salaryType === 'shift') {
+        // Если shiftRate не задан, используем baseSalary как ставку за смену
+        dailyRate = shiftRate > 0 ? shiftRate : baseSalary;
+      } else {
+        // Примерный расчет дневной ставки (среднее 22 рабочих дня)
+        dailyRate = Math.round(baseSalary / 22);
+      }
+
+      if (penalties > dailyRate && dailyRate > 0) {
+        penalties = dailyRate;
+      }
+    }
+
+    return { ...doc, penalties };
   }
 
   async create(recordData: Partial<IStaffAttendanceTracking>, userId: string) {
@@ -361,7 +408,7 @@ export class StaffAttendanceTrackingService {
     await record.save();
 
     const populatedRecord = await StaffAttendanceTracking.findById(record._id)
-      .populate('staffId', 'fullName role');
+      .populate('staffId', 'fullName role penaltyType penaltyAmount');
 
     try {
       await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -369,7 +416,7 @@ export class StaffAttendanceTrackingService {
       console.warn('Cache invalidation error:', e);
     }
 
-    return populatedRecord;
+    return populatedRecord ? await this._applyPenalties(populatedRecord) : null;
   }
 
   async update(id: string, data: Partial<IStaffAttendanceTracking>) {
@@ -389,7 +436,7 @@ export class StaffAttendanceTrackingService {
 
     // Populate and return
     const updatedRecord = await StaffAttendanceTracking.findById(id)
-      .populate('staffId', 'fullName role');
+      .populate('staffId', 'fullName role penaltyType penaltyAmount');
 
     try {
       await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -397,7 +444,7 @@ export class StaffAttendanceTrackingService {
       console.warn('Cache invalidation error:', e);
     }
 
-    return updatedRecord;
+    return updatedRecord ? await this._applyPenalties(updatedRecord) : null;
   }
 
   async delete(id: string) {

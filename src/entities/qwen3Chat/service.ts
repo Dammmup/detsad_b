@@ -199,7 +199,8 @@ export class Qwen3ChatService {
       'music_teacher': 'Музыкальный руководитель',
       'physical_teacher': 'Физрук',
       'staff': 'Сотрудник',
-      'rent': 'Арендатор'
+      'rent': 'Арендатор',
+      'educator': 'Педагог'
     };
     return roles[role] || role;
   }
