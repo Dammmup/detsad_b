@@ -32,7 +32,8 @@ import {
   getLateArrivalRate,
   getEarlyLeaveRate,
   getOvertimeRate,
-  getAbsenteeismRate
+  getAbsenteeismRate,
+  bulkUpdateStaffAttendanceRecords
 } from './controller';
 import { body, query, validationResult } from 'express-validator';
 import { authMiddleware } from '../../middlewares/authMiddleware';
@@ -98,7 +99,11 @@ router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nu
 router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getStaffAttendanceRecordById);
 
 
+
 router.post('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), createStaffAttendanceRecord);
+
+// Массовое обновление записей
+router.post('/bulk-update', authMiddleware, authorizeRole(['admin', 'manager']), bulkUpdateStaffAttendanceRecords);
 
 
 router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateStaffAttendanceRecord);

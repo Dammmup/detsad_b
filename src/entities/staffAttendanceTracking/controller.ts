@@ -703,3 +703,33 @@ export const getAbsenteeismRate = async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message || 'Ошибка получения процента прогулов' });
   }
 };
+
+/**
+ * Массовое обновление записей посещаемости
+ */
+export const bulkUpdateStaffAttendanceRecords = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { ids, actualStart, actualEnd, timeStart, timeEnd, notes } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Необходимо указать массив ID записей' });
+    }
+
+    const result = await staffAttendanceTrackingService.bulkUpdate(ids, {
+      actualStart,
+      actualEnd,
+      timeStart,
+      timeEnd,
+      notes
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('Error bulk updating staff attendance records:', err);
+    res.status(400).json({ error: err.message || 'Ошибка массового обновления записей посещаемости' });
+  }
+};

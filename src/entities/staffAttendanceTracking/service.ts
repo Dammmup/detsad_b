@@ -395,7 +395,7 @@ export class StaffAttendanceTrackingService {
     }
 
 
-    const staff = await UserModel.findById(recordData.staffId);
+    const staff = await getUserModel().findById(recordData.staffId);
     if (!staff) {
       throw new Error('Сотрудник не найден');
     }
@@ -428,8 +428,64 @@ export class StaffAttendanceTrackingService {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
+    // Получаем настройки для рабочих часов
+    const settingsService = new (await import('../settings/service')).SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+    const workingStart = settings?.workingHours?.start || '09:00';
+    const workingEnd = settings?.workingHours?.end || '18:00';
+
     // Update fields
     Object.assign(record, data);
+
+    // Пересчитываем lateMinutes если изменился actualStart
+    if (data.actualStart !== undefined) {
+      if (data.actualStart) {
+        const actualStartDate = new Date(data.actualStart);
+        // Получаем часы и минуты прихода в Алматы
+        const almatyTimeStr = actualStartDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+        const [curH, curM] = almatyTimeStr.split(':').map(Number);
+        const [h, m] = workingStart.split(':').map(Number);
+
+        const currentTotalMinutes = curH * 60 + curM;
+        const scheduledTotalMinutes = h * 60 + m;
+
+        const latenessMinutes = Math.max(0, currentTotalMinutes - scheduledTotalMinutes);
+        record.lateMinutes = latenessMinutes;
+
+        console.log(`[UPDATE] Пересчет lateMinutes: приход=${almatyTimeStr}, начало=${workingStart}, опоздание=${latenessMinutes} мин`);
+      } else {
+        // Если actualStart удалён, обнуляем lateMinutes
+        record.lateMinutes = 0;
+      }
+    }
+
+    // Пересчитываем earlyLeaveMinutes если изменился actualEnd
+    if (data.actualEnd !== undefined) {
+      if (data.actualEnd) {
+        const actualEndDate = new Date(data.actualEnd);
+        // Получаем часы и минуты ухода в Алматы
+        const almatyTimeStr = actualEndDate.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+        const [curH, curM] = almatyTimeStr.split(':').map(Number);
+        const [h, m] = workingEnd.split(':').map(Number);
+
+        const currentTotalMinutes = curH * 60 + curM;
+        const scheduledTotalMinutes = h * 60 + m;
+
+        const earlyMinutes = Math.max(0, scheduledTotalMinutes - currentTotalMinutes);
+        record.earlyLeaveMinutes = earlyMinutes;
+
+        console.log(`[UPDATE] Пересчет earlyLeaveMinutes: уход=${almatyTimeStr}, конец=${workingEnd}, ранний уход=${earlyMinutes} мин`);
+      } else {
+        record.earlyLeaveMinutes = 0;
+      }
+    }
+
+    // Пересчитываем workDuration если есть оба времени
+    if (record.actualStart && record.actualEnd) {
+      const startMs = new Date(record.actualStart).getTime();
+      const endMs = new Date(record.actualEnd).getTime();
+      record.workDuration = Math.max(0, Math.floor((endMs - startMs) / 60000)); // в минутах
+    }
 
     // Save triggers post-save hook which recalculates payroll
     await record.save();
@@ -461,6 +517,142 @@ export class StaffAttendanceTrackingService {
     }
 
     return { message: 'Запись посещаемости сотрудника успешно удалена' };
+  }
+
+  /**
+   * Массовое обновление записей посещаемости
+   * @param ids массив ID записей для обновления
+   * @param data данные для обновления (timeStart, timeEnd как строки HH:mm, notes)
+   */
+  async bulkUpdate(ids: string[], data: { timeStart?: string; timeEnd?: string; actualStart?: Date | string; actualEnd?: Date | string; notes?: string }) {
+    if (!ids || ids.length === 0) {
+      throw new Error('Нужно выбрать хотя бы одну запись');
+    }
+
+    // Получаем настройки для рабочих часов
+    const settingsService = new (await import('../settings/service')).SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+    const workingStart = settings?.workingHours?.start || '09:00';
+    const workingEnd = settings?.workingHours?.end || '18:00';
+
+    const results: any[] = [];
+    const errors: any[] = [];
+    const affectedStaffPeriods = new Set<string>(); // Для единого пересчета зарплаты
+
+    for (const id of ids) {
+      try {
+        const record = await StaffAttendanceTracking.findById(id);
+        if (!record) {
+          errors.push({ id, error: 'Запись не найдена' });
+          continue;
+        }
+
+        // Получаем дату записи в формате YYYY-MM-DD
+        const recordDate = record.date ?
+          new Date(record.date).toISOString().split('T')[0] :
+          new Date().toISOString().split('T')[0];
+
+        // Формируем объект обновления
+        const updateFields: any = {};
+
+        // Обновляем actualStart — используем дату записи + переданное время
+        if (data.timeStart !== undefined && data.timeStart) {
+          updateFields.actualStart = new Date(`${recordDate}T${data.timeStart}:00`);
+
+          // Пересчитываем lateMinutes
+          const [curH, curM] = data.timeStart.split(':').map(Number);
+          const [h, m] = workingStart.split(':').map(Number);
+          updateFields.lateMinutes = Math.max(0, (curH * 60 + curM) - (h * 60 + m));
+        } else if (data.actualStart !== undefined) {
+          updateFields.actualStart = data.actualStart ? new Date(data.actualStart) : null;
+          if (updateFields.actualStart) {
+            const almatyTimeStr = updateFields.actualStart.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+            const [curH, curM] = almatyTimeStr.split(':').map(Number);
+            const [h, m] = workingStart.split(':').map(Number);
+            updateFields.lateMinutes = Math.max(0, (curH * 60 + curM) - (h * 60 + m));
+          } else {
+            updateFields.lateMinutes = 0;
+          }
+        }
+
+        // Обновляем actualEnd — используем дату записи + переданное время
+        if (data.timeEnd !== undefined && data.timeEnd) {
+          updateFields.actualEnd = new Date(`${recordDate}T${data.timeEnd}:00`);
+
+          // Пересчитываем earlyLeaveMinutes
+          const [curH, curM] = data.timeEnd.split(':').map(Number);
+          const [h, m] = workingEnd.split(':').map(Number);
+          updateFields.earlyLeaveMinutes = Math.max(0, (h * 60 + m) - (curH * 60 + curM));
+        } else if (data.actualEnd !== undefined) {
+          updateFields.actualEnd = data.actualEnd ? new Date(data.actualEnd) : null;
+          if (updateFields.actualEnd) {
+            const almatyTimeStr = updateFields.actualEnd.toLocaleTimeString('en-GB', { timeZone: 'Asia/Almaty', hour12: false });
+            const [curH, curM] = almatyTimeStr.split(':').map(Number);
+            const [h, m] = workingEnd.split(':').map(Number);
+            updateFields.earlyLeaveMinutes = Math.max(0, (h * 60 + m) - (curH * 60 + curM));
+          } else {
+            updateFields.earlyLeaveMinutes = 0;
+          }
+        }
+
+        if (data.notes !== undefined) {
+          updateFields.notes = data.notes;
+        }
+
+        // Пересчитываем workDuration
+        const finalStart = updateFields.actualStart !== undefined ? updateFields.actualStart : record.actualStart;
+        const finalEnd = updateFields.actualEnd !== undefined ? updateFields.actualEnd : record.actualEnd;
+        if (finalStart && finalEnd) {
+          const startMs = new Date(finalStart).getTime();
+          const endMs = new Date(finalEnd).getTime();
+          updateFields.workDuration = Math.max(0, Math.floor((endMs - startMs) / 60000));
+        }
+
+        // Используем findByIdAndUpdate чтобы НЕ вызывать post-save хуки
+        await StaffAttendanceTracking.findByIdAndUpdate(id, { $set: updateFields });
+
+        const updatedRecord = await StaffAttendanceTracking.findById(id)
+          .populate('staffId', 'fullName role');
+
+        results.push(updatedRecord);
+
+        // Собираем данные для единого пересчета зарплаты
+        const attendanceDate = record.date || new Date();
+        const period = `${attendanceDate.getFullYear()}-${String(attendanceDate.getMonth() + 1).padStart(2, '0')}`;
+        affectedStaffPeriods.add(`${record.staffId.toString()}|${period}`);
+      } catch (e: any) {
+        errors.push({ id, error: e.message });
+      }
+    }
+
+    try {
+      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+    } catch (e) {
+      console.warn('Cache invalidation error:', e);
+    }
+
+    console.log(`[BULK-UPDATE] Обновлено ${results.length} записей, ошибок: ${errors.length}`);
+
+    // Единый пересчет зарплаты ПОСЛЕ всех обновлений
+    try {
+      const { PayrollService } = await import('../payroll/service');
+      const payrollService = new PayrollService();
+
+      for (const staffPeriod of affectedStaffPeriods) {
+        const [staffId, period] = staffPeriod.split('|');
+        await payrollService.ensurePayrollForUser(staffId, period);
+        console.log(`[BULK-UPDATE] Payroll recalculated for staff ${staffId} period ${period}`);
+      }
+    } catch (payrollError) {
+      console.error('[BULK-UPDATE] Error recalculating payroll:', payrollError);
+    }
+
+    return {
+      success: results.length,
+      errors: errors.length,
+      results,
+      errorDetails: errors
+    };
   }
 
   async getByStaffId(staffId: string, filters: { date?: string, status?: string, inZone?: boolean, startDate?: string, endDate?: string }) {
