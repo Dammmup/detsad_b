@@ -150,17 +150,6 @@ export class PayrollService {
             accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
           }
 
-          // Holiday Pay Logic
-          const dailyRate = workingDaysInPeriod > 0 ? baseSalary / workingDaysInPeriod : 0;
-          const holidayRecords = countedRecords.filter(r => {
-            const d = new Date(r.actualStart);
-            const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-            return isNonWorkingDay(d) && !isWeekend;
-          });
-          if (holidayRecords.length > 0) {
-            const holidayPay = holidayRecords.length * dailyRate;
-            accruals += holidayPay;
-          }
 
           const attendancePenalties = await calculatePenalties(user._id.toString(), period, user as any, 1000);
           penalties = attendancePenalties.totalPenalty;
@@ -631,19 +620,6 @@ export class PayrollService {
         });
       }
 
-      // Holiday Pay Logic (Add to accruals)
-      if (baseSalaryType === 'month' || !baseSalaryType) {
-        const dailyRate = workDaysInMonth > 0 ? baseSalary / workDaysInMonth : 0;
-        const holidayRecords = attendedRecords.filter((r: any) => {
-          const d = new Date(r.actualStart);
-          const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-          return isNonWorkingDay(d) && !isWeekend;
-        });
-        if (holidayRecords.length > 0) {
-          const holidayPay = Math.round(holidayRecords.length * dailyRate);
-          accruals += holidayPay;
-        }
-      }
 
 
       const total = Math.max(0, accruals - totalPenalties);
