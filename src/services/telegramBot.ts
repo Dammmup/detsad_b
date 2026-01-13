@@ -29,19 +29,22 @@ interface TelegramUpdate {
  * Отправляет сообщение в Telegram
  */
 async function sendMessage(chatId: number | string, text: string, parseMode: 'HTML' | 'Markdown' = 'HTML'): Promise<void> {
+    console.log(`📤 Попытка отправки сообщения в чат ${chatId}...`);
+
     if (!TELEGRAM_BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN не установлен');
+        console.error('❌ TELEGRAM_BOT_TOKEN не установлен');
         return;
     }
 
     try {
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             chat_id: chatId,
             text: text,
             parse_mode: parseMode,
         });
+        console.log(`✅ Сообщение отправлено в чат ${chatId}:`, response.data.ok);
     } catch (error: any) {
-        console.error('Ошибка отправки сообщения в Telegram:', error.response?.data || error.message);
+        console.error('❌ Ошибка отправки сообщения в Telegram:', error.response?.data || error.message);
     }
 }
 
