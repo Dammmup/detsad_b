@@ -1,5 +1,18 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IDeviceMetadata {
+  userAgent?: string;
+  platform?: string;
+  language?: string;
+  screenResolution?: string;
+  timezone?: string;
+  deviceType?: 'mobile' | 'tablet' | 'desktop';
+  deviceModel?: string;  // Модель устройства (iPhone 12, Samsung Galaxy S21 и т.д.)
+  browser?: string;      // Браузер (Chrome, Safari, Firefox и т.д.)
+  os?: string;           // Операционная система
+  ipAddress?: string;
+}
+
 export interface IStaffAttendanceTracking extends Document {
   staffId: mongoose.Types.ObjectId;
   shiftId?: mongoose.Types.ObjectId;
@@ -13,9 +26,27 @@ export interface IStaffAttendanceTracking extends Document {
   earlyLeaveMinutes?: number;
   notes?: string;
   isManualEntry: boolean;
+  checkInDevice?: IDeviceMetadata;
+  checkOutDevice?: IDeviceMetadata;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const DeviceMetadataSchema = new Schema({
+  userAgent: String,
+  platform: String,
+  language: String,
+  screenResolution: String,
+  timezone: String,
+  deviceType: {
+    type: String,
+    enum: ['mobile', 'tablet', 'desktop']
+  },
+  deviceModel: String,
+  browser: String,
+  os: String,
+  ipAddress: String,
+}, { _id: false });
 
 const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   staffId: {
@@ -63,7 +94,9 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   isManualEntry: {
     type: Boolean,
     default: false
-  }
+  },
+  checkInDevice: DeviceMetadataSchema,
+  checkOutDevice: DeviceMetadataSchema,
 }, {
   timestamps: true
 });

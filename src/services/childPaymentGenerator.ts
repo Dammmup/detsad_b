@@ -1,10 +1,9 @@
 import { getChildPayments, createChildPayment } from '../entities/childPayment/service';
 import { getChildren } from '../entities/children/service';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { sendLogToTelegram } from '../utils/telegramLogger';
 import mongoose from 'mongoose';
 
-const DEFAULT_AMOUNT = 35000;
+const DEFAULT_AMOUNT = 40000;
 
 export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise<void> => {
   const now = new Date();
@@ -40,14 +39,6 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
   const almatyDisplayDate = new Date(Date.UTC(targetYear, targetMonth, 1)).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
   await sendLogToTelegram(`🚀 Начало генерации ежемесячных оплат за детей за <b>${almatyDisplayDate}</b>`);
 
-  // Прошлый месяц для копирования суммы
-  const prevMonthStart = new Date(currentMonthStart);
-  prevMonthStart.setUTCHours(prevMonthStart.getUTCHours() + 5);
-  prevMonthStart.setUTCMonth(prevMonthStart.getUTCMonth() - 1);
-  prevMonthStart.setUTCHours(prevMonthStart.getUTCHours() - 5);
-
-  const prevMonthPeriod = `${prevMonthStart.getUTCFullYear()}-${String(prevMonthStart.getUTCMonth() + 1).padStart(2, '0')}`;
-
   try {
     const activeChildren = await getChildren({ active: true });
     let createdCount = 0;
@@ -66,20 +57,9 @@ export const generateMonthlyChildPayments = async (dateForMonth?: Date): Promise
         continue;
       }
 
-      // Ищем оплату за прошлый месяц для получения суммы
-      const previousPayments = await getChildPayments({
-        childId: child._id.toString(),
-        monthPeriod: prevMonthPeriod,
-      });
-
-      let amount = DEFAULT_AMOUNT;
-      let total = DEFAULT_AMOUNT;
-
-      if (previousPayments.length > 0) {
-        const lastPayment = previousPayments[0];
-        amount = lastPayment.amount || DEFAULT_AMOUNT;
-        total = lastPayment.total || amount;
-      }
+      // Берем сумму из поля paymentAmount ребенка (или дефолт если не установлено)
+      const amount = child.paymentAmount || DEFAULT_AMOUNT;
+      const total = amount;
 
       // Последняя проверка перед созданием (во избежание гонки условий)
       const safetyCheck = await getChildPayments({

@@ -182,12 +182,19 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     }
 
     const { shiftId } = req.params;
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude, deviceMetadata } = req.body;
 
 
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
-    const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData)) as any;
+    // Добавляем IP-адрес клиента к метаданным устройства
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const enrichedDeviceMetadata = deviceMetadata ? {
+      ...deviceMetadata,
+      ipAddress: clientIp,
+    } : undefined;
+
+    const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata)) as any;
 
     // Telegram notification
     try {
@@ -227,10 +234,17 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
     }
 
     const { shiftId } = req.params;
-    const { latitude, longitude } = req.body;
+    const { latitude, longitude, deviceMetadata } = req.body;
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
-    const result = (await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData)) as any;
+    // Добавляем IP-адрес клиента к метаданным устройства
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+    const enrichedDeviceMetadata = deviceMetadata ? {
+      ...deviceMetadata,
+      ipAddress: clientIp,
+    } : undefined;
+
+    const result = (await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata)) as any;
 
     // Telegram notification
     try {

@@ -8,6 +8,7 @@ export interface IChild extends Document {
   parentPhone?: string;
   groupId?: mongoose.Types.ObjectId;
   active?: boolean;
+  paymentAmount?: number; // Базовая сумма оплаты (по умолчанию 40000)
 
   gender?: string;
   clinic?: string;
@@ -37,6 +38,7 @@ const ChildSchema = new Schema<IChild>({
   parentPhone: String,
   groupId: { type: Schema.Types.ObjectId, ref: 'Group' },
   active: { type: Boolean, default: true },
+  paymentAmount: { type: Number, default: 40000 },
   gender: String,
   clinic: String,
   bloodGroup: String,

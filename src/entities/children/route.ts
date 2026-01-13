@@ -5,12 +5,15 @@ import {
   getChildrenByGroupId,
   createChild,
   updateChild,
-  deleteChild
+  deleteChild,
+  generateMissingPayments
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
+// Маршрут генерации платежей должен быть ДО маршрута /:id
+router.post('/generate-payments', authMiddleware, generateMissingPayments);
 
 router.get('/', authMiddleware, getAllChildren);
 

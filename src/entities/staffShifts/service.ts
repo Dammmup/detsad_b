@@ -1,6 +1,6 @@
 import mongoose, { Types } from 'mongoose';
 import Shift, { IStaffShifts, IShiftDetail } from './model';
-import StaffAttendanceTracking from '../staffAttendanceTracking/model';
+import StaffAttendanceTracking, { IDeviceMetadata } from '../staffAttendanceTracking/model';
 import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
@@ -228,7 +228,7 @@ export class ShiftsService {
     return { success: count, ids };
   }
 
-  async checkIn(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
+  async checkIn(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata) {
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
     const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
@@ -296,6 +296,9 @@ export class ShiftsService {
 
     timeTracking.actualStart = now;
     timeTracking.lateMinutes = lateMinutes;
+    if (deviceMetadata) {
+      timeTracking.checkInDevice = deviceMetadata;
+    }
     await timeTracking.save();
 
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
@@ -306,7 +309,7 @@ export class ShiftsService {
     };
   }
 
-  async checkOut(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }) {
+  async checkOut(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata) {
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
     const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
@@ -353,6 +356,9 @@ export class ShiftsService {
 
       const earlyMinutes = Math.max(0, scheduledTotalMinutes - currentTotalMinutes);
       timeTracking.earlyLeaveMinutes = earlyMinutes;
+      if (deviceMetadata) {
+        timeTracking.checkOutDevice = deviceMetadata;
+      }
       await timeTracking.save();
     }
 
