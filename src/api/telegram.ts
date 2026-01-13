@@ -9,14 +9,18 @@ const router = express.Router();
  */
 router.post('/webhook', async (req, res) => {
   try {
-    // Telegram ожидает быстрый ответ 200 OK
-    res.status(200).send('OK');
+    console.log('📩 Telegram webhook получен:', JSON.stringify(req.body, null, 2));
 
-    // Обрабатываем update асинхронно
+    // ВАЖНО: На Vercel Serverless нужно СНАЧАЛА обработать, ПОТОМ ответить
+    // Иначе функция завершится до отправки ответа пользователю
     await handleTelegramWebhook(req.body);
+
+    // Telegram ожидает 200 OK
+    res.status(200).send('OK');
   } catch (error) {
     console.error('Ошибка обработки Telegram webhook:', error);
     // Всё равно отвечаем 200, чтобы Telegram не повторял запрос
+    res.status(200).send('OK');
   }
 });
 
