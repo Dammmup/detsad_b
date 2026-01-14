@@ -54,7 +54,8 @@ export class ChildAttendanceService {
           flattened.push({
             ...detail.toObject ? detail.toObject() : detail,
             _id: `${doc.childId}_${date}`,
-            childId: doc.childId,
+            childId: doc.childId.toString(),
+            groupId: detail.groupId.toString(),
             date: date,
           });
         }
