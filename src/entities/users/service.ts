@@ -1,9 +1,6 @@
 import User, { IUser } from './model';
 import { comparePassword, hashPassword } from '../../utils/hash';
-import { cacheService } from '../../services/cache';
 
-const CACHE_KEY_PREFIX = 'users';
-const CACHE_TTL = 3600; // 1 hour
 
 export class UserService {
   async getAll(includePasswords: boolean = false): Promise<IUser[]> {

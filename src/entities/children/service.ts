@@ -1,12 +1,9 @@
 import { IChild } from './model';
 import Child from './model';
 import Group from '../groups/model';
-import { cacheService } from '../../services/cache';
 import { createChildPayment } from '../childPayment/service';
 import mongoose from 'mongoose';
 
-const CACHE_KEY_PREFIX = 'children';
-const CACHE_TTL = 3600; // 1 hour
 const DEFAULT_PAYMENT_AMOUNT = 40000;
 
 export class ChildService {

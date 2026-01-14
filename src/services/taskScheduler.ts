@@ -7,26 +7,10 @@ import StaffAttendanceTracking from '../entities/staffAttendanceTracking/model';
 import User from '../entities/users/model';
 import { generateMonthlyChildPayments } from './childPaymentGenerator';
 import { archiveAndDeleteRecords } from './dataArchiveService';
-import { cacheService } from './cache';
-
 export const initializeTaskScheduler = () => {
   const ALMATY_TZ = { timezone: "Asia/Almaty" };
   console.log('Инициализация планировщика задач (Asia/Almaty)...');
 
-  // Ежемесячная очистка кэша (1-го числа каждого месяца в 00:00 по Астане)
-  cron.schedule('0 0 1 * *', async () => {
-    console.log('Запуск запланированной задачи: ежемесячная очистка кэша Redis');
-    try {
-      await cacheService.invalidate('staffAttendance:*');
-      await cacheService.invalidate('shifts:*');
-      await cacheService.invalidate('payroll:*');
-      await cacheService.invalidate('childAttendance:*');
-      await cacheService.invalidate('childPayment:*');
-      console.log('Ежемесячная очистка кэша выполнена успешно');
-    } catch (error) {
-      console.error('Ошибка при очистке кэша:', error);
-    }
-  }, ALMATY_TZ);
 
   // Автоматический расчет зарплат (ежедневно в 01:00 по Астане)
   cron.schedule('0 1 * * *', async () => {

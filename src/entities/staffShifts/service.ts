@@ -4,10 +4,6 @@ import StaffAttendanceTracking, { IDeviceMetadata } from '../staffAttendanceTrac
 import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
-import { cacheService } from '../../services/cache';
-
-const CACHE_KEY_PREFIX = 'shifts';
-const CACHE_TTL = 300; // 5 minutes
 
 const settingsService = new SettingsService();
 
@@ -37,7 +33,6 @@ export class ShiftsService {
       filter.staffId = filters.staffId;
     }
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       const allStaffShifts = await Shift.find(filter)
         .populate('staffId', 'fullName role')
@@ -80,10 +75,6 @@ export class ShiftsService {
       return flattenedShifts.sort((a, b) => a.date.localeCompare(b.date));
     };
 
-    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
-      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    }
-
     return await fetcher();
   }
 
@@ -116,7 +107,6 @@ export class ShiftsService {
     record.shifts.set(date, detail);
     await record.save();
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
 
     // Return the flattened shift for the created date
     const populated = await Shift.findOne({ staffId })
@@ -178,7 +168,6 @@ export class ShiftsService {
     record.shifts.set(date, detail);
     await record.save();
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return this.getOne(staffId, date);
   }
 
@@ -211,7 +200,6 @@ export class ShiftsService {
     record.shifts.delete(date);
     await record.save();
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { success: true };
   }
 
@@ -301,7 +289,6 @@ export class ShiftsService {
     }
     await timeTracking.save();
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return {
       shift: { ...shift, date, staffId },
       timeTracking,
@@ -362,7 +349,6 @@ export class ShiftsService {
       await timeTracking.save();
     }
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { shift: { ...shift, date, staffId }, message: 'Успешно отмечен уход' };
   }
 
@@ -377,16 +363,13 @@ export class ShiftsService {
       filter.date = { $gte: filters.startDate, $lte: filters.endDate };
     }
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getTimeTracking:${userId}:${role}:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       return await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
         .sort({ date: -1 });
     };
 
-    if (cacheService.isArchivePeriod(filters.startDate, filters.endDate)) {
-      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    }
+
 
     return await fetcher();
   }
@@ -399,7 +382,6 @@ export class ShiftsService {
     ).populate('staffId', 'fullName role');
 
     if (!record) throw new Error('Запись не найдена');
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return record;
   }
 

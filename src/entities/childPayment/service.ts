@@ -3,10 +3,7 @@ import ChildPayment, { IChildPayment } from './model';
 import Child from '../children/model';
 import User from '../users/model';
 
-import { cacheService } from '../../services/cache';
 
-const CACHE_KEY_PREFIX = 'childPayment';
-const CACHE_TTL = 300; // 5 minutes
 let ChildPaymentModel: any = null;
 let ChildModel: any = null;
 let UserModel: any = null;
@@ -62,7 +59,6 @@ export const createChildPayment = async (paymentData: Partial<IChildPayment>): P
   const childPaymentModel = ChildPayment;
   const payment = new childPaymentModel(paymentData);
   await payment.save();
-  await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
   return payment;
 }
 
@@ -99,16 +95,13 @@ export const getChildPayments = async (filters: any = {}): Promise<IChildPayment
     query.monthPeriod = filters.monthPeriod;
   }
 
-  const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
   const fetcher = async () => {
     return await childPaymentModel.find(query)
       .populate('childId', 'fullName')
       .populate('userId', 'fullName');
   };
 
-  if (cacheService.isArchivePeriod(filters.period?.start, filters.period?.end, filters.monthPeriod)) {
-    return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-  }
+
 
   return await fetcher();
 };
@@ -153,14 +146,14 @@ export const updateChildPayment = async (id: string, updateData: Partial<IChildP
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 
-  await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+
   return updated;
 };
 
 export const deleteChildPayment = async (id: string): Promise<boolean> => {
   const childPaymentModel = ChildPayment;
   const result = await childPaymentModel.findByIdAndDelete(id);
-  await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
+
   return !!result;
 };
 
@@ -187,16 +180,10 @@ export const getChildPaymentByPeriod = async (
     throw new Error('Either childId or userId must be specified');
   }
 
-  const cacheKey = `${CACHE_KEY_PREFIX}:period:${JSON.stringify(period)}:${childId || ''}:${userId || ''}`;
   const fetcher = async () => {
     return await childPaymentModel.findOne(query)
       .populate('childId', 'fullName')
       .populate('userId', 'fullName');
   };
-
-  if (cacheService.isArchivePeriod(period.start, period.end)) {
-    return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-  }
-
   return await fetcher();
 };

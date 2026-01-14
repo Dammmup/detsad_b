@@ -7,11 +7,6 @@ import mongoose from 'mongoose';
 import Child from '../children/model';
 import { SettingsService } from '../settings/service';
 import { sendLogToTelegram, escapeHTML } from '../../utils/telegramLogger';
-import { cacheService } from '../../services/cache';
-
-const CACHE_KEY_PREFIX = 'childAttendance';
-const CACHE_TTL = 300; // 5 minutes
-
 
 
 export class ChildAttendanceService {
@@ -35,17 +30,11 @@ export class ChildAttendanceService {
       filter.childId = filters.childId;
     }
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       return await ChildAttendance.find(filter);
     };
 
     let results;
-    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
-      results = await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    } else {
-      results = await fetcher();
-    }
 
     // Flattening for frontend compatibility
     const flattened: any[] = [];
@@ -109,7 +98,6 @@ export class ChildAttendanceService {
     // Уведомления для единичных записей отключены — отправляются только при массовом обновлении
     // чтобы избежать спама в Telegram
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
 
     // Return flattened version for frontend
     return {
@@ -186,7 +174,6 @@ export class ChildAttendanceService {
       console.error('Telegram notify error (bulkChildAttendance):', e);
     }
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
 
     return {
       success: results.length,
@@ -197,24 +184,21 @@ export class ChildAttendanceService {
   }
 
   async getStats(filters: { groupId?: string, startDate?: string, endDate?: string }) {
-    const cacheKey = `${CACHE_KEY_PREFIX}:stats:${JSON.stringify(filters)}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      const records = await this.getAll(filters, 'admin', 'admin');
+    const records = await this.getAll(filters, 'admin', 'admin');
 
-      const stats: Record<string, number> = {};
-      records.forEach((r: any) => {
-        stats[r.status] = (stats[r.status] || 0) + 1;
-      });
+    const stats: Record<string, number> = {};
+    records.forEach((r: any) => {
+      stats[r.status] = (stats[r.status] || 0) + 1;
+    });
 
-      const total = records.length;
-      return {
-        total,
-        byStatus: stats,
-        attendanceRate: total > 0
-          ? Math.round(((stats['present'] || 0) / total) * 100)
-          : 0
-      };
-    }, CACHE_TTL);
+    const total = records.length;
+    return {
+      total,
+      byStatus: stats,
+      attendanceRate: total > 0
+        ? Math.round(((stats['present'] || 0) / total) * 100)
+        : 0
+    };
   }
 
   async delete(id: string) {
@@ -232,7 +216,6 @@ export class ChildAttendanceService {
     doc.attendance.delete(dateStr);
     await doc.save();
 
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return { message: 'Запись удалена успешно' };
   }
 

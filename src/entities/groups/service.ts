@@ -2,10 +2,6 @@ import mongoose, { ObjectId } from 'mongoose';
 import { IGroup, IGroupInput, IGroupWithChildren } from './model';
 import Group from './model';
 import Child from '../children/model';
-import { cacheService } from '../../services/cache';
-
-const CACHE_KEY_PREFIX = 'groups';
-const CACHE_TTL = 300; // 5 minutes
 
 export class GroupService {
   private get groupModel() {
@@ -18,32 +14,26 @@ export class GroupService {
   async getAll(userId?: string, role?: string): Promise<any[]> {
 
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${userId}:${role}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      const filter = role === 'admin' ? {} : (userId ? { teacherId: userId } : {});
-      const groups = await this.groupModel.find(filter);
+    const filter = role === 'admin' ? {} : (userId ? { teacherId: userId } : {});
+    const groups = await this.groupModel.find(filter);
 
-      const groupsWithChildren = await Promise.all(
-        groups.map(async (group) => {
-          const children = await this.childModel.find({ groupId: group._id });
-          return { ...group.toObject(), children };
-        })
-      );
+    const groupsWithChildren = await Promise.all(
+      groups.map(async (group) => {
+        const children = await this.childModel.find({ groupId: group._id });
+        return { ...group.toObject(), children };
+      })
+    );
 
-      return groupsWithChildren;
-    }, CACHE_TTL);
+    return groupsWithChildren;
   }
 
   async getById(id: string): Promise<any | null> {
-    const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      const group = await this.groupModel.findById(id);
-      if (!group) return null;
+    const group = await this.groupModel.findById(id);
+    if (!group) return null;
 
-      const children = await this.childModel.find({ groupId: group._id });
+    const children = await this.childModel.find({ groupId: group._id });
 
-      return { ...group.toObject(), children };
-    }, CACHE_TTL);
+    return { ...group.toObject(), children };
   }
 
   async create(data: IGroupInput, userId: string): Promise<IGroup> {
@@ -66,7 +56,6 @@ export class GroupService {
 
     const group = new this.groupModel(groupData);
     const savedGroup = await group.save();
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return savedGroup;
   }
 
@@ -85,13 +74,11 @@ export class GroupService {
       { $set: updateData },
       { new: true }
     );
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return updatedGroup;
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await this.groupModel.findByIdAndDelete(id);
-    await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
     return !!result;
   }
 }

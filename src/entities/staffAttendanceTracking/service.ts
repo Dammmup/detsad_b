@@ -7,10 +7,8 @@ import Shift from '../staffShifts/model';
 import Payroll from '../payroll/model';
 import { SettingsService } from '../settings/service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
-import { cacheService } from '../../services/cache';
 
-const CACHE_KEY_PREFIX = 'staffAttendance';
-const CACHE_TTL = 300; // 5 minutes
+
 
 
 let StaffAttendanceTrackingModel: any = null;
@@ -158,12 +156,6 @@ export class StaffAttendanceTrackingService {
       console.error('Telegram notify error (clockIn):', e);
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
-
     return {
       message: 'Successfully clocked in',
       attendanceRecord
@@ -282,11 +274,6 @@ export class StaffAttendanceTrackingService {
       console.error('Telegram notify error (clockOut):', e);
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return {
       message: 'Successfully clocked out',
@@ -308,7 +295,6 @@ export class StaffAttendanceTrackingService {
       if (filters.endDate) filter.date.$lte = new Date(`${filters.endDate}T23:59:59+05:00`);
     }
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getAll:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role penaltyType penaltyAmount')
@@ -318,25 +304,19 @@ export class StaffAttendanceTrackingService {
       return await Promise.all(records.map(record => this._applyPenalties(record)));
     };
 
-    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
-      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    }
 
     return await fetcher();
   }
 
   async getById(id: string) {
-    const cacheKey = `${CACHE_KEY_PREFIX}:${id}`;
-    return await cacheService.getOrSet(cacheKey, async () => {
-      const record = await StaffAttendanceTracking.findById(id)
-        .populate('staffId', 'fullName role penaltyType penaltyAmount');
+    const record = await StaffAttendanceTracking.findById(id)
+      .populate('staffId', 'fullName role penaltyType penaltyAmount');
 
-      if (!record) {
-        throw new Error('Запись посещаемости сотрудника не найдена');
-      }
+    if (!record) {
+      throw new Error('Запись посещаемости сотрудника не найдена');
+    }
 
-      return await this._applyPenalties(record);
-    }, CACHE_TTL);
+    return await this._applyPenalties(record);
   }
 
   private async _applyPenalties(record: any) {
@@ -409,12 +389,6 @@ export class StaffAttendanceTrackingService {
 
     const populatedRecord = await StaffAttendanceTracking.findById(record._id)
       .populate('staffId', 'fullName role penaltyType penaltyAmount');
-
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return populatedRecord ? await this._applyPenalties(populatedRecord) : null;
   }
@@ -494,12 +468,6 @@ export class StaffAttendanceTrackingService {
     const updatedRecord = await StaffAttendanceTracking.findById(id)
       .populate('staffId', 'fullName role penaltyType penaltyAmount');
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
-
     return updatedRecord ? await this._applyPenalties(updatedRecord) : null;
   }
 
@@ -508,12 +476,6 @@ export class StaffAttendanceTrackingService {
 
     if (!result) {
       throw new Error('Запись посещаемости сотрудника не найдена');
-    }
-
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
     }
 
     return { message: 'Запись посещаемости сотрудника успешно удалена' };
@@ -625,11 +587,6 @@ export class StaffAttendanceTrackingService {
       }
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     console.log(`[BULK-UPDATE] Обновлено ${results.length} записей, ошибок: ${errors.length}`);
 
@@ -670,7 +627,6 @@ export class StaffAttendanceTrackingService {
       if (filters.endDate) filter.date.$lte = new Date(`${filters.endDate}T23:59:59+05:00`);
     }
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getByStaffId:${staffId}:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
@@ -678,10 +634,6 @@ export class StaffAttendanceTrackingService {
 
       return records;
     };
-
-    if (cacheService.isArchivePeriod(filters.startDate || filters.date, filters.endDate || filters.date)) {
-      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    }
 
     return await fetcher();
   }
@@ -702,7 +654,6 @@ export class StaffAttendanceTrackingService {
     // if (filters.inZone !== undefined) filter.inZone = filters.inZone;
 
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getByDateRange:${startDate}:${endDate}:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(filter)
         .populate('staffId', 'fullName role')
@@ -711,9 +662,6 @@ export class StaffAttendanceTrackingService {
       return records;
     };
 
-    if (cacheService.isArchivePeriod(startDate, endDate)) {
-      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    }
 
     return await fetcher();
   }
@@ -738,7 +686,6 @@ export class StaffAttendanceTrackingService {
       }
     }
 
-    const cacheKey = `${CACHE_KEY_PREFIX}:getEntries:${userId}:${JSON.stringify(filters)}`;
     const fetcher = async () => {
       const records = await StaffAttendanceTracking.find(query)
         .populate('staffId', 'fullName role')
@@ -758,10 +705,6 @@ export class StaffAttendanceTrackingService {
         },
       };
     };
-
-    if (cacheService.isArchivePeriod(filters.startDate, filters.endDate)) {
-      return await cacheService.getOrSet(cacheKey, fetcher, CACHE_TTL);
-    }
 
     return await fetcher();
   }
@@ -837,11 +780,6 @@ export class StaffAttendanceTrackingService {
       }
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return record;
   }
@@ -857,11 +795,6 @@ export class StaffAttendanceTrackingService {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return record;
   }
@@ -880,11 +813,6 @@ export class StaffAttendanceTrackingService {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return record;
   }
@@ -909,12 +837,6 @@ export class StaffAttendanceTrackingService {
     const updatedRecord = await StaffAttendanceTracking.findById(id)
       .populate('staffId', 'fullName role');
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
-
     return updatedRecord;
   }
 
@@ -934,11 +856,6 @@ export class StaffAttendanceTrackingService {
     const updatedRecord = await StaffAttendanceTracking.findById(id)
       .populate('staffId', 'fullName role');
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return updatedRecord;
   }
@@ -963,11 +880,6 @@ export class StaffAttendanceTrackingService {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    try {
-      await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
-    } catch (e) {
-      console.warn('Cache invalidation error:', e);
-    }
 
     return record;
   }
