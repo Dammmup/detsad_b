@@ -184,8 +184,11 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     const { shiftId } = req.params;
     const { latitude, longitude, deviceMetadata } = req.body;
 
-    console.log('📱 checkInSimple - deviceMetadata received:', JSON.stringify(deviceMetadata, null, 2));
+    // Расширенное логирование для диагностики
+    console.log('📱 checkInSimple - Content-Type:', req.headers['content-type']);
+    console.log('📱 checkInSimple - Content-Length:', req.headers['content-length']);
     console.log('📱 checkInSimple - req.body:', JSON.stringify(req.body, null, 2));
+    console.log('📱 checkInSimple - deviceMetadata received:', JSON.stringify(deviceMetadata, null, 2));
 
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
