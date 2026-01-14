@@ -14,16 +14,37 @@ export class ChildAttendanceService {
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
     const filter: any = {};
 
+    // $elemMatch не работает с Map полями — фильтрация по groupId делается при flattening
+    // Для teacher/assistant можно фильтровать по childId через Children коллекцию
     if (role === 'teacher' || role === 'assistant') {
+      // Получаем группы учителя и детей в этих группах
       if (filters.groupId) {
-        filter['attendance'] = { $elemMatch: { groupId: filters.groupId } };
+        const childrenInGroup = await Child.find({ groupId: filters.groupId }).select('_id');
+        const childIds = childrenInGroup.map(c => c._id);
+        if (childIds.length > 0) {
+          filter.childId = { $in: childIds };
+        } else {
+          // Если нет детей в группе — вернём пустой массив
+          return [];
+        }
       } else {
         const teacherGroups = await Group.find({ teacherId: userId });
         const groupIds = teacherGroups.map(g => g._id);
-        filter['attendance'] = { $elemMatch: { groupId: { $in: groupIds } } };
+        const childrenInGroups = await Child.find({ groupId: { $in: groupIds } }).select('_id');
+        const childIds = childrenInGroups.map(c => c._id);
+        if (childIds.length > 0) {
+          filter.childId = { $in: childIds };
+        }
       }
     } else if (filters.groupId) {
-      filter['attendance'] = { $elemMatch: { groupId: filters.groupId } };
+      // Для admin/methodist — фильтруем по детям в группе
+      const childrenInGroup = await Child.find({ groupId: filters.groupId }).select('_id');
+      const childIds = childrenInGroup.map(c => c._id);
+      if (childIds.length > 0) {
+        filter.childId = { $in: childIds };
+      } else {
+        return [];
+      }
     }
 
     if (filters.childId) {
