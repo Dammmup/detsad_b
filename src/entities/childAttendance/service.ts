@@ -106,32 +106,8 @@ export class ChildAttendanceService {
     doc.attendance.set(dateStr, newDetail as any);
     await doc.save();
 
-    try {
-      const notificationSettings = await new SettingsService().getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
-
-      if (adminChatId) {
-        const child = await Child.findById(childId);
-        const group = await Group.findById(groupId);
-
-        const statusMap: any = {
-          present: '✅ присутствует',
-          absent: '🔴 отсутствует',
-          sick: '🤒 болеет',
-          vacation: '🌴 в отпуске',
-          late: '🕒 опоздал'
-        };
-
-        const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
-        const escapedChildName = child?.fullName ? escapeHTML(child.fullName) : 'Ребенок';
-        const escapedGroupName = group?.name ? escapeHTML(group.name) : 'группа';
-
-        const message = `👶 <b>${escapedChildName}</b> (${escapedGroupName})\nСтатус: <b>${statusMap[status] || status}</b>\n🕒 Время: ${almatyTimeStr}`;
-        await sendLogToTelegram(message, adminChatId);
-      }
-    } catch (e) {
-      console.error('Telegram notify error (childAttendance):', e);
-    }
+    // Уведомления для единичных записей отключены — отправляются только при массовом обновлении
+    // чтобы избежать спама в Telegram
 
     await cacheService.invalidate(`${CACHE_KEY_PREFIX}:*`);
 

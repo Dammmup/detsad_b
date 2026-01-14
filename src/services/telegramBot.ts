@@ -111,8 +111,8 @@ async function handleLinkCommand(chatId: number, code: string): Promise<void> {
     }
 
     try {
-        // Ищем пользователя с этим кодом
-        const user = await User.findOne({ telegramLinkCode: code.toUpperCase() });
+        // Ищем пользователя с этим кодом (без преобразования регистра)
+        const user = await User.findOne({ telegramLinkCode: code.trim() });
 
         if (!user) {
             await sendMessage(chatId, '❌ Код не найден или уже использован.\n\nПолучите новый код в профиле приложения.');
