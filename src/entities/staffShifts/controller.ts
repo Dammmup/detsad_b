@@ -184,6 +184,8 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     const { shiftId } = req.params;
     const { latitude, longitude, deviceMetadata } = req.body;
 
+    console.log('📱 checkInSimple - deviceMetadata received:', JSON.stringify(deviceMetadata, null, 2));
+    console.log('📱 checkInSimple - req.body:', JSON.stringify(req.body, null, 2));
 
     const locationData = latitude && longitude ? { latitude, longitude } : undefined;
 
@@ -193,6 +195,8 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
       ...deviceMetadata,
       ipAddress: clientIp,
     } : undefined;
+
+    console.log('📱 checkInSimple - enrichedDeviceMetadata:', JSON.stringify(enrichedDeviceMetadata, null, 2));
 
     const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata)) as any;
 
