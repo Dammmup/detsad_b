@@ -34,7 +34,7 @@ export class ChildAttendanceService {
       return await ChildAttendance.find(filter);
     };
 
-    let results;
+    const results = await fetcher();
 
     // Flattening for frontend compatibility
     const flattened: any[] = [];
