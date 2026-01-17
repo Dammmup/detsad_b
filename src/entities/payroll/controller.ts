@@ -91,10 +91,10 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
     const { period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
-
-    if (targetPeriod === new Date().toISOString().slice(0, 7)) {
-      await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
-    }
+    // Убрано автоматическое обновление - расчетные листы обновляются только по кнопке "Обновить всё"
+    // if (targetPeriod === new Date().toISOString().slice(0, 7)) {
+    //   await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
+    // }
 
 
     const staffIdFilter = (req.user.role === 'admin' || req.user.role === 'manager')
@@ -122,11 +122,10 @@ export const getAllPayrollsByUsers = async (req: AuthenticatedRequest, res: Resp
 
     const { userId, period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
-
-
-    if (targetPeriod === new Date().toISOString().slice(0, 7)) {
-      await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
-    }
+    // Убрано автоматическое обновление - расчетные листы обновляются только по кнопке "Обновить всё"
+    // if (targetPeriod === new Date().toISOString().slice(0, 7)) {
+    //   await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
+    // }
 
     const payrolls = await payrollService.getAllWithUsers({
       staffId: userId as string,
@@ -575,5 +574,40 @@ export const getPayrollBreakdown = async (req: AuthenticatedRequest, res: Respon
   } catch (err: any) {
     console.error('Error getting payroll breakdown:', err);
     res.status(500).json({ error: err.message || 'Ошибка получения детализации зарплаты' });
+  }
+};
+
+/**
+ * Расчёт долга по авансу для периода
+ * Переносит долг на следующий месяц если аванс > начислений
+ * POST /payroll/calculate-debt
+ */
+export const calculateDebt = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Только админ может рассчитывать долг
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
+    }
+
+    const { period } = req.body;
+
+    if (!period) {
+      return res.status(400).json({ error: 'Период обязателен. Используйте формат YYYY-MM' });
+    }
+
+    const periodRegex = /^\d{4}-\d{2}$/;
+    if (!periodRegex.test(period)) {
+      return res.status(400).json({ error: 'Неверный формат периода. Используйте формат YYYY-MM' });
+    }
+
+    const result = await payrollService.calculateDebtForPeriod(period);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Error calculating debt:', err);
+    res.status(500).json({ error: err.message || 'Ошибка расчёта долга' });
   }
 };

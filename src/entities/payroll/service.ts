@@ -718,4 +718,154 @@ export class PayrollService {
       throw new Error(`Ошибка при массовой проверке расчетных листов: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+
+  /**
+   * Расчёт долга для отдельного сотрудника
+   * Если аванс > начислений, разница переносится на следующий месяц
+   */
+  async calculateDebtForUser(staffId: string, period: string) {
+    const payroll = await Payroll.findOne({ staffId, period });
+    if (!payroll) {
+      throw new Error('Расчётный лист не найден');
+    }
+
+    // Если долг уже рассчитан - пропускаем
+    if (payroll.carryOverDebtCalculated) {
+      return {
+        staffId,
+        period,
+        debt: 0,
+        message: 'Долг уже рассчитан для этого периода'
+      };
+    }
+
+    const accruals = payroll.accruals || 0;
+    const bonuses = payroll.bonuses || 0;
+    const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
+    const deductions = payroll.deductions || 0;
+    const advance = payroll.advance || 0;
+    const carryOverDebt = payroll.carryOverDebt || 0; // Долг с прошлого месяца
+
+    // Чистая зарплата (без аванса)
+    const netPay = accruals + bonuses - penalties - deductions - carryOverDebt;
+
+    // Долг = аванс - чистая зарплата
+    const debt = Math.max(0, advance - netPay);
+
+    if (debt > 0) {
+      // Рассчитываем следующий период
+      const [year, month] = period.split('-').map(Number);
+      const nextDate = new Date(year, month, 1); // month уже 1-based в строке, Date принимает 0-based
+      const nextPeriod = nextDate.toISOString().slice(0, 7);
+
+      // Ищем или создаём запись за следующий месяц
+      let nextPayroll = await Payroll.findOne({ staffId, period: nextPeriod });
+
+      if (!nextPayroll) {
+        // Создаём новую запись за следующий месяц с долгом
+        nextPayroll = new Payroll({
+          staffId,
+          period: nextPeriod,
+          baseSalary: payroll.baseSalary,
+          baseSalaryType: payroll.baseSalaryType,
+          shiftRate: payroll.shiftRate,
+          bonuses: 0,
+          deductions: 0,
+          accruals: 0,
+          penalties: 0,
+          carryOverDebt: debt,
+          total: 0,
+          status: 'draft'
+        });
+      } else {
+        // Обновляем существующую запись
+        nextPayroll.carryOverDebt = (nextPayroll.carryOverDebt || 0) + debt;
+      }
+
+      await nextPayroll.save();
+      console.log(`Долг ${debt} тг перенесён на период ${nextPeriod} для сотрудника ${staffId}`);
+    }
+
+    // Отмечаем что долг за этот период рассчитан
+    payroll.carryOverDebtCalculated = true;
+    await payroll.save();
+
+    return {
+      staffId,
+      period,
+      accruals,
+      advance,
+      netPay,
+      debt,
+      message: debt > 0 ? `Долг ${debt} тг перенесён на следующий месяц` : 'Долга нет'
+    };
+  }
+
+  /**
+   * Расчёт долга для всех сотрудников за период
+   * Вызывается по команде директора
+   */
+  async calculateDebtForPeriod(period: string) {
+    console.log(`Расчёт долга для всех сотрудников за период: ${period}`);
+
+    const payrolls = await Payroll.find({
+      period,
+      carryOverDebtCalculated: { $ne: true }
+    }).populate('staffId', 'fullName');
+
+    let processed = 0;
+    let totalDebt = 0;
+    const details: any[] = [];
+
+    for (const payroll of payrolls) {
+      try {
+        const staffIdStr = payroll.staffId?._id?.toString() || payroll.staffId?.toString();
+        if (!staffIdStr) continue;
+
+        const result = await this.calculateDebtForUser(staffIdStr, period);
+        processed++;
+        totalDebt += result.debt;
+
+        if (result.debt > 0) {
+          details.push({
+            staffName: (payroll.staffId as any)?.fullName || 'Неизвестно',
+            debt: result.debt
+          });
+        }
+      } catch (err) {
+        console.error(`Ошибка расчёта долга для payroll ${payroll._id}:`, err);
+      }
+    }
+
+    return {
+      message: `Обработано ${processed} расчётных листов. Общий долг: ${totalDebt} тг`,
+      processed,
+      totalDebt,
+      details
+    };
+  }
+
+  /**
+   * Получить долг с предыдущего месяца для сотрудника
+   */
+  async getCarryOverDebt(staffId: string, period: string): Promise<number> {
+    // Рассчитываем предыдущий период
+    const [year, month] = period.split('-').map(Number);
+    const prevDate = new Date(year, month - 2, 1); // -2 потому что month в строке 1-based, а Date 0-based
+    const prevPeriod = prevDate.toISOString().slice(0, 7);
+
+    const prevPayroll = await Payroll.findOne({ staffId, period: prevPeriod });
+
+    if (!prevPayroll || !prevPayroll.carryOverDebtCalculated) {
+      return 0;
+    }
+
+    const accruals = prevPayroll.accruals || 0;
+    const bonuses = prevPayroll.bonuses || 0;
+    const penalties = (prevPayroll.latePenalties || 0) + (prevPayroll.absencePenalties || 0) + (prevPayroll.userFines || 0);
+    const advance = prevPayroll.advance || 0;
+
+    const netPay = accruals + bonuses - penalties;
+    return Math.max(0, advance - netPay);
+  }
 }

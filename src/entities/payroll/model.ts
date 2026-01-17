@@ -50,6 +50,8 @@ export interface IPayroll extends Document {
   latePenalties?: number;
   absencePenalties?: number;
   userFines?: number;
+  carryOverDebt?: number;           // Долг, перенесённый с прошлого месяца
+  carryOverDebtCalculated?: boolean; // Флаг: долг за этот период рассчитан
   history?: Array<{
     date: Date;
     action: string;
@@ -166,6 +168,8 @@ const PayrollSchema = new Schema<IPayroll>({
   latePenalties: Number,
   absencePenalties: Number,
   userFines: Number,
+  carryOverDebt: { type: Number, default: 0 },           // Долг с прошлого месяца
+  carryOverDebtCalculated: { type: Boolean, default: false }, // Флаг: долг рассчитан
   history: [{
     date: Date,
     action: String,
@@ -186,8 +190,10 @@ PayrollSchema.pre('save', function (next) {
   const latePenalties = this.latePenalties || 0;
   const absencePenalties = this.absencePenalties || 0;
   const userFines = this.userFines || 0;
+  const carryOverDebt = this.carryOverDebt || 0; // Долг с прошлого месяца
 
-  this.total = Math.max(0, accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions);
+  // Формула: начисления + бонусы - штрафы - аванс - удержания - долг с прошлого месяца
+  this.total = Math.max(0, accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt);
 
   this.penalties = latePenalties + absencePenalties + userFines;
 

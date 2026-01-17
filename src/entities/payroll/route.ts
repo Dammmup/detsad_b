@@ -16,7 +16,8 @@ import {
   getTotalFines,
   getMyPayrolls,
   getPayrollBreakdown,
-  getSalarySummary
+  getSalarySummary,
+  calculateDebt
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -57,6 +58,9 @@ router.post('/generate-sheets', authMiddleware, authorizeRole(['admin']), genera
 
 
 router.post('/generate-rent-sheets', authMiddleware, authorizeRole(['admin']), generateRentSheets);
+
+// Расчёт долга по авансу
+router.post('/calculate-debt', authMiddleware, authorizeRole(['admin']), calculateDebt);
 
 
 router.post('/:id/fines', authMiddleware, authorizeRole(['admin']), addFine);
