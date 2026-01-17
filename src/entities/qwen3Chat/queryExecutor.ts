@@ -71,6 +71,12 @@ export interface QueryRequest {
     // Для операций записи
     document?: Record<string, any>;  // Для insertOne
     update?: Record<string, any>;    // Для updateOne/updateMany
+    // Контекст безопасности
+    authContext?: {
+        userId: string;
+        role: string;
+        groupId?: string;
+    };
 }
 
 export interface QueryResult {
@@ -162,6 +168,64 @@ function validateQuery(query: QueryRequest): { valid: boolean; error?: string } 
 }
 
 /**
+ * Применяет ограничения безопасности к фильтру или pipeline в зависимости от роли
+ */
+function applySecurityFilters(query: QueryRequest): void {
+    if (!query.authContext) return;
+
+    const { userId, role, groupId } = query.authContext;
+    const isAdmin = role === 'admin' || role === 'manager';
+
+    if (isAdmin) return; // Админам не ограничиваем на уровне исполнителя
+
+    console.log(`🛡️ Применение безопасности для роли ${role}, userId: ${userId}`);
+
+    // Инициализируем фильтр если его нет
+    if (!query.filter) query.filter = {};
+
+    switch (query.collection) {
+        case 'payrolls':
+        case 'staff_attendance_tracking':
+        case 'staff_shifts':
+            // Сотрудник видит только свои записи
+            query.filter.staffId = userId;
+            break;
+
+        case 'children':
+            // Воспитатель видит только свою группу (если она указана)
+            if ((role === 'teacher' || role === 'assistant') && groupId) {
+                query.filter.groupId = groupId;
+            }
+            break;
+
+        case 'childattendances':
+            // Воспитатель видит посещаемость только своей группы
+            if ((role === 'teacher' || role === 'assistant') && groupId) {
+                query.filter.groupId = groupId;
+            }
+            break;
+
+        case 'users':
+            // Обычный пользователь видит только себя (или вообще не видит других)
+            query.filter._id = userId;
+            break;
+
+        case 'settings':
+        case 'reports':
+        case 'statistics':
+            // Для не-админов ограничиваем доступ к этим коллекциям (выдаем пустой результат)
+            query.filter._id = '000000000000000000000000'; // Несуществующий ID
+            break;
+    }
+
+    // Если это агрегация, добавляем $match в начало pipeline
+    if (query.operation === 'aggregate' && query.pipeline) {
+        const securityMatch: any = { $match: { ...query.filter } };
+        query.pipeline.unshift(securityMatch);
+    }
+}
+
+/**
  * Безопасно выполняет запрос к MongoDB
  */
 export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
@@ -178,6 +242,10 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
         }
 
         const collection = db.collection(query.collection);
+
+        // Применяем фильтры безопасности перед конвертацией типов
+        applySecurityFilters(query);
+
         const filter = query.filter ? convertMongoTypes(query.filter) : {};
         const limit = Math.min(query.limit || MAX_LIMIT, MAX_LIMIT);
 

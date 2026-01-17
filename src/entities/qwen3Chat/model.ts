@@ -12,6 +12,11 @@ export interface Qwen3Request {
   currentPage?: string;
   image?: any;
   sessionId?: string;
+  authContext?: {
+    userId: string;
+    role: string;
+    groupId?: string;
+  };
 }
 
 export interface Qwen3Response {

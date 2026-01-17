@@ -17,7 +17,7 @@ import { authorizeRole } from '../../middlewares/authRole';
 const router = express.Router();
 
 
-router.get('/kindergarten', authMiddleware, authorizeRole(['admin']), getKindergartenSettings);
+router.get('/kindergarten', authMiddleware, getKindergartenSettings);
 
 
 router.put('/kindergarten', authMiddleware, authorizeRole(['admin']), updateKindergartenSettings);

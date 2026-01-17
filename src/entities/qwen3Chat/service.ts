@@ -310,7 +310,12 @@ export class Qwen3ChatService {
         case 'query':
           if (aiAction.query) {
             console.log('Executing query:', JSON.stringify(aiAction.query));
-            const queryResult = await executeQuery(aiAction.query);
+            // Передаем контекст безопасности из запроса в исполнитель
+            const queryWithAuth: QueryRequest = {
+              ...aiAction.query,
+              authContext: request.authContext
+            };
+            const queryResult = await executeQuery(queryWithAuth);
 
             if (!queryResult.success) {
               return {

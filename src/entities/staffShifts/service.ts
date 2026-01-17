@@ -24,6 +24,32 @@ export class ShiftsService {
     return R * c;
   }
 
+  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }) {
+    const geoSettings = await settingsService.getGeolocationSettings();
+    if (geoSettings && geoSettings.enabled) {
+      const distance = this.calculateDistance(
+        locationData.latitude,
+        locationData.longitude,
+        geoSettings.coordinates.latitude,
+        geoSettings.coordinates.longitude
+      );
+
+      console.log(`[GEOFENCING] Проверка координат:
+        - Текущие: ${locationData.latitude}, ${locationData.longitude}
+        - Точность (GPS Accuracy): ${locationData.accuracy ? locationData.accuracy + ' м' : 'НЕТ ДАННЫХ'}
+        - Целевые: ${geoSettings.coordinates.latitude}, ${geoSettings.coordinates.longitude}
+        - Рассчитанная дистанция: ${distance.toFixed(2)} м
+        - Разрешенный радиус: ${geoSettings.radius} м
+        - Результат: ${distance <= geoSettings.radius ? 'В ГЕОЗОНЕ' : 'ВНЕ ГЕОЗОНЫ'}`);
+
+      if (distance > geoSettings.radius) {
+        throw new Error(`Вы находитесь вне геозоны. Расстояние до детского сада: ${Math.round(distance)}м. Разрешено в радиусе ${geoSettings.radius}м.`);
+      }
+    } else {
+      console.log('[GEOFENCING] Проверка отключена в настройках.');
+    }
+  }
+
   async getAll(filters: { staffId?: string, date?: string, status?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
     const filter: any = {};
 
@@ -216,6 +242,22 @@ export class ShiftsService {
     return { success: count, ids };
   }
 
+  /**
+   * Получает текущий статус смены сотрудника на сегодня
+   */
+  async getShiftStatus(staffId: string): Promise<'scheduled' | 'in_progress' | 'completed' | 'late' | 'no_shift'> {
+    const now = new Date();
+    const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
+
+    const record = await Shift.findOne({ staffId });
+    if (!record || !record.shifts.has(almatyDateStr)) {
+      return 'no_shift';
+    }
+
+    const shift = record.shifts.get(almatyDateStr)!;
+    return shift.status as 'scheduled' | 'in_progress' | 'completed' | 'late';
+  }
+
   async checkIn(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata) {
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
@@ -239,18 +281,7 @@ export class ShiftsService {
     const shift = record.shifts.get(date)!;
 
     if (locationData) {
-      const geoSettings = await settingsService.getGeolocationSettings();
-      if (geoSettings && geoSettings.enabled) {
-        const distance = this.calculateDistance(
-          locationData.latitude,
-          locationData.longitude,
-          geoSettings.coordinates.latitude,
-          geoSettings.coordinates.longitude
-        );
-        if (distance > geoSettings.radius) {
-          throw new Error(`Вы находитесь вне геозоны. Разрешено в радиусе ${geoSettings.radius} метров.`);
-        }
-      }
+      await this.verifyGeofencing(locationData);
     }
 
     const settings = await settingsService.getKindergartenSettings();
@@ -317,6 +348,10 @@ export class ShiftsService {
     }
 
     const shift = record.shifts.get(date)!;
+
+    if (locationData) {
+      await this.verifyGeofencing(locationData);
+    }
     shift.status = 'completed';
     record.shifts.set(date, shift);
     await record.save();

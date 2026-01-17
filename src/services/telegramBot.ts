@@ -13,6 +13,7 @@ const pendingLocationRequests = new Map<string, { action: 'checkin' | 'checkout'
 interface TelegramLocation {
     latitude: number;
     longitude: number;
+    horizontal_accuracy?: number;
 }
 
 interface TelegramMessage {
@@ -32,9 +33,20 @@ interface TelegramMessage {
     location?: TelegramLocation;
 }
 
+interface TelegramCallbackQuery {
+    id: string;
+    from: {
+        id: number;
+        first_name: string;
+    };
+    message?: TelegramMessage;
+    data?: string;
+}
+
 interface TelegramUpdate {
     update_id: number;
     message?: TelegramMessage;
+    callback_query?: TelegramCallbackQuery;
 }
 
 /**
@@ -57,6 +69,49 @@ async function sendMessage(chatId: number | string, text: string, parseMode: 'HT
         console.log(`✅ Сообщение отправлено в чат ${chatId}:`, response.data.ok);
     } catch (error: any) {
         console.error('❌ Ошибка отправки сообщения в Telegram:', error.response?.data || error.message);
+    }
+}
+
+/**
+ * Отправляет сообщение с Reply Keyboard (плитки под полем ввода)
+ */
+async function sendMessageWithReplyKeyboard(
+    chatId: number | string,
+    text: string,
+    buttons: string[][],
+    oneTime: boolean = false
+): Promise<void> {
+    if (!TELEGRAM_BOT_TOKEN) return;
+
+    try {
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            chat_id: chatId,
+            text: text,
+            parse_mode: 'HTML',
+            reply_markup: {
+                keyboard: buttons.map(row => row.map(text => ({ text }))),
+                resize_keyboard: true,
+                one_time_keyboard: oneTime
+            }
+        });
+    } catch (error: any) {
+        console.error('Ошибка отправки сообщения с keyboard:', error.response?.data || error.message);
+    }
+}
+
+/**
+ * Отвечает на callback_query (убирает "часики" на кнопке)
+ */
+async function answerCallbackQuery(callbackQueryId: string, text?: string): Promise<void> {
+    if (!TELEGRAM_BOT_TOKEN) return;
+
+    try {
+        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
+            callback_query_id: callbackQueryId,
+            text: text
+        });
+    } catch (error: any) {
+        console.error('Ошибка answerCallbackQuery:', error.response?.data || error.message);
     }
 }
 
@@ -106,12 +161,76 @@ async function sendLocationRequest(chatId: number | string, action: 'checkin' | 
  */
 async function findUserByTelegramChatId(chatId: string | number): Promise<any | null> {
     try {
-        const user = await User.findOne({ telegramChatId: String(chatId), active: true });
+        const chatIdStr = String(chatId);
+        console.log(`🔍 Поиск пользователя по telegramChatId: "${chatIdStr}"`);
+
+        // Ищем по строковому значению
+        let user = await User.findOne({ telegramChatId: chatIdStr, active: true });
+
+        if (!user) {
+            // Пробуем найти без фильтра active (может пользователь неактивен)
+            const inactiveUser = await User.findOne({ telegramChatId: chatIdStr });
+            if (inactiveUser) {
+                console.log(`⚠️ Найден неактивный пользователь: ${inactiveUser.fullName}, active=${inactiveUser.active}`);
+            } else {
+                // Пробуем найти по числовому значению (на случай если в базе число)
+                const numericUser = await User.findOne({ telegramChatId: Number(chatId) });
+                if (numericUser) {
+                    console.log(`⚠️ Найден пользователь с числовым chatId: ${numericUser.fullName}`);
+                } else {
+                    console.log(`❌ Пользователь с telegramChatId="${chatIdStr}" не найден`);
+                }
+            }
+        } else {
+            console.log(`✅ Найден пользователь: ${user.fullName}, роль: ${user.role}`);
+        }
+
         return user;
     } catch (error) {
         console.error('Ошибка поиска пользователя по telegramChatId:', error);
         return null;
     }
+}
+
+/**
+ * Получает текущий статус смены сотрудника
+ */
+async function getShiftStatusForUser(userId: string): Promise<'scheduled' | 'in_progress' | 'completed' | 'no_shift'> {
+    try {
+        const status = await shiftsService.getShiftStatus(userId);
+        if (status === 'scheduled' || status === 'in_progress' || status === 'completed') {
+            return status;
+        }
+        return 'no_shift';
+    } catch (error) {
+        console.error('Ошибка получения статуса смены:', error);
+        return 'no_shift';
+    }
+}
+
+/**
+ * Отправляет кнопку посещаемости в зависимости от статуса (Reply Keyboard)
+ */
+async function sendAttendanceButton(chatId: number, userId: string, role: string): Promise<void> {
+    // Не показываем кнопку для админов
+    if (role === 'admin') return;
+
+    const status = await getShiftStatusForUser(userId);
+
+    if (status === 'scheduled' || status === 'no_shift') {
+        await sendMessageWithReplyKeyboard(
+            chatId,
+            '🕐 Смена ещё не начата',
+            [['📍 Отметить приход']]
+        );
+    } else if (status === 'in_progress') {
+        await sendMessageWithReplyKeyboard(
+            chatId,
+            '✅ Вы на смене',
+            [['📍 Отметить уход']]
+        );
+    }
+    // Для completed ничего не показываем
 }
 
 /**
@@ -212,7 +331,14 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
         return;
     }
 
-    // Удаляем ожидание
+    // Проверка на ручной выбор точки (в этом случае horizontal_accuracy отсутствует)
+    if (!location.horizontal_accuracy) {
+        console.log(`[SECURITY] Попытка обхода геофенсинга от ${chatId} (ручной выбор точки)`);
+        await sendMessage(chatId, '❌ <b>Ручной выбор точки запрещен.</b>\n\nПожалуйста, отправьте свои <u>текущие</u> координаты, используя встроенную кнопку в меню бота.');
+        return;
+    }
+
+    // Удаляем ожидание после успешной проверки
     pendingLocationRequests.delete(String(chatId));
 
     // Убираем клавиатуру
@@ -226,7 +352,11 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
         // Игнорируем
     }
 
-    const locationData = { latitude: location.latitude, longitude: location.longitude };
+    const locationData = {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.horizontal_accuracy
+    };
 
     try {
         let result: any;
@@ -234,7 +364,8 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
             source: 'telegram',
             telegramChatId: String(chatId),
             latitude: location.latitude,
-            longitude: location.longitude
+            longitude: location.longitude,
+            accuracy: location.horizontal_accuracy
         } as any;
 
         if (pending.action === 'checkin') {
@@ -297,16 +428,47 @@ async function handleTextMessage(chatId: number, text: string, user: any): Promi
         // Показываем индикатор "печатает..."
         await sendTypingAction(chatId);
 
+        // Определяем ограничения по роли
+        const isAdmin = user.role === 'admin' || user.role === 'manager';
+
+        // Формируем контекст ограничений для AI
+        let accessContext = '';
+        if (isAdmin) {
+            accessContext = `Пользователь: ${user.fullName} (${user.role}). Полный доступ ко всем данным системы.`;
+        } else {
+            accessContext = `
+ВАЖНО: Ограниченный доступ!
+Пользователь: ${user.fullName}, ID: ${user._id}, Роль: ${user.role}.
+
+СТРОГИЕ ОГРАНИЧЕНИЯ (обязательно соблюдать):
+1. ЗАРПЛАТЫ: Показывать ТОЛЬКО зарплату этого сотрудника (staffId = "${user._id}"). Никогда не показывать зарплаты других сотрудников.
+2. ПОСЕЩАЕМОСТЬ: Показывать только данные посещаемости этого сотрудника.
+3. ДРУГИЕ СОТРУДНИКИ: НЕ предоставлять информацию о зарплатах, штрафах, долгах других сотрудников.
+4. ДЕТИ: ${user.groupId ? `Показывать только детей группы ${user.groupId}` : 'Показывать детей своих групп при наличии привязки'}.
+5. СТАТИСТИКА: НЕ показывать общую статистику, финансы детского сада.
+6. При запросе чужих данных — вежливо отказать и объяснить ограничения.
+
+При формировании запросов к базе данных ВСЕГДА добавляй фильтр staffId: "${user._id}" для данных о зарплатах и посещаемости.`;
+        }
+
+        // Добавляем контекст к сообщению пользователя
+        const enhancedMessage = `${accessContext}\n\nВопрос пользователя: ${text}`;
+
         // Отправляем запрос AI-ассистенту
         const response = await Qwen3ChatService.sendMessage({
             messages: [
                 {
                     id: Date.now(),
-                    text: text,
+                    text: enhancedMessage,
                     sender: 'user',
                     timestamp: new Date(),
                 },
             ],
+            authContext: {
+                userId: user._id.toString(),
+                role: user.role,
+                groupId: user.groupId
+            }
         });
 
         // Форматируем ответ для Telegram (удаляем markdown, оставляем HTML)
@@ -329,6 +491,7 @@ async function handleTextMessage(chatId: number, text: string, user: any): Promi
  * Главный обработчик webhook от Telegram
  */
 export async function handleTelegramWebhook(update: TelegramUpdate): Promise<void> {
+
     const message = update.message;
 
     if (!message) {
@@ -398,8 +561,22 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
         return;
     }
 
+    // Обработка текстовых кнопок Reply Keyboard (плитки под полем ввода)
+    if (text === '📍 Отметить приход') {
+        await handleCheckInCommand(chatId, user);
+        return;
+    }
+
+    if (text === '📍 Отметить уход') {
+        await handleCheckOutCommand(chatId, user);
+        return;
+    }
+
     // Обрабатываем текстовое сообщение через AI
     await handleTextMessage(chatId, text, user);
+
+    // Показываем кнопку посещаемости после ответа AI
+    await sendAttendanceButton(chatId, user._id.toString(), user.role);
 }
 
 /**
@@ -413,7 +590,7 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<{ success:
     try {
         const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook`, {
             url: webhookUrl,
-            allowed_updates: ['message'],
+            allowed_updates: ['message', 'callback_query'],
         });
 
         if (response.data.ok) {

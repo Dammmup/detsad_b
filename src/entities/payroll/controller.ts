@@ -88,18 +88,13 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { period, status, month } = req.query;
+    const { userId, period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
-    // Убрано автоматическое обновление - расчетные листы обновляются только по кнопке "Обновить всё"
-    // if (targetPeriod === new Date().toISOString().slice(0, 7)) {
-    //   await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
-    // }
-
-
-    const staffIdFilter = (req.user.role === 'admin' || req.user.role === 'manager')
-      ? undefined
-      : req.user.id;
+    const isStaffRequest = req.user.role !== 'admin' && req.user.role !== 'manager';
+    const staffIdFilter = isStaffRequest
+      ? req.user.id
+      : (userId as string); // Для админов позволяем фильтровать по userId если он передан
 
     const payrolls = await payrollService.getAll({
       staffId: staffIdFilter,
