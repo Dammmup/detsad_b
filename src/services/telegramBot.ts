@@ -517,25 +517,23 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
 
     console.log(`📩 Telegram сообщение от ${username} (${chatId}): ${text}`);
 
-    // Обработка команд
-    if (text.startsWith('/start')) {
-        await handleStartCommand(chatId, username);
-        return;
-    }
-
+    // Обработка команд, не требующих авторизации (связка аккаунта)
     if (text.startsWith('/link')) {
         const code = text.split(' ')[1];
         await handleLinkCommand(chatId, code);
         return;
     }
 
-    if (text === '/help') {
+    // Проверяем авторизацию для команд /start, /help и основного потока
+    const user = await findUserByTelegramChatId(chatId);
+
+    if (text.startsWith('/start') || text === '/help') {
         await handleStartCommand(chatId, username);
+        if (user) {
+            await sendAttendanceButton(chatId, user._id.toString(), user.role);
+        }
         return;
     }
-
-    // Проверяем авторизацию
-    const user = await findUserByTelegramChatId(chatId);
 
     if (!user) {
         await sendMessage(chatId, `⚠️ <b>Telegram не привязан к аккаунту</b>
