@@ -216,11 +216,18 @@ export class Qwen3ChatService {
       'cleaner': 'Уборщица',
       'security': 'Охранник',
       'psychologist': 'Психолог',
+      'speech_therapist': 'Логопед',
       'music_teacher': 'Музыкальный руководитель',
       'physical_teacher': 'Физрук',
       'staff': 'Сотрудник',
       'rent': 'Арендатор',
-      'educator': 'Педагог'
+      'educator': 'Педагог',
+      'tenant': 'Арендатор',
+      'maintenance': 'Завхоз',
+      'laundry': 'Прачка',
+      'substitute': 'Подменный',
+      'intern': 'Стажёр',
+      'director': 'Директор'
     };
     return roles[role] || role;
   }
@@ -287,7 +294,7 @@ export class Qwen3ChatService {
       messages.unshift({ role: 'system', content: enhancedSystemPrompt });
 
       // Первый запрос к AI для получения действия
-      console.log('📤 Отправка запроса к Qwen API...');
+      console.log('📤 [AI] Отправка запроса. Пользователь:', request.messages[request.messages.length - 1].text);
       const response = await axios.post(
         QWEN3_API_URL,
         {
@@ -302,21 +309,13 @@ export class Qwen3ChatService {
           timeout: 60000 // 60 секунд таймаут
         }
       );
-      console.log('📥 Ответ получен от Qwen API');
+      const aiResponseText = response.data.choices[0].message.content;
+      console.log('📥 [AI] Сырой ответ:', aiResponseText);
 
-      const aiContent = response.data.choices?.[0]?.message?.content || '';
-      console.log('AI Response:', aiContent);
-
-      // Парсим ответ AI
-      const aiAction = this.parseAIResponse(aiContent);
-
-      if (!aiAction) {
-        // Если не удалось распарсить, возвращаем как есть
-        return {
-          content: aiContent,
-          action: 'text'
-        };
-      }
+      // Парсим JSON из ответа AI (он может быть обернут в ```json)
+      const jsonMatch = aiResponseText.match(/```json\s*([\s\S]*?)\s*```/) || [null, aiResponseText];
+      const aiAction = JSON.parse(jsonMatch[1].trim());
+      console.log('🧩 [AI] Распознанное действие:', aiAction.action);
 
       // Обрабатываем действие
       switch (aiAction.action) {
@@ -344,6 +343,8 @@ export class Qwen3ChatService {
               };
             }
 
+            console.log('📊 [DB] Результат получен. Элементов:', Array.isArray(queryResult.data) ? queryResult.data.length : (queryResult.data || queryResult.count ? 1 : 0));
+
             const formattedResult = this.formatQueryResult(
               queryResult.data ?? queryResult.count,
               aiAction.responseTemplate,
@@ -363,7 +364,7 @@ export class Qwen3ChatService {
         case 'text':
         default:
           return {
-            content: aiAction.text || aiContent,
+            content: aiAction.text || aiResponseText,
             action: 'text'
           };
       }
