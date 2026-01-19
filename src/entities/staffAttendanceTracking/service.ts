@@ -53,8 +53,48 @@ const getPayrollModel = () => {
 };
 
 export class StaffAttendanceTrackingService {
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
 
-  async clockIn(userId: string, notes?: string) {
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) *
+      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+  }
+
+  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }) {
+    const settingsService = new SettingsService();
+    const geoSettings = await settingsService.getGeolocationSettings();
+    if (geoSettings && geoSettings.enabled) {
+      const distance = this.calculateDistance(
+        locationData.latitude,
+        locationData.longitude,
+        geoSettings.coordinates.latitude,
+        geoSettings.coordinates.longitude
+      );
+
+      console.log(`[GEOFENCING] Проверка координат (API):
+        - Текущие: ${locationData.latitude}, ${locationData.longitude}
+        - Целевые: ${geoSettings.coordinates.latitude}, ${geoSettings.coordinates.longitude}
+        - Рассчитанная дистанция: ${distance.toFixed(2)} м
+        - Разрешенный радиус: ${geoSettings.radius} м
+        - Результат: ${distance <= geoSettings.radius ? 'В ГЕОЗОНЕ' : 'ВНЕ ГЕОЗОНЫ'}`);
+
+      if (distance > geoSettings.radius) {
+        throw new Error(`Вы находитесь вне геозоны. Расстояние до детского сада: ${Math.round(distance)}м. Разрешено в радиусе ${geoSettings.radius}м.`);
+      }
+    } else {
+      console.log('[GEOFENCING] Проверка отключена в настройках.');
+    }
+  }
+
+  async clockIn(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, notes?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
@@ -70,7 +110,10 @@ export class StaffAttendanceTrackingService {
 
     const today = almatyDay;
 
-    console.log(`[CLOCK-IN] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}`);
+    console.log(`[CLOCK-IN] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}, Location: ${locationData.latitude}, ${locationData.longitude}`);
+
+    // Проверка геозоны
+    await this.verifyGeofencing(locationData);
 
     const existingEntry = await StaffAttendanceTracking.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
@@ -162,7 +205,7 @@ export class StaffAttendanceTrackingService {
     };
   }
 
-  async clockOut(userId: string, locationData: { latitude: number, longitude: number }, photo?: string, notes?: string) {
+  async clockOut(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, photo?: string, notes?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
@@ -171,6 +214,9 @@ export class StaffAttendanceTrackingService {
     } catch (e) {
       console.error('Telegram notify error (clockOut):', e);
     }
+
+    // Проверка геозоны перед уходом
+    await this.verifyGeofencing(locationData);
 
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });

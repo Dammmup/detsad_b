@@ -18,21 +18,18 @@ export const getSalarySummary = async (req: AuthenticatedRequest, res: Response)
       return res.status(400).json({ error: 'startDate and endDate are required' });
     }
 
+    // Извлекаем период (YYYY-MM) из дат. 
+    // Чтобы избежать проблем с границами (00:00:00), берем середину диапазона между startDate и endDate.
+    const startObj = new Date(startDate as string);
+    const endObj = new Date(endDate as string);
+    const middleDate = new Date((startObj.getTime() + endObj.getTime()) / 2);
+
     const startPeriod = (startDate as string).substring(0, 7);
     const endPeriod = (endDate as string).substring(0, 7);
+    const targetPeriod = middleDate.toISOString().substring(0, 7);
 
-    // Гарантируем наличие записей за указанные периоды
-    const periods = [];
-    if (startPeriod === endPeriod) {
-      periods.push(startPeriod);
-    } else {
-      // Для простоты берем только начало и конец, если диапазон широкий (обычно это 1 месяц)
-      periods.push(startPeriod, endPeriod);
-    }
-
-    for (const p of [...new Set(periods)]) {
-      await payrollService.ensurePayrollRecordsForPeriod(p);
-    }
+    // Убрано автоматическое формирование расчетных листов при просмотре статистики,
+    // чтобы не изменять данные без явного действия пользователя.
 
     const filter: any = {};
 
@@ -45,17 +42,29 @@ export const getSalarySummary = async (req: AuthenticatedRequest, res: Response)
     if (startPeriod === endPeriod) {
       filter.period = startPeriod;
     } else {
-      filter.period = { $gte: startPeriod, $lte: endPeriod };
+      // Если запрос пришел с дашборда (где мы поправили даты), startPeriod и endPeriod будут одинаковы.
+      // На всякий случай оставляем поддержку диапазона через targetPeriod.
+      filter.period = targetPeriod;
     }
+
+    // Фильтруем записи: учитываем только тех, у кого есть отработанные смены или дни,
+    // либо если есть начисления (могут быть ручные бонусы без смен, но требование пользователя 
+    // говорит о "хотя бы 1 смене").
+    filter.$or = [
+      { workedShifts: { $gt: 0 } },
+      { workedDays: { $gt: 0 } }
+    ];
 
     const payrolls = await Payroll.find(filter);
 
     const stats = payrolls.reduce((acc: any, p: any) => {
-      acc.totalAccruals += (p.accruals || 0);
+      // Начисления = база (оклад по сменам/дням) + бонусы
+      const totalAccrued = (p.accruals || 0) + (p.bonuses || 0);
+      acc.totalAccruals += totalAccrued;
       acc.totalAdvance += (p.advance || 0);
       acc.totalPenalties += (p.penalties || 0);
       acc.totalPayout += (p.total || 0);
-      acc.totalAccrualsCount += (p.accruals > 0 ? 1 : 0);
+      acc.totalAccrualsCount += (totalAccrued > 0 ? 1 : 0);
       acc.totalPenaltiesCount += (p.penalties > 0 ? 1 : 0);
       return acc;
     }, {

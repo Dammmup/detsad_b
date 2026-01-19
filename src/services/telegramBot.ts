@@ -331,9 +331,9 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
         return;
     }
 
-    // Проверка на ручной выбор точки (в этом случае horizontal_accuracy отсутствует)
-    if (!location.horizontal_accuracy) {
-        console.log(`[SECURITY] Попытка обхода геофенсинга от ${chatId} (ручной выбор точки)`);
+    // Проверка на ручной выбор точки (horizontal_accuracy отсутствует или не является числом)
+    if (typeof location.horizontal_accuracy !== 'number') {
+        console.log(`[SECURITY] Попытка обхода геофенсинга от ${chatId} (ручной выбор точки, accuracy: ${location.horizontal_accuracy})`);
         await sendMessage(chatId, '❌ <b>Ручной выбор точки запрещен.</b>\n\nПожалуйста, отправьте свои <u>текущие</u> координаты, используя встроенную кнопку в меню бота.');
         return;
     }

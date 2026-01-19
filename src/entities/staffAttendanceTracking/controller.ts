@@ -13,6 +13,7 @@ export const clockIn = async (req: Request, res: Response) => {
 
     const result = await staffAttendanceTrackingService.clockIn(
       userId,
+      { latitude, longitude },
       notes
     );
 

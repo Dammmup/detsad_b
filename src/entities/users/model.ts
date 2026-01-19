@@ -57,7 +57,7 @@ const UserSchema: Schema = new Schema({
   role: {
     type: String,
     required: [true, 'Роль обязательна'],
-    enum: ['admin', 'teacher', 'assistant', 'nurse', 'cook', 'cleaner', 'security', 'psychologist', 'music_teacher', 'physical_teacher', 'staff', 'parent', 'child', 'rent', 'manager'],
+    enum: ['admin', 'teacher', 'assistant', 'nurse', 'cook', 'cleaner', 'security', 'psychologist', 'music_teacher', 'physical_teacher', 'staff', 'parent', 'child', 'rent', 'manager', 'intern'],
     default: 'staff',
     index: true
   },
