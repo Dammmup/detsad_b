@@ -331,10 +331,17 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
         return;
     }
 
-    // Проверка на ручной выбор точки (horizontal_accuracy отсутствует или не является числом)
-    if (typeof location.horizontal_accuracy !== 'number') {
-        console.log(`[SECURITY] Попытка обхода геофенсинга от ${chatId} (ручной выбор точки, accuracy: ${location.horizontal_accuracy})`);
-        await sendMessage(chatId, '❌ <b>Ручной выбор точки запрещен.</b>\n\nПожалуйста, отправьте свои <u>текущие</u> координаты, используя встроенную кнопку в меню бота.');
+    // Детальное логирование для отладки геофенсинга
+    console.log(`[DEBUG] Получены координаты от ${chatId}:`, JSON.stringify(location, null, 2));
+
+    // Проверка на подлинность локации.
+    // В Telegram реальная локация (через кнопку или Live Location) обычно содержит horizontal_accuracy.
+    // Ручно выбранная точка на карте НЕ содержит horizontal_accuracy.
+    const isRealLocation = typeof location.horizontal_accuracy === 'number';
+
+    if (!isRealLocation) {
+        console.warn(`[SECURITY] Блокировка: Отсутствует horizontal_accuracy (возможен ручной выбор точки) от ${chatId}`);
+        await sendMessage(chatId, '❌ <b>Ошибка проверки местоположения.</b>\n\nПожалуйста, отправьте свои <u>текущие</u> координаты, используя встроенную кнопку <b>"Отправить и отметить приход/уход"</b> в меню бота.');
         return;
     }
 
