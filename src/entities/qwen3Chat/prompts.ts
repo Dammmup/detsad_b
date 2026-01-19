@@ -306,6 +306,9 @@ export const DATA_ACCESS_PROMPT = `# Системный промпт для AI-�
 8. **Обработка отсутствия данных**: Если ты сомневаешься в точном ФИО, сначала сделай поиск (find), а не пытайся сразу угадать ID.
 9. **Формат JSON**: НИКОГДА не используй физические переносы строк внутри значений JSON. Для переноса строки в тексте используй символ \`\\n\`. Весь JSON должен быть валидным.
 
+10. **ЗАПРЕТ ВЛОЖЕННОСТИ $regex В $in**: MongoDB НЕ поддерживает \`$regex\` внутри оператора \`$in\`. Если нужно искать по нескольким регулярным выражениям (например, по списку имен), ВСЕГДА используй оператор \`$or\`.
+    *НЕПРАВИЛЬНО*: \`{ "fullName": { "$in": [{ "$regex": "А", "$options": "i" }, { "$regex": "Б", "$options": "i" }] } }\`
+    *ПРАВИЛЬНО*: \`{ "$or": [{ "fullName": { "$regex": "А", "$options": "i" } }, { "fullName": { "$regex": "Б", "$options": "i" } }] }\`
 ---
 
 ## Примеры
@@ -390,12 +393,30 @@ export const DATA_ACCESS_PROMPT = `# Системный промпт для AI-�
 | music_teacher | Музыкальный руководитель |
 | physical_teacher | Физрук |
 | staff | Другой персонал |
-| rent | Арендатор |`;
+| rent | Арендатор (старое) |
+| tenant | Арендатор (новое) |
 
-export const DATABASE_PROMPT = `- **Текущее время**: Используй текущую дату/время, которые я предоставлю в контексте
-- **Часовой пояс**: Казахстан (UTC+5), при работе с датами используй +05:00
-- **ObjectId**: Для связей между коллекциями используются ObjectId. При поиске по связям используй $lookup в aggregate
+### Пример массового изменения (используй $or вместо $regex в $in):
+Если пользователь просит "Сделай Раушан и Шахинур роль сотрудник":
+\`\`\`json
+{
+  "action": "query",
+    "query": {
+    "collection": "users",
+      "operation": "updateMany",
+        "filter": {
+      "$or": [
+        { "fullName": { "$regex": "Раушан", "$options": "i" } },
+        { "fullName": { "$regex": "Шахинур", "$options": "i" } }
+      ]
+    },
+    "update": { "$set": { "role": "staff" } }
+  },
+  "responseTemplate": "Роль для Раушан и Шахинур успешно изменена на 'сотрудник'"
+}
+`;
 
+export const DATABASE_PROMPT = `
 ---
 
 ## Коллекции
@@ -408,368 +429,178 @@ export const DATABASE_PROMPT = `- **Текущее время**: Использ�
 | _id | ObjectId | Уникальный идентификатор |
 | fullName | String | ФИО сотрудника |
 | phone | String | Телефон (уникальный) |
-| role | String | Роль: admin, teacher, assistant, nurse, cook, cleaner, security, psychologist, music_teacher, physical_teacher, staff, rent |
+| role | String | Роль: admin, manager, teacher, assistant, psychologist, speech_therapist, music_teacher, physical_teacher, nurse, cook, cleaner, security, staff, tenant |
 | active | Boolean | Активен ли сотрудник (true = работает, false = уволен) |
 | birthday | Date | Дата рождения |
-| iin | String | ИИН (индивидуальный идентификационный номер) |
-| groupId | ObjectId | Ссылка на группу (для воспитателей) |
+| iin | String | ИИН |
+| groupId | ObjectId | Ссылка на группу |
 | notes | String | Заметки |
 | photo | String | Путь к фото |
 | tenant | Boolean | Арендатор (true/false) |
 | createdAt | Date | Дата создания |
 | updatedAt | Date | Дата обновления |
 
+**Категории ролей (ВАЖНО ДЛЯ ФИЛЬТРАЦИИ):**
+1. **Садик (Штатные сотрудники)**:
+   - Роли: "teacher", "assistant", "psychologist", "music_teacher", "physical_teacher", "nurse", "cook", "cleaner", "security", "staff"
+   - Логика: Это люди, которые обеспечивают жизнь садика.
+   - Фильтр "Активный штат": \`{ "active": true, "role": { "$in": ["teacher", "assistant", "psychologist", "music_teacher", "physical_teacher", "nurse", "cook", "cleaner", "security", "staff"] } }\`
+
+2. **Внешние специалисты / Услуги**:
+   - Роли: "speech_therapist" (Логопед), "tenant" (Арендатор)
+   - Логика: Внешние подрядчики или арендаторы.
+   - Фильтр "Внешние": \`{ "role": { "$in": ["speech_therapist", "tenant"] } } \`
+
 **Примеры запросов:**
-- Активные сотрудники: { "active": true, "role": { "$ne": "admin" } }
-- Воспитатели: { "role": "teacher", "active": true }
-- Арендаторы: { "tenant": true }
+- "Покажи всех сотрудников" -> Используй фильтр **Садика (Штат)**.
+- "Кто у нас логопед?" -> Используй роль "speech_therapist".
+- "Покажи внешних специалистов" -> Используй фильтр **Внешние специалисты**.
+- "Все работающие" -> По умолчанию показывай **только Штат**.
 
 ---
 
 ### children (Дети)
-Информация о детях, посещающих детский сад.
-
 | Поле | Тип | Описание |
 |------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| fullName | String | ФИО ребёнка |
+| _id | ObjectId | ID |
+| fullName | String | ФИО |
+| iin | String | ИИН |
 | birthday | Date | Дата рождения |
-| groupId | ObjectId | Ссылка на группу |
-| active | Boolean | Посещает ли ребёнок сад |
-| parentName | String | ФИО родителя |
+| active | Boolean | Посещает ли сад |
+| parentName | String | Родитель |
 | parentPhone | String | Телефон родителя |
-| address | String | Адрес |
-| iin | String | ИИН ребёнка |
-| gender | String | Пол |
+| groupId | ObjectId | Группа |
+| paymentAmount| Number | Сумма оплаты (по умолчанию 40000) |
 | allergy | String | Аллергии |
-| notes | String | Заметки |
 
 ---
 
 ### groups (Группы)
-Группы детского сада.
-
 | Поле | Тип | Описание |
 |------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| name | String | Название группы (например, "Солнышко") |
-| description | String | Описание |
+| _id | ObjectId | ID |
+| name | String | Название |
 | ageGroup | String | Возрастная группа |
-| maxStudents | Number | Максимальное количество детей |
-| isActive | Boolean | Активна ли группа |
-| teacherId | ObjectId | Ссылка на воспитателя |
-| assistantId | ObjectId | Ссылка на помощника воспитателя |
+| teacherId | ObjectId | Воспитатель |
+| assistantId | ObjectId | Помощник |
+| isActive | Boolean | Активна ли |
 
 ---
 
 ### staff_attendance_tracking (Посещаемость сотрудников)
-Отметки прихода/ухода сотрудников.
-
 | Поле | Тип | Описание |
 |------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| staffId | ObjectId | Ссылка на сотрудника (users) |
-| date | Date | Дата |
-| actualStart | Date | Время прихода (clock-in) |
-| actualEnd | Date | Время ухода (clock-out) |
-| totalHours | Number | Отработано часов |
-| lateMinutes | Number | Минут опоздания |
-| earlyLeaveMinutes | Number | Минут раннего ухода |
-| inZone | Boolean | Был ли в зоне геолокации |
-| penalties.late.minutes | Number | Минуты опоздания |
-| penalties.late.amount | Number | Сумма штрафа |
-| notes | String | Заметки |
-
-**Важно для запросов по дате:**
-- Для поиска записей за сегодня используй:
-  json
-  {
-    "date": {
-      "$gte": "2025-12-23T00:00:00+05:00",
-      "$lt": "2025-12-24T00:00:00+05:00"
-    }
-  }
-  
-
----
-
-### staff_shifts (Смены сотрудников)
-Запланированные смены.
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
 | staffId | ObjectId | Ссылка на сотрудника |
-| date | String | Дата в формате "YYYY-MM-DD" |
-| startTime | String | Время начала "HH:MM" |
-| endTime | String | Время окончания "HH:MM" |
-| status | String | Статус смены |
-
----
-
-### childattendances (Посещаемость детей)
-Отметки посещаемости детей.
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| childId | ObjectId | Ссылка на ребёнка |
-| groupId | ObjectId | Ссылка на группу |
 | date | Date | Дата |
-| status | String | Статус: present, absent, sick, vacation |
-| actualStart | Date | Время прихода |
-| actualEnd | Date | Время ухода |
-| markedBy | ObjectId | Кто отметил |
+| actualStart | Date | Приход |
+| actualEnd | Date | Уход |
+| workDuration | Number | Минуты работы |
+| lateMinutes | Number | Минуты опоздания |
+| isManualEntry | Boolean | Ручной ввод |
 
 ---
 
 ### payrolls (Зарплаты)
-Расчётные листы.
-
 | Поле | Тип | Описание |
 |------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| staffId | ObjectId | Ссылка на сотрудника |
-| period | String | Период "YYYY-MM" |
-| baseSalary | Number | Базовая зарплата |
+| staffId | ObjectId | Сотрудник |
+| period | String | "YYYY-MM" |
+| baseSalary | Number | Оклад |
+| accruals | Number | Начислено |
 | bonuses | Number | Бонусы |
-| penalties | Number | Штрафы |
-| latePenalties | Number | Штрафы за опоздания |
-| advance | Number | Аванс |
-| total | Number | Итого к выплате |
-| status | String | Статус: draft, approved, paid, generated |
-| workedShifts | Number | Отработано смен |
-| workedDays | Number | Отработано дней |
+| latePenalties| Number | Штрафы за опоздания |
+| total | Number | Итого |
+| status | String | draft, approved, paid, generated |
+
+---
+
+### rents (Аренда)
+| Поле | Тип | Описание |
+|------|-----|----------|
+| tenantId | ObjectId | Арендатор (User) |
+| period | String | "YYYY-MM" |
+| amount | Number | Сумма аренды |
+| total | Number | Итого к оплате |
+| status | String | active, paid, overdue |
+| paidAmount | Number | Оплачено |
 
 ---
 
 ### tasks (Задачи)
-Список задач.
-
 | Поле | Тип | Описание |
 |------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| title | String | Название задачи |
-| description | String | Описание |
-| assignee | ObjectId | Исполнитель |
-| dueDate | Date | Срок выполнения |
-| status | String | Статус: pending, in_progress, completed, cancelled |
-| priority | String | Приоритет: low, medium, high |
-
----
-
-### child_payments (Платежи за детей)
-Оплаты за посещение.
-
-| Поле | Тип | Описание |
-|------|-----|----------|
-| _id | ObjectId | Уникальный идентификатор |
-| childId | ObjectId | Ссылка на ребёнка |
-| amount | Number | Сумма |
-| period | String | Период "YYYY-MM" |
-| status | String | Статус оплаты |
-| paidAt | Date | Дата оплаты |
-
-
----
-
-### Медицинские журналы
-
-#### somatic_journals (Соматический журнал)
-| _id | ObjectId | ID записи |
-| childId | ObjectId | Ссылка на ребёнка |
-| diagnosis | String | Диагноз |
-| symptoms | String | Симптомы |
-| treatment | String | Лечение |
-| date | Date | Дата записи |
-
-#### mantoux_journals (Журнал Манту)
-| childId | ObjectId | Ссылка на ребёнка |
-| date | Date | Дата постановки |
-| result | String | Результат |
-| size | Number | Размер |
-| notes | String | Примечания |
-
-#### helminth_journals (Журнал гельминтов)
-| childId | ObjectId | Ссылка на ребёнка |
-| date | Date | Дата анализа |
-| result | String | Результат |
-| treatment | String | Лечение |
-
-#### tub_positive_journals (Тубинфицированные)
-| childId | ObjectId | |
-| date | Date | Дата выявления |
-| status | String | Статус |
-| treatment | String | Лечение |
-
-#### infectious_diseases_journals (Инфекционные заболевания)
-| childId | ObjectId | |
-| disease | String | Заболевание |
-| startDate | Date | Начало |
-| endDate | Date | Конец |
-| treatment | String | Лечение |
-
-#### contact_infection_journals (Контактные инфекции)
-| childId | ObjectId | |
-| contactType | String | Тип контакта |
-| date | Date | Дата контакта |
-| quarantineEnd | Date | Конец карантина |
-
-#### risk_group_children (Группы риска)
-| childId | ObjectId | |
-| riskGroup | String | Группа риска |
-| reason | String | Причина |
-| recommendations | String | Рекомендации |
-
-#### child_health_passports (Паспорта здоровья)
-| childId | ObjectId | Ссылка на ребёнка |
-| birthWeight | Number | Вес при рождении |
-| birthHeight | Number | Рост при рождении |
-| vaccinations | Array | Прививки |
-| chronicDiseases | Array | Хронические заболевания |
-| allergies | Array | Аллергии |
-
----
-
-### Питание и продукты
-
-#### products (Продукты)
-| _id | ObjectId | ID продукта |
-| name | String | Название |
-| unit | String | Единица измерения |
-| quantity | Number | Количество на складе |
-| minQuantity | Number | Минимальный остаток |
-| expirationDate | Date | Срок годности |
-
-#### dishes (Блюда)
-| _id | ObjectId | ID блюда |
-| name | String | Название |
-| category | String | Категория |
-| ingredients | Array | Ингредиенты (productId, quantity) |
-| calories | Number | Калории |
-| recipe | String | Рецепт |
-
-#### daily_menus (Ежедневное меню)
-| _id | ObjectId | ID |
-| date | Date | Дата |
-| meals | Array | Приёмы пищи (breakfast, lunch, snack, dinner) |
-| groupId | ObjectId | Группа (опционально) |
-
-#### product_purchases (Закупки продуктов)
-| productId | ObjectId | Продукт |
-| quantity | Number | Количество |
-| price | Number | Цена |
-| date | Date | Дата закупки |
-| supplier | String | Поставщик |
-
----
-
-### Циклограмма
-
-#### activity_templates (Шаблоны активностей)
-| _id | ObjectId | ID |
-| name | String | Название |
-| type | String | Тип (reception, OD, walk, meal, sleep и др.) |
-| content | String | Содержание |
-| category | String | Категория |
-| duration | Number | Длительность (мин) |
-| ageGroups | Array | Возрастные группы |
-
-#### daily_schedules (Расписание дня)
-| groupId | ObjectId | Группа |
-| date | Date | Дата |
-| blocks | Array | Блоки (order, time, activityType, content) |
-| createdBy | ObjectId | Кто создал |
+| title | String | Заголовок |
+| assignedTo | ObjectId | Исполнитель |
+| dueDate | Date | Срок |
+| status | String | pending, in_progress, completed |
+| priority | String | low, medium, high, urgent |
 
 ---
 
 ## Примеры сложных запросов
 
-### Найти сотрудников, не отметившихся сегодня до 9 утра
-
-json
+### Найти сотрудников, не отметившихся сегодня до 09:00
+\`\`\`json
 {
-  "collection": "users",
-  "operation": "aggregate",
-  "pipeline": [
-    { "$match": { "active": true, "role": { "$ne": "admin" } } },
-    {
-      "$lookup": {
-        "from": "staff_attendance_tracking",
-        "let": { "userId": "$_id" },
+  "action": "query",
+    "query": {
+    "collection": "users",
+      "operation": "aggregate",
         "pipeline": [
+          { "$match": { "active": true, "role": { "$in": ["teacher", "assistant", "staff"] } } },
           {
-            "$match": {
-              "$expr": {
-                "$and": [
-                  { "$eq": ["$staffId", "$$userId"] },
-                  { "$gte": ["$date", { "$dateFromString": { "dateString": "2025-12-23T00:00:00+05:00" } }] },
-                  { "$lt": ["$date", { "$dateFromString": { "dateString": "2025-12-24T00:00:00+05:00" } }] }
-                ]
-              }
+            "$lookup": {
+              "from": "staff_attendance_tracking",
+              "let": { "userId": "$_id" },
+              "pipeline": [
+                {
+                  "$match": {
+                    "$expr": {
+                      "$and": [
+                        { "$eq": ["$staffId", "$$userId"] },
+                        { "$gte": ["$date", { "$dateFromString": { "dateString": "2026-01-19T00:00:00+05:00" } }] },
+                        { "$lt": ["$date", { "$dateFromString": { "dateString": "2026-01-20T00:00:00+05:00" } }] }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "as": "attendance"
             }
-          }
-        ],
-        "as": "attendance"
-      }
-    },
-    {
-      "$match": {
-        "$or": [
-          { "attendance": { "$size": 0 } },
-          { "attendance.0.actualStart": { "$gte": { "$dateFromString": { "dateString": "2025-12-23T09:00:00+05:00" } } } }
+          },
+          { "$match": { "attendance": { "$size": 0 } } },
+          { "$project": { "fullName": 1, "phone": 1 } }
         ]
-      }
-    },
-    { "$project": { "fullName": 1, "role": 1, "phone": 1 } }
-  ]
+  },
+  "responseTemplate": "Сотрудники без отметки сегодня: \n{result}"
 }
+\`\`\`
 
-
-### Получить количество детей по группам
-
-json
+### Количество детей в каждой активной группе
+\`\`\`json
 {
-  "collection": "children",
-  "operation": "aggregate",
-  "pipeline": [
-    { "$match": { "active": true } },
-    {
-      "$lookup": {
-        "from": "groups",
-        "localField": "groupId",
-        "foreignField": "_id",
-        "as": "group"
-      }
-    },
-    { "$unwind": "$group" },
-    {
-      "$group": {
-        "_id": "$group.name",
-        "count": { "$sum": 1 }
-      }
-    }
-  ]
+  "action": "query",
+    "query": {
+    "collection": "children",
+      "operation": "aggregate",
+        "pipeline": [
+          { "$match": { "active": true } },
+          {
+            "$lookup": {
+              "from": "groups",
+              "localField": "groupId",
+              "foreignField": "_id",
+              "as": "groupInfo"
+            }
+          },
+          { "$unwind": "$groupInfo" },
+          { "$group": { "_id": "$groupInfo.name", "count": { "$sum": 1 } } }
+        ]
+  },
+  "responseTemplate": "Детей по группам: \n{result}"
 }
+\`\`\`
 
-
-### Сотрудники с днём рождения в этом месяце
-
-
-{
-  "collection": "users",
-  "operation": "aggregate",
-  "pipeline": [
-    { "$match": { "active": true, "birthday": { "$exists": true } } },
-    {
-      "$addFields": {
-        "birthMonth": { "$month": "$birthday" }
-      }
-    },
-    { "$match": { "birthMonth": 12 } },
-    { "$project": { "fullName": 1, "birthday": 1, "role": 1 } }
-  ]
-}
-`
-
-
+---
+**Текущее время**: Казахстн (UTC+5). При работе с датами ВСЕГДА используй смещение +05:00.
+`;
