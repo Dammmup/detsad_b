@@ -71,6 +71,7 @@ export interface QueryRequest {
     // Для операций записи
     document?: Record<string, any>;  // Для insertOne
     update?: Record<string, any>;    // Для updateOne/updateMany
+    upsert?: boolean;               // Для updateOne/updateMany
     // Контекст безопасности
     authContext?: {
         userId: string;
@@ -313,7 +314,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 } else {
                     updateOne.$set = { updatedAt: new Date() };
                 }
-                queryPromise = collection.updateOne(filter, updateOne);
+                queryPromise = collection.updateOne(filter, updateOne, { upsert: query.upsert });
                 break;
 
             case 'updateMany':
@@ -327,7 +328,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 } else {
                     updateMany.$set = { updatedAt: new Date() };
                 }
-                queryPromise = collection.updateMany(filter, updateMany);
+                queryPromise = collection.updateMany(filter, updateMany, { upsert: query.upsert });
                 break;
 
             case 'deleteOne':
@@ -373,9 +374,10 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 data: {
                     matchedCount: result.matchedCount,
                     modifiedCount: result.modifiedCount,
+                    upsertedId: result.upsertedId?.toString(),
                     acknowledged: result.acknowledged
                 },
-                message: `Обновлено записей: ${result.modifiedCount}`
+                message: result.upsertedId ? 'Запись успешно создана (upsert)' : `Обновлено записей: ${result.modifiedCount}`
             };
         }
 

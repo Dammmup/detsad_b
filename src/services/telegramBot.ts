@@ -375,10 +375,14 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 /**
  * Обрабатывает полученную геолокацию и выполняет checkIn/checkOut
  */
-async function handleLocationMessage(chatId: number, location: TelegramLocation): Promise<void> {
+async function handleLocationMessage(chatId: number, location: TelegramLocation, isEdit: boolean = false): Promise<void> {
     const pending = pendingLocationRequests.get(String(chatId));
 
     if (!pending) {
+        // Если это обновление существующей трансляции (isEdit), но сессия уже закрыта - просто игнорируем.
+        // Это предотвращает спам "запрос не найден" после успешной отметки.
+        if (isEdit) return;
+
         await sendMessage(chatId, '⚠️ Не найден запрос на отметку. Используйте /checkin или /checkout.');
         return;
     }
@@ -611,7 +615,7 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
     // Обработка геолокации (включая Live Location из edited_message)
     if (message.location) {
         console.log(`📍 Telegram геолокация от ${username} (${chatId}): ${message.location.latitude}, ${message.location.longitude} (Live: ${!!message.location.live_period})`);
-        await handleLocationMessage(chatId, message.location);
+        await handleLocationMessage(chatId, message.location, !!update.edited_message);
         return;
     }
 

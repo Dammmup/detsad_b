@@ -80,22 +80,42 @@ export class Qwen3ChatService {
         return String(val);
       };
 
-      // Функция для получения значения из объекта по пути (например, "fullName" или "role")
+      // Функция для получения значения из объекта по пути (поддерживает вложенность, например "penaltyDetails.amount")
       const getValueByPath = (obj: any, path: string): string => {
         if (!obj || !path) return '—';
-        const value = obj[path];
-        if (path === 'role' && typeof value === 'string') {
-          return Qwen3ChatService.translateRole(value);
+
+        // Поддержка вложенных путей через точку
+        const parts = path.split('.');
+        let current = obj;
+
+        for (const part of parts) {
+          if (current === null || current === undefined) return '—';
+          current = current[part];
         }
-        return formatValue(value);
+
+        if (current === undefined || current === null) return '—';
+
+        // Специальная обработка для ролей
+        if (path.endsWith('role') && typeof current === 'string') {
+          return Qwen3ChatService.translateRole(current);
+        }
+
+        return formatValue(current);
       };
 
       // 1. Замена {count}
       const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : (data ? 1 : 0));
       resultText = resultText.replace(/{count}/g, count.toString());
 
+      // ПРОФИЛАКТИКА: Если данных нет (пустой массив), а шаблон требует {result...}, 
+      // то шаблон возвращать нельзя (будут прочерки). Возвращаем сообщение о ненахождении.
+      if (Array.isArray(data) && data.length === 0 && (resultText.includes('{result') || resultText.includes('{list}'))) {
+        return "К сожалению, по вашему запросу ничего не найдено.";
+      }
+
       // 2. Универсальная замена {result} и {result.path}
-      resultText = resultText.replace(/{result(\.[a-zA-Z0-9_]+)?}/g, (match, path) => {
+      // Поддерживает вложенность: {result.field.subfield}
+      resultText = resultText.replace(/{result(\.[a-zA-Z0-9_\.]+)?}/g, (match, path) => {
         if (!path) {
           // Если просто {result}, форматируем весь объект или список
           if (Array.isArray(data)) {
@@ -116,10 +136,10 @@ export class Qwen3ChatService {
           }
           return formatValue(data);
         } else {
-          // Если {result.field}, берем конкретное поле
-          const field = path.substring(1); // убираем точку
+          // Если {result.field.sub}, берем конкретное поле
+          const fieldPath = path.substring(1); // убираем начальную точку
           const targetObj = Array.isArray(data) ? (data.length > 0 ? data[0] : null) : data;
-          return getValueByPath(targetObj, field);
+          return getValueByPath(targetObj, fieldPath);
         }
       });
 
