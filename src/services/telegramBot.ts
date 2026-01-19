@@ -332,7 +332,7 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
     }
 
     // Детальное логирование для отладки геофенсинга
-    console.log(`[DEBUG] Получены координаты от ${chatId}:`, JSON.stringify(location, null, 2));
+    console.log(`[DEBUG] Получены координаты от ${chatId} (${pending.userName}):`, JSON.stringify(location, null, 2));
 
     // Проверка на подлинность локации.
     // В Telegram реальная локация (через кнопку или Live Location) обычно содержит horizontal_accuracy.
@@ -340,9 +340,10 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
     const isRealLocation = typeof location.horizontal_accuracy === 'number';
 
     if (!isRealLocation) {
-        console.warn(`[SECURITY] Блокировка: Отсутствует horizontal_accuracy (возможен ручной выбор точки) от ${chatId}`);
-        await sendMessage(chatId, '❌ <b>Ошибка проверки местоположения.</b>\n\nПожалуйста, отправьте свои <u>текущие</u> координаты, используя встроенную кнопку <b>"Отправить и отметить приход/уход"</b> в меню бота.');
-        return;
+        console.warn(`[SECURITY] Получена локация БЕЗ horizontal_accuracy от ${chatId} (${pending.userName}). Возможно ручной выбор точки на карте.`);
+        // Мы не блокируем жестко, так как некоторые клиенты (например, Desktop или веб-версия) 
+        // могут не присылать точность даже при нажатии на кнопку.
+        // Основная проверка по радиусу (геофенсинг) всё равно выполняется в shiftsService.
     }
 
     // Удаляем ожидание после успешной проверки
