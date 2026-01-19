@@ -8,12 +8,16 @@ const shiftsService = new ShiftsService();
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 // Хранилище состояний ожидания геолокации (chatId -> action)
-const pendingLocationRequests = new Map<string, { action: 'checkin' | 'checkout'; userId: string; userRole: string; userName: string }>();
+// Хранилище состояний ожидания геолокации (chatId -> session)
+const pendingLocationRequests = new Map<string, LiveLocationSession>();
 
 interface TelegramLocation {
     latitude: number;
     longitude: number;
     horizontal_accuracy?: number;
+    live_period?: number;
+    heading?: number;
+    proximity_alert_radius?: number;
 }
 
 interface TelegramMessage {
@@ -31,6 +35,7 @@ interface TelegramMessage {
     date: number;
     text?: string;
     location?: TelegramLocation;
+    edit_date?: number;
 }
 
 interface TelegramCallbackQuery {
@@ -46,7 +51,20 @@ interface TelegramCallbackQuery {
 interface TelegramUpdate {
     update_id: number;
     message?: TelegramMessage;
+    edited_message?: TelegramMessage;
     callback_query?: TelegramCallbackQuery;
+}
+
+interface LiveLocationSession {
+    action: 'checkin' | 'checkout';
+    userId: string;
+    userRole: string;
+    userName: string;
+    successCount: number;
+    attemptCount: number;
+    startedAt: number;
+    lastUpdateAt: number;
+    messageId?: number; // ID сообщения-инструкции для последующего обновления
 }
 
 /**
@@ -134,16 +152,19 @@ async function sendTypingAction(chatId: number | string): Promise<void> {
 /**
  * Отправляет запрос геолокации с кнопкой
  */
-async function sendLocationRequest(chatId: number | string, action: 'checkin' | 'checkout'): Promise<void> {
+async function sendLocationRequest(chatId: number | string, action: 'checkin' | 'checkout'): Promise<number | undefined> {
     if (!TELEGRAM_BOT_TOKEN) return;
 
     const actionText = action === 'checkin' ? 'прихода' : 'ухода';
     const buttonText = action === 'checkin' ? '📍 Отправить и отметить приход' : '📍 Отправить и отметить уход';
 
     try {
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        const response = await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             chat_id: chatId,
-            text: `📍 <b>Для отметки ${actionText} отправьте геолокацию</b>\n\nНажмите кнопку ниже, чтобы поделиться местоположением и подтвердить, что вы на месте.`,
+            text: `📍 <b>Для отметки ${actionText} отправьте геолокацию</b>\n\n` +
+                `1️⃣ Нажмите кнопку ниже\n` +
+                `2️⃣ Выберите <b>"Транслировать геопозицию"</b> (на 15 минут)\n\n` +
+                `<i>Бот проверит ваше местоположение в течение нескольких секунд.</i>`,
             parse_mode: 'HTML',
             reply_markup: {
                 keyboard: [[{ text: buttonText, request_location: true }]],
@@ -151,6 +172,9 @@ async function sendLocationRequest(chatId: number | string, action: 'checkin' | 
                 one_time_keyboard: true
             }
         });
+
+        // Сохраняем ID сообщения, если нужно будет его редактировать (опционально)
+        return response.data?.result?.message_id;
     } catch (error: any) {
         console.error('Ошибка отправки запроса геолокации:', error.response?.data || error.message);
     }
@@ -294,30 +318,58 @@ async function handleLinkCommand(chatId: number, code: string): Promise<void> {
  * Обрабатывает команду /checkin - запрашивает геолокацию
  */
 async function handleCheckInCommand(chatId: number, user: any): Promise<void> {
+    const messageId = await sendLocationRequest(chatId, 'checkin');
+
     // Сохраняем ожидание геолокации
     pendingLocationRequests.set(String(chatId), {
         action: 'checkin',
         userId: user._id.toString(),
         userRole: user.role,
-        userName: user.fullName
+        userName: user.fullName,
+        successCount: 0,
+        attemptCount: 0,
+        startedAt: Date.now(),
+        lastUpdateAt: Date.now(),
+        messageId
     });
-
-    await sendLocationRequest(chatId, 'checkin');
 }
 
 /**
  * Обрабатывает команду /checkout - запрашивает геолокацию
  */
 async function handleCheckOutCommand(chatId: number, user: any): Promise<void> {
+    const messageId = await sendLocationRequest(chatId, 'checkout');
+
     // Сохраняем ожидание геолокации
     pendingLocationRequests.set(String(chatId), {
         action: 'checkout',
         userId: user._id.toString(),
         userRole: user.role,
-        userName: user.fullName
+        userName: user.fullName,
+        successCount: 0,
+        attemptCount: 0,
+        startedAt: Date.now(),
+        lastUpdateAt: Date.now(),
+        messageId
     });
+}
 
-    await sendLocationRequest(chatId, 'checkout');
+/**
+ * Вспомогательная функция для расчета расстояния (Haversine формула)
+ */
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371e3; // Радиус Земли в метрах
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
 }
 
 /**
@@ -331,67 +383,121 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
         return;
     }
 
-    // Детальное логирование для отладки геофенсинга
-    console.log(`[DEBUG] Получены координаты от ${chatId} (${pending.userName}):`, JSON.stringify(location, null, 2));
+    // Детальное логирование для отладки
+    console.log(`[DEBUG] Координаты от ${chatId} (${pending.userName}):`, JSON.stringify(location, null, 2));
 
-    // Проверка на подлинность локации.
-    // В Telegram реальная локация (через кнопку или Live Location) обычно содержит horizontal_accuracy.
-    // Ручно выбранная точка на карте НЕ содержит horizontal_accuracy.
-    const isRealLocation = typeof location.horizontal_accuracy === 'number';
-
-    if (!isRealLocation) {
-        console.warn(`[SECURITY] Получена локация БЕЗ horizontal_accuracy от ${chatId} (${pending.userName}). Возможно ручной выбор точки на карте.`);
-        // Мы не блокируем жестко, так как некоторые клиенты (например, Desktop или веб-версия) 
-        // могут не присылать точность даже при нажатии на кнопку.
-        // Основная проверка по радиусу (геофенсинг) всё равно выполняется в shiftsService.
+    // Если это Live Location (есть live_period), переходим в режим накопительной проверки
+    if (location.live_period) {
+        await handleLiveLocationUpdate(chatId, location, pending);
+        return;
     }
 
-    // Удаляем ожидание после успешной проверки
+    // ОБЫЧНЫЙ РЕЖИМ (fallback) - если прислали обычную точку, а не трансляцию
+    await sendMessage(chatId, '⏳ Проверяем ваше местоположение (обычный режим)...');
+
+    // Удаляем ожидание, так как обрабатываем как разовый запрос
     pendingLocationRequests.delete(String(chatId));
 
+    await performFinalCheck(chatId, location, pending);
+}
+
+/**
+ * Обрабатывает обновления Live Location
+ */
+async function handleLiveLocationUpdate(chatId: number, location: TelegramLocation, session: LiveLocationSession): Promise<void> {
+    const now = Date.now();
+
+    // Проверка на тайм-аут (15-20 секунд на всё про всё)
+    if (now - session.startedAt > 20000) {
+        pendingLocationRequests.delete(String(chatId));
+        await sendMessage(chatId, '❌ <b>Время ожидания истекло.</b>\n\nПожалуйста, попробуйте снова и убедитесь, что вы включили трансляцию геопозиции сразу.');
+        return;
+    }
+
+    // Защита от слишком частых обновлений (не чаще раза в секунду)
+    if (now - session.lastUpdateAt < 1000 && session.attemptCount > 0) {
+        return;
+    }
+
+    session.lastUpdateAt = now;
+    session.attemptCount++;
+
+    // Получаем настройки геозоны для проверки
+    const settings = await (new (require('../entities/settings/service').SettingsService)()).getGeolocationSettings();
+    const radius = settings?.radius || 100;
+    const targetLat = settings?.coordinates?.latitude;
+    const targetLon = settings?.coordinates?.longitude;
+
+    if (!targetLat || !targetLon) {
+        pendingLocationRequests.delete(String(chatId));
+        await sendMessage(chatId, '❌ Ошибка: Центр геозоны не настроен в системе.');
+        return;
+    }
+
+    const distance = calculateDistance(location.latitude, location.longitude, targetLat, targetLon);
+    const isInZone = distance <= radius;
+
+    if (isInZone) {
+        session.successCount++;
+    } else {
+        // Если хоть раз вышли из зоны во время трансляции - сбрасываем прогресс (строгая проверка)
+        // session.successCount = 0; 
+    }
+
+    console.log(`[LIVE] Update ${session.attemptCount}: Dist=${distance.toFixed(1)}m, Success=${session.successCount}/3`);
+
+    // Если набрали 3 успешных апдейта
+    if (session.successCount >= 3) {
+        pendingLocationRequests.delete(String(chatId));
+        await performFinalCheck(chatId, location, session);
+        return;
+    }
+
+    // Уведомляем пользователя о прогрессе (только если это еще не финал)
+    if (session.successCount > 0) {
+        const progress = '🟢'.repeat(session.successCount) + '⚪'.repeat(3 - session.successCount);
+        // Мы не шлем sendMessage каждый раз, чтобы не спамить, можно использовать editMessageText если сохранен messageId
+        // Для простоты пока просто логируем, или шлем сообщение только на первый успех
+        if (session.successCount === 1) {
+            await sendMessage(chatId, `⏳ Проверка присутствия: ${progress}\nОставайтесь на месте...`);
+        }
+    }
+}
+
+/**
+ * Выполняет финальную отметку прихода/ухода в базе
+ */
+async function performFinalCheck(chatId: number, location: TelegramLocation, session: LiveLocationSession): Promise<void> {
     // Убираем клавиатуру
     try {
         await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             chat_id: chatId,
-            text: '⏳ Проверяем местоположение...',
+            text: '✅ Проверка завершена, записываю данные...',
             reply_markup: { remove_keyboard: true }
         });
-    } catch (e) {
-        // Игнорируем
-    }
+    } catch (e) { }
 
     const locationData = {
         latitude: location.latitude,
         longitude: location.longitude,
-        accuracy: location.horizontal_accuracy
+        accuracy: location.horizontal_accuracy || 0
+    };
+
+    const deviceMetadata = {
+        source: 'telegram_live',
+        telegramChatId: String(chatId),
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.horizontal_accuracy || 0,
+        live: !!location.live_period
     };
 
     try {
         let result: any;
-        const deviceMetadata = {
-            source: 'telegram',
-            telegramChatId: String(chatId),
-            latitude: location.latitude,
-            longitude: location.longitude,
-            accuracy: location.horizontal_accuracy
-        } as any;
-
-        if (pending.action === 'checkin') {
-            result = await shiftsService.checkIn(
-                '',
-                pending.userId,
-                pending.userRole,
-                locationData,
-                deviceMetadata
-            );
+        if (session.action === 'checkin') {
+            result = await shiftsService.checkIn('', session.userId, session.userRole, locationData, deviceMetadata);
         } else {
-            result = await shiftsService.checkOut(
-                '',
-                pending.userId,
-                pending.userRole,
-                locationData,
-                deviceMetadata
-            );
+            result = await shiftsService.checkOut('', session.userId, session.userRole, locationData, deviceMetadata);
         }
 
         const now = new Date();
@@ -401,30 +507,24 @@ async function handleLocationMessage(chatId: number, location: TelegramLocation)
             minute: '2-digit'
         });
 
-        let message: string;
-        if (pending.action === 'checkin') {
-            message = `✅ <b>Приход отмечен!</b>\n\n`;
-            message += `⏰ Время: ${timeStr}\n`;
-            message += `📍 Геолокация: подтверждена\n`;
-            message += `👤 ${pending.userName}\n\n`;
-            if (result.message?.includes('Опоздание')) {
-                message += `⚠️ <i>${result.message}</i>`;
-            } else {
-                message += `🎉 Хорошего рабочего дня!`;
-            }
+        let message = session.action === 'checkin'
+            ? `✅ <b>Приход отмечен!</b>\n\n`
+            : `✅ <b>Уход отмечен!</b>\n\n`;
+
+        message += `⏰ Время: ${timeStr}\n`;
+        message += `📍 Присутствие подтверждено трансляцией\n`;
+        message += `👤 ${session.userName}\n\n`;
+
+        if (session.action === 'checkin') {
+            message += result.message?.includes('Опоздание') ? `⚠️ <i>${result.message}</i>` : `🎉 Хорошего дня!`;
         } else {
-            message = `✅ <b>Уход отмечен!</b>\n\n`;
-            message += `⏰ Время: ${timeStr}\n`;
-            message += `📍 Геолокация: подтверждена\n`;
-            message += `👤 ${pending.userName}\n\n`;
-            message += `👋 До свидания! Отдыхайте.`;
+            message += `👋 До свидания! Трансляцию можно выключить.`;
         }
 
         await sendMessage(chatId, message);
     } catch (error: any) {
-        console.error(`Ошибка ${pending.action} с геолокацией:`, error);
-        const actionText = pending.action === 'checkin' ? 'прихода' : 'ухода';
-        await sendMessage(chatId, `❌ <b>Ошибка отметки ${actionText}</b>\n\n${error.message || 'Неизвестная ошибка'}`);
+        console.error(`Ошибка ${session.action}:`, error);
+        await sendMessage(chatId, `❌ <b>Ошибка отметки</b>\n\n${error.message || 'Неизвестная ошибка'}`);
     }
 }
 
@@ -499,8 +599,7 @@ async function handleTextMessage(chatId: number, text: string, user: any): Promi
  * Главный обработчик webhook от Telegram
  */
 export async function handleTelegramWebhook(update: TelegramUpdate): Promise<void> {
-
-    const message = update.message;
+    const message = update.message || update.edited_message;
 
     if (!message) {
         return; // Нет сообщения
@@ -509,9 +608,9 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
     const chatId = message.chat.id;
     const username = message.from.first_name;
 
-    // Обработка геолокации
+    // Обработка геолокации (включая Live Location из edited_message)
     if (message.location) {
-        console.log(`📍 Telegram геолокация от ${username} (${chatId}): ${message.location.latitude}, ${message.location.longitude}`);
+        console.log(`📍 Telegram геолокация от ${username} (${chatId}): ${message.location.latitude}, ${message.location.longitude} (Live: ${!!message.location.live_period})`);
         await handleLocationMessage(chatId, message.location);
         return;
     }

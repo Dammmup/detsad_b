@@ -11,6 +11,12 @@ export interface IDeviceMetadata {
   browser?: string;      // Браузер (Chrome, Safari, Firefox и т.д.)
   os?: string;           // Операционная система
   ipAddress?: string;
+  source?: string;           // Источник (telegram, web, app)
+  telegramChatId?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  live?: boolean;           // Был ли использован Live Location
 }
 
 export interface IStaffAttendanceTracking extends Document {
@@ -46,6 +52,12 @@ const DeviceMetadataSchema = new Schema({
   browser: String,
   os: String,
   ipAddress: String,
+  source: String,
+  telegramChatId: String,
+  latitude: Number,
+  longitude: Number,
+  accuracy: Number,
+  live: Boolean,
 }, { _id: false });
 
 const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
