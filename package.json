@@ -41,6 +41,7 @@
     "nodemailer": "^7.0.6",
     "pdfkit": "^0.17.2",
     "pizzip": "^3.2.0",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

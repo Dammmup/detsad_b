@@ -7,6 +7,7 @@ import StaffAttendanceTracking from '../entities/staffAttendanceTracking/model';
 import User from '../entities/users/model';
 import { generateMonthlyChildPayments } from './childPaymentGenerator';
 import { archiveAndDeleteRecords } from './dataArchiveService';
+import PushNotificationService from './pushNotificationService';
 
 export const runDailyPayrollAutomation = async () => {
   console.log('Запуск задачи: автоматический расчет зарплат');
@@ -205,6 +206,33 @@ export const sendDailySummaryReport = async () => {
   }
 };
 
+export const sendPushMorningReminder = async () => {
+  console.log('Запуск задачи: Push-напоминание о приходе (07:50)');
+  try {
+    await PushNotificationService.broadcastNotification(null, 'Детский сад', 'Не забудьте отметить приход!');
+  } catch (error) {
+    console.error('Ошибка при отправке Push (07:50):', error);
+  }
+};
+
+export const sendPushChildrenReminder = async () => {
+  console.log('Запуск задачи: Push-напоминание о детях (11:00)');
+  try {
+    await PushNotificationService.broadcastNotification(null, 'Детский сад', 'Вы отметили детей?', '/weekly-attendance');
+  } catch (error) {
+    console.error('Ошибка при отправке Push (11:00):', error);
+  }
+};
+
+export const sendPushEveningReminder = async () => {
+  console.log('Запуск задачи: Push-напоминание об уходе (17:30)');
+  try {
+    await PushNotificationService.broadcastNotification(null, 'Детский сад', 'Не забудьте отметить уход!');
+  } catch (error) {
+    console.error('Ошибка при отправке Push (17:30):', error);
+  }
+};
+
 export const initializeTaskScheduler = () => {
   const ALMATY_TZ = { timezone: "Asia/Almaty" };
   console.log('Инициализация планировщика задач (Asia/Almaty)...');
@@ -229,6 +257,11 @@ export const initializeTaskScheduler = () => {
 
   // Итоговый отчёт (19:00)
   cron.schedule('0 19 * * *', sendDailySummaryReport, ALMATY_TZ);
+
+  // Push-уведомления
+  cron.schedule('50 7 * * *', sendPushMorningReminder, ALMATY_TZ);
+  cron.schedule('0 11 * * *', sendPushChildrenReminder, ALMATY_TZ);
+  cron.schedule('30 17 * * *', sendPushEveningReminder, ALMATY_TZ);
 
   console.log('Планировщик задач инициализирован для часового пояса Asia/Almaty');
 };
