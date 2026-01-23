@@ -13,31 +13,35 @@ export class ChildAttendanceService {
 
   async getAll(filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) {
     const filter: any = {};
+    const isFullAccess = ['admin', 'manager', 'director', 'owner'].includes(role || '');
 
-    // $elemMatch не работает с Map полями — фильтрация по groupId делается при flattening
-    // Для teacher/assistant можно фильтровать по childId через Children коллекцию
-    if (role === 'teacher' || role === 'assistant') {
+    if (!isFullAccess && (role === 'teacher' || role === 'assistant')) {
       // Получаем группы учителя и детей в этих группах
       if (filters.groupId) {
+        // Проверяем, имеет ли учитель отношение к этой группе
+        const group = await Group.findOne({ _id: filters.groupId, $or: [{ teacherId: userId }, { assistantId: userId }] });
+        if (!group) return []; // Нет прав на эту группу
+
         const childrenInGroup = await Child.find({ groupId: filters.groupId }).select('_id');
         const childIds = childrenInGroup.map(c => c._id);
         if (childIds.length > 0) {
           filter.childId = { $in: childIds };
         } else {
-          // Если нет детей в группе — вернём пустой массив
           return [];
         }
       } else {
-        const teacherGroups = await Group.find({ teacherId: userId });
+        const teacherGroups = await Group.find({ $or: [{ teacherId: userId }, { assistantId: userId }] });
         const groupIds = teacherGroups.map(g => g._id);
         const childrenInGroups = await Child.find({ groupId: { $in: groupIds } }).select('_id');
         const childIds = childrenInGroups.map(c => c._id);
         if (childIds.length > 0) {
           filter.childId = { $in: childIds };
+        } else {
+          return [];
         }
       }
     } else if (filters.groupId) {
-      // Для admin/methodist — фильтруем по детям в группе
+      // Для admin/manager — фильтруем по детям в группе
       const childrenInGroup = await Child.find({ groupId: filters.groupId }).select('_id');
       const childIds = childrenInGroup.map(c => c._id);
       if (childIds.length > 0) {
@@ -266,14 +270,29 @@ export class ChildAttendanceService {
     }
 
     const shiftDate = date.split('T')[0];
-    const shift = await Shift.findOne({
+
+    // Ищем, является ли текущий пользователь заменой для кого-либо в ЭТОТ день
+    const surrogateShift = await Shift.findOne({
+      [`shifts.${shiftDate}.alternativeStaffId`]: new mongoose.Types.ObjectId(userId)
+    });
+
+    if (surrogateShift) {
+      // Если он замена, проверяем, закреплен ли "оригинальный" сотрудник за этой группой
+      const originalStaffId = surrogateShift.staffId.toString();
+      if (group && (group.teacherId?.toString() === originalStaffId || group.assistantId?.toString() === originalStaffId)) {
+        return true;
+      }
+    }
+
+    // Старая логика (на случай если смена не структурирована по дням в Map, а как-то иначе)
+    const oldShift = await Shift.findOne({
       $or: [
         { staffId: new mongoose.Types.ObjectId(userId), [`shifts.${shiftDate}`]: { $exists: true } },
         { [`shifts.${shiftDate}.alternativeStaffId`]: new mongoose.Types.ObjectId(userId) }
       ]
     });
 
-    return !!shift;
+    return !!oldShift;
   }
 }
 export const getChildAttendance = async (filters: { groupId?: string, childId?: string, date?: string, startDate?: string, endDate?: string, status?: string }, userId: string, role: string) => {

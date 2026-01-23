@@ -36,7 +36,7 @@ router.get('/summary', authMiddleware, authorizeRole(['admin']), getSalarySummar
 
 
 router.get('/breakdown/:id', authMiddleware, getPayrollBreakdown);
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'teacher']), getPayrollById);
+router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager']), getPayrollById);
 
 
 router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), createPayroll);

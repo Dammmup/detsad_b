@@ -70,5 +70,60 @@ router.post('/delete-webhook', async (req, res) => {
   }
 });
 
+/**
+ * GET /telegram/run-tasks
+ * Запуск запланированных задач (для Vercel Crons)
+ * Query params: 
+ * - key: секретный ключ (из env.CRON_SECRET)
+ * - task: имя задачи (morning, evening, summary, payroll, childpay, archive, events)
+ */
+router.get('/run-tasks', async (req, res) => {
+  const { key, task } = req.query;
+
+  // Простейшая проверка безопасности
+  const CRON_SECRET = process.env.CRON_SECRET || 'local-debug-key';
+  if (key !== CRON_SECRET) {
+    console.warn(`[CRON] Попытка несанкционированного доступа к задачам. Ключ: ${key}`);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  console.log(`[CRON] Получен запрос на запуск задачи: ${task}`);
+
+  try {
+    const scheduler = await import('../services/taskScheduler');
+
+    switch (task) {
+      case 'morning':
+        await scheduler.sendMorningAttendanceReport();
+        break;
+      case 'evening':
+        await scheduler.sendEveningAttendanceReport();
+        break;
+      case 'summary':
+        await scheduler.sendDailySummaryReport();
+        break;
+      case 'payroll':
+        await scheduler.runDailyPayrollAutomation();
+        break;
+      case 'childpay':
+        await scheduler.runMonthlyChildPayments();
+        break;
+      case 'archive':
+        await scheduler.runAutoArchiving();
+        break;
+      case 'events':
+        await scheduler.runMainEventsCheck();
+        break;
+      default:
+        return res.status(400).json({ error: `Unknown task: ${task}` });
+    }
+
+    res.json({ success: true, task });
+  } catch (error: any) {
+    console.error(`[CRON] Ошибка выполнения задачи ${task}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

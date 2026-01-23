@@ -1,16 +1,16 @@
 import { Response, Request } from 'express';
 import { GroupService } from './service';
+import { AuthenticatedRequest } from '../../types/express';
 
 const groupService = new GroupService();
 
-export const getAllGroups = async (req: Request, res: Response) => {
+export const getAllGroups = async (req: AuthenticatedRequest, res: Response) => {
   try {
 
 
     const teacherId = req.query.teacherId as string;
-    const filter = req.user?.role === 'admin' || req.user?.role === 'director' || req.user?.role === 'owner'
-      ? undefined
-      : (teacherId || req.user?.id);
+    const isFullAccess = ['admin', 'manager', 'director', 'owner'].includes(req.user?.role || '');
+    const filter = isFullAccess ? undefined : (teacherId || req.user?.id);
     const groups = await groupService.getAll(filter, req.user?.role);
 
 
@@ -29,7 +29,7 @@ export const getAllGroups = async (req: Request, res: Response) => {
   }
 };
 
-export const getGroupById = async (req: Request, res: Response) => {
+export const getGroupById = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const group = await groupService.getById(req.params.id);
 
@@ -50,7 +50,7 @@ export const getGroupById = async (req: Request, res: Response) => {
   }
 };
 
-export const createGroup = async (req: Request, res: Response) => {
+export const createGroup = async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('📥 Получен запрос на создание группы:', req.body);
     console.log('👤 Текущий пользователь:', req.user);
@@ -67,7 +67,7 @@ export const createGroup = async (req: Request, res: Response) => {
   }
 };
 
-export const updateGroup = async (req: Request, res: Response) => {
+export const updateGroup = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const group = await groupService.getById(req.params.id);
     if (!group) {
@@ -88,7 +88,7 @@ export const updateGroup = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteGroup = async (req: Request, res: Response) => {
+export const deleteGroup = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const group = await groupService.getById(req.params.id);
     if (!group) {

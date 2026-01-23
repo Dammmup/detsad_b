@@ -2,6 +2,7 @@ import mongoose, { ObjectId } from 'mongoose';
 import { IGroup, IGroupInput, IGroupWithChildren } from './model';
 import Group from './model';
 import Child from '../children/model';
+import Shift from '../staffShifts/model';
 
 export class GroupService {
   private get groupModel() {
@@ -12,9 +13,33 @@ export class GroupService {
     return Child;
   }
   async getAll(userId?: string, role?: string): Promise<any[]> {
+    const isFullAccess = ['admin', 'manager', 'director', 'owner'].includes(role || '');
+    let filter: any = {};
 
+    if (!isFullAccess && userId) {
+      // 1. Ищем сотрудников, которых пользователь заменяет в этом месяце
+      const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+      const surrogateShifts = await Shift.find({
+        $or: [
+          { [`shifts.${currentMonth}`]: { $exists: true }, [`shifts.${currentMonth}.alternativeStaffId`]: new mongoose.Types.ObjectId(userId) },
+          // Также ищем по дням, если Map использует конкретные даты "YYYY-MM-DD"
+          { "shifts.alternativeStaffId": new mongoose.Types.ObjectId(userId) }
+        ]
+      });
 
-    const filter = role === 'admin' ? {} : (userId ? { teacherId: userId } : {});
+      const originalStaffIds = surrogateShifts.map(s => s.staffId);
+
+      // 2. Формируем фильтр: свои группы + группы тех, кого заменяем
+      filter = {
+        $or: [
+          { teacherId: userId },
+          { assistantId: userId },
+          { teacherId: { $in: originalStaffIds } },
+          { assistantId: { $in: originalStaffIds } }
+        ]
+      };
+    }
+
     const groups = await this.groupModel.find(filter);
 
     const groupsWithChildren = await Promise.all(

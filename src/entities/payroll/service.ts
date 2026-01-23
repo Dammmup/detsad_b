@@ -30,9 +30,16 @@ export class PayrollService {
     if (targetPeriod) filter.period = targetPeriod;
     if (filters.status) filter.status = filters.status;
 
-    const payrolls = await Payroll.find(filter)
+    let payrolls = await Payroll.find(filter)
       .populate('staffId', 'fullName role')
       .sort({ period: -1 });
+
+    // Исключаем арендаторов и логопедов - они платят нам, а не мы им
+    const excludedRoles = ['tenant', 'speech_therapist'];
+    payrolls = payrolls.filter((p: any) => {
+      const role = p.staffId?.role || '';
+      return !excludedRoles.includes(role);
+    });
 
     return await Promise.all(payrolls.map(async (p) => {
       const pObj = p.toObject();
@@ -48,16 +55,14 @@ export class PayrollService {
   }
 
   async getAllWithUsers(filters: { staffId?: string, period?: string, status?: string }) {
-    const userFilter: any = {};
+    const excludedRoles = ['tenant', 'speech_therapist', 'admin'];
+    const userFilter: any = { role: { $nin: excludedRoles } };
     if (filters.status) userFilter.status = filters.status;
     const period = filters.period || new Date().toISOString().slice(0, 7);
-
 
     if (filters.staffId) {
       userFilter._id = filters.staffId;
     }
-
-
 
     const users = await User.find(userFilter)
       .select('_id fullName role iin uniqNumber')
@@ -688,8 +693,9 @@ export class PayrollService {
     try {
       console.log(`Проверка и формирование расчетных листов для периода: ${period}`);
 
+      const excludedRoles = ['tenant', 'speech_therapist', 'admin'];
       const allStaff = await User.find({
-        role: { $ne: 'admin' },
+        role: { $nin: excludedRoles },
         active: true
       });
 

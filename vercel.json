@@ -11,5 +11,27 @@
             "src": "/(.*)",
             "dest": "src/api/vercel.ts"
         }
+    ],
+    "crons": [
+        {
+            "path": "/telegram/run-tasks?task=morning&key=local-debug-key",
+            "schedule": "0 6 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=evening&key=local-debug-key",
+            "schedule": "0 13 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=summary&key=local-debug-key",
+            "schedule": "0 14 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=payroll&key=local-debug-key",
+            "schedule": "0 20 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=events&key=local-debug-key",
+            "schedule": "0 19 * * *"
+        }
     ]
 }

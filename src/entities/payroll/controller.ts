@@ -55,24 +55,35 @@ export const getSalarySummary = async (req: AuthenticatedRequest, res: Response)
       { workedDays: { $gt: 0 } }
     ];
 
-    const payrolls = await Payroll.find(filter);
+    const payrolls = await Payroll.find(filter).populate('staffId');
 
-    const stats = payrolls.reduce((acc: any, p: any) => {
+    // Роли, которые не должны отображаться в зарплатах
+    const excludedRoles = ['tenant', 'speech_therapist'];
+
+    const filteredPayrolls = payrolls.filter((p: any) => {
+      const role = p.staffId?.role || '';
+      return !excludedRoles.includes(role);
+    });
+
+    const stats = filteredPayrolls.reduce((acc: any, p: any) => {
       // Начисления = база (оклад по сменам/дням) + бонусы
       const totalAccrued = (p.accruals || 0) + (p.bonuses || 0);
+      const advance = (p.advance || 0);
+      const penalties = (p.penalties || 0); // penalties уже включает latePenalties, absencePenalties, userFines согласно хуку модели
+
       acc.totalAccruals += totalAccrued;
-      acc.totalAdvance += (p.advance || 0);
-      acc.totalPenalties += (p.penalties || 0);
+      acc.totalAdvance += advance;
+      acc.totalPenalties += penalties;
       acc.totalPayout += (p.total || 0);
       acc.totalAccrualsCount += (totalAccrued > 0 ? 1 : 0);
-      acc.totalPenaltiesCount += (p.penalties > 0 ? 1 : 0);
+      acc.totalPenaltiesCount += (penalties > 0 ? 1 : 0);
       return acc;
     }, {
       totalAccruals: 0,
       totalAdvance: 0,
       totalPenalties: 0,
       totalPayout: 0,
-      totalEmployees: new Set(payrolls.map(p => p.staffId?.toString())).size,
+      totalEmployees: new Set(filteredPayrolls.map(p => p.staffId?._id?.toString() || p.staffId?.toString())).size,
       totalAccrualsCount: 0,
       totalPenaltiesCount: 0
     });
