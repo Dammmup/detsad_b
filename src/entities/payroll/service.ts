@@ -332,20 +332,23 @@ export class PayrollService {
     if (data.baseSalary !== undefined ||
       data.bonuses !== undefined ||
       data.deductions !== undefined ||
-      data.advance !== undefined) {
+      data.advance !== undefined ||
+      data.accruals !== undefined ||
+      data.latePenalties !== undefined ||
+      data.absencePenalties !== undefined ||
+      data.userFines !== undefined) {
 
-      const baseSalary = data.baseSalary !== undefined ? data.baseSalary : payroll.baseSalary;
-      const bonuses = data.bonuses !== undefined ? data.bonuses : payroll.bonuses;
+      // Рассчитываем total по той же формуле, что и в модели (pre-save hook)
+      const accruals = data.accruals !== undefined ? data.accruals : payroll.accruals || 0;
+      const bonuses = data.bonuses !== undefined ? data.bonuses : payroll.bonuses || 0;
       const advance = data.advance !== undefined ? data.advance : payroll.advance || 0;
+      const deductions = data.deductions !== undefined ? data.deductions : payroll.deductions || 0;
+      const latePenalties = data.latePenalties !== undefined ? data.latePenalties : payroll.latePenalties || 0;
+      const absencePenalties = data.absencePenalties !== undefined ? data.absencePenalties : payroll.absencePenalties || 0;
+      const userFines = data.userFines !== undefined ? data.userFines : payroll.userFines || 0;
+      const carryOverDebt = payroll.carryOverDebt || 0; // Долг с прошлого месяца
 
-      let currentPenalties = payroll.penalties || 0;
-
-
-      if (data.penalties !== undefined) {
-        currentPenalties = data.penalties;
-      }
-
-      data.total = Math.max(0, baseSalary + bonuses - currentPenalties - advance);
+      data.total = Math.max(0, accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt);
     }
 
 
@@ -355,7 +358,7 @@ export class PayrollService {
 
 
     const allowedFields = [
-      'period', 'baseSalary', 'baseSalaryType', 'shiftRate', 'bonuses', 'deductions', 'accruals',
+      'period', 'baseSalary', 'baseSalaryType', 'shiftRate', 'bonuses', 'deductions', 'accruals', 'advance',
       'penalties', 'latePenalties', 'absencePenalties', 'userFines', 'workedDays',
       'workedShifts', 'fines', 'status', 'total', 'paymentDate', 'history'
     ];
