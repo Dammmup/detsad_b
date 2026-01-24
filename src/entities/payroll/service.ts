@@ -465,7 +465,14 @@ export class PayrollService {
 
     payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
 
-    payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
+    const accruals = payroll.accruals || 0;
+    const bonuses = payroll.bonuses || 0;
+    const advance = payroll.advance || 0;
+    const deductions = payroll.deductions || 0;
+    const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
+    const carryOverDebt = payroll.carryOverDebt || 0;
+
+    payroll.total = Math.max(0, accruals + bonuses - penalties - advance - deductions - carryOverDebt);
 
     await payroll.save();
 
@@ -497,7 +504,14 @@ export class PayrollService {
 
     payroll.penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + payroll.userFines;
 
-    payroll.total = Math.max(0, (payroll.accruals || 0) - (payroll.penalties || 0) - (payroll.advance || 0) + (payroll.bonuses || 0));
+    const accruals = payroll.accruals || 0;
+    const bonuses = payroll.bonuses || 0;
+    const advance = payroll.advance || 0;
+    const deductions = payroll.deductions || 0;
+    const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
+    const carryOverDebt = payroll.carryOverDebt || 0;
+
+    payroll.total = Math.max(0, accruals + bonuses - penalties - advance - deductions - carryOverDebt);
 
     await payroll.save();
 
