@@ -37,3 +37,9 @@ uploads/
 # Excel files in migrations
 migrations/*.xlsx
 migrations/*.xls
+
+# Firebase service account files
+firebase-service-account.json
+*.key.json
+service-account.json
+*.credentials.json
