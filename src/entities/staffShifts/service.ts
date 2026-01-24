@@ -4,6 +4,7 @@ import StaffAttendanceTracking, { IDeviceMetadata } from '../staffAttendanceTrac
 import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
+import { enrichDeviceMetadata } from '../../shared/utils/deviceDetector';
 
 const settingsService = new SettingsService();
 
@@ -316,7 +317,7 @@ export class ShiftsService {
     timeTracking.actualStart = now;
     timeTracking.lateMinutes = lateMinutes;
     if (deviceMetadata) {
-      timeTracking.checkInDevice = deviceMetadata;
+      timeTracking.checkInDevice = enrichDeviceMetadata(deviceMetadata);
     }
     await timeTracking.save();
 
@@ -379,7 +380,7 @@ export class ShiftsService {
       const earlyMinutes = Math.max(0, scheduledTotalMinutes - currentTotalMinutes);
       timeTracking.earlyLeaveMinutes = earlyMinutes;
       if (deviceMetadata) {
-        timeTracking.checkOutDevice = deviceMetadata;
+        timeTracking.checkOutDevice = enrichDeviceMetadata(deviceMetadata);
       }
       await timeTracking.save();
     }

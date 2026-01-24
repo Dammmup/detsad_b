@@ -26,6 +26,7 @@ export interface IUser extends Document {
   baseSalaryType?: 'month' | 'shift';
   shiftRate?: number;
   pushSubscriptions?: any[];
+  fcmTokens?: string[];
 }
 
 const UserSchema: Schema = new Schema({
@@ -114,6 +115,10 @@ const UserSchema: Schema = new Schema({
   },
   pushSubscriptions: {
     type: [Schema.Types.Mixed],
+    default: []
+  },
+  fcmTokens: {
+    type: [String],
     default: []
   }
 }, {

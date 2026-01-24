@@ -15,7 +15,7 @@ import {
   generateTelegramCode,
   changePassword
 } from './controller';
-import { subscribe, unsubscribe } from './pushController';
+import { subscribe, unsubscribe, subscribeFCM, unsubscribeFCM } from './pushController';
 import { authorizeRole } from '../../middlewares/authRole';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 
@@ -66,5 +66,7 @@ router.post('/:id/change-password', authMiddleware, changePassword);
 // Push Notifications
 router.post('/push/subscribe', authMiddleware, subscribe);
 router.post('/push/unsubscribe', authMiddleware, unsubscribe);
+router.post('/push/fcm/subscribe', authMiddleware, subscribeFCM);
+router.post('/push/fcm/unsubscribe', authMiddleware, unsubscribeFCM);
 
 export default router;
