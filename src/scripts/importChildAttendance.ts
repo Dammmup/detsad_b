@@ -7,10 +7,10 @@ import * as xlsx from 'xlsx';
 import * as path from 'path';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { connectDB } from '../config/database';
 
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/detsad';
 
 const YEAR = 2025;
 const MONTH_MAP: { [key: string]: number } = {
@@ -94,7 +94,7 @@ async function importChildAttendance() {
 
     try {
         console.log('📡 Подключение к MongoDB...');
-        await mongoose.connect(MONGO_URI);
+        await connectDB();
         console.log('✅ Подключено к MongoDB');
 
         const db = mongoose.connection.db;
@@ -234,8 +234,9 @@ async function importChildAttendance() {
     } catch (error) {
         console.error('❌ Ошибка:', error);
     } finally {
-        await mongoose.disconnect();
-        console.log('\n🔌 Отключено от MongoDB');
+        // Note: In serverless environments, we typically don't disconnect
+        // as the connection is managed by the connection pool
+        console.log('\n🔒 Соединение с MongoDB остается активным');
     }
 }
 

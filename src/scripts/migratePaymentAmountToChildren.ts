@@ -10,6 +10,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
+import { getDatabase } from '../config/mongo';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -20,13 +21,9 @@ import ChildPayment from '../entities/childPayment/model';
 const DEFAULT_PAYMENT_AMOUNT = 40000;
 
 async function migratePaymentAmountToChildren() {
-    const mongoUri = process.env.MONGO_URI;
-    if (!mongoUri) {
-        throw new Error('MONGODB_URI not found in environment');
-    }
-
     console.log('Подключение к MongoDB...');
-    await mongoose.connect(mongoUri);
+    const { connectDB } = await import('../config/database'); // Import centralized connection
+    await connectDB();
     console.log('Подключено к MongoDB');
 
     try {
@@ -69,8 +66,9 @@ async function migratePaymentAmountToChildren() {
         console.error('Ошибка миграции:', error);
         throw error;
     } finally {
-        await mongoose.connection.close();
-        console.log('Соединение с MongoDB закрыто');
+        // Note: In serverless environments, we typically don't disconnect
+        // as the connection is managed by the connection pool
+        console.log('Соединение с MongoDB остается активным');
     }
 }
 

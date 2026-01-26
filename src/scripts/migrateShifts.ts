@@ -1,18 +1,16 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
+import { getDatabase } from '../config/mongo';
 
 // Load env
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/detsad';
-
 async function migrate() {
     console.log('Starting migration...');
-    await mongoose.connect(mongoUri);
+    const db = await getDatabase();
     console.log('Connected to MongoDB');
 
-    const db = mongoose.connection.db;
     const oldShiftsCollection = db.collection('shifts');
     const backupCollectionName = `shifts_backup_${Date.now()}`;
 
@@ -67,7 +65,8 @@ async function migrate() {
         console.log(`Successfully inserted ${newRecords.length} staff records`);
     }
 
-    await mongoose.disconnect();
+    // Note: In serverless environments, we typically don't disconnect
+    // as the connection is managed by the connection pool
     console.log('Migration completed successfully');
 }
 
