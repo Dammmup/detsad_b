@@ -10,12 +10,11 @@ export const login = async (req: Request, res: Response) => {
   console.log('login:', phone, password);
   try {
     const result = await authService.login(phone, password);
-    const user = await User.findOne({ phone: phone });
 
     // Логирование в Telegram (не блокирует логин при ошибке)
     try {
-      if (user) {
-        await sendLogToTelegram(`Пользователь ${user.fullName} вошёл в систему`);
+      if (result.user) {
+        await sendLogToTelegram(`Пользователь ${result.user.fullName} вошёл в систему`);
       } else {
         await sendLogToTelegram(`Пользователь с телефоном ${phone} вошёл в систему`);
       }

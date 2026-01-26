@@ -36,7 +36,7 @@ export class AuthService {
         { phone: phone || '' },
         { phone: normalizedPhone }
       ]
-    }).select('+initialPassword +passwordHash');
+    }).select('+initialPassword +passwordHash').maxTimeMS(5000);
 
     // Если не нашли, пробуем найти всех и сравнить нормализованные версии (для случаев, когда в БД пробелы, а вводят без них)
     if (!user && normalizedPhone) {
@@ -44,7 +44,7 @@ export class AuthService {
       const partialPhone = normalizedPhone.slice(-10);
       const candidates = await this.userModel.find({
         phone: { $regex: partialPhone }
-      }).select('+initialPassword +passwordHash');
+      }).select('+initialPassword +passwordHash').maxTimeMS(5000);
 
       user = candidates.find(u => (u.phone || '').replace(/[^\d+]/g, '') === normalizedPhone) || null;
     }
@@ -102,7 +102,7 @@ export class AuthService {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
-      const user = await this.userModel.findById(decoded.id);
+      const user = await this.userModel.findById(decoded.id).maxTimeMS(5000);
 
       if (!user || !user.active) {
         throw new Error('Пользователь не найден или неактивен');
