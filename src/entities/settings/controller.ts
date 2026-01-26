@@ -14,7 +14,7 @@ export const getKindergartenSettings = async (req: Request, res: Response) => {
     res.json(settings || {});
   } catch (err) {
     console.error('Error fetching kindergarten settings:', err);
-    res.status(500).json({ error: 'Ошибка получения настроек детского сада' });
+    res.status(500).json({ error: 'Ошибка получения настроек детского сада', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -28,7 +28,7 @@ export const updateKindergartenSettings = async (req: Request, res: Response) =>
     res.json(settings);
   } catch (err: any) {
     console.error('Error updating kindergarten settings:', err);
-    res.status(400).json({ error: err.message || 'Ошибка обновления настроек детского сада' });
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек детского сада', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -43,7 +43,7 @@ export const getNotificationSettings = async (req: Request, res: Response) => {
     res.json(settings || {});
   } catch (err) {
     console.error('Error fetching notification settings:', err);
-    res.status(500).json({ error: 'Ошибка получения настроек уведомлений' });
+    res.status(500).json({ error: 'Ошибка получения настроек уведомлений', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -57,7 +57,7 @@ export const updateNotificationSettings = async (req: Request, res: Response) =>
     res.json(settings);
   } catch (err: any) {
     console.error('Error updating notification settings:', err);
-    res.status(400).json({ error: err.message || 'Ошибка обновления настроек уведомлений' });
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек уведомлений', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -72,7 +72,7 @@ export const getSecuritySettings = async (req: Request, res: Response) => {
     res.json(settings || {});
   } catch (err) {
     console.error('Error fetching security settings:', err);
-    res.status(500).json({ error: 'Ошибка получения настроек безопасности' });
+    res.status(500).json({ error: 'Ошибка получения настроек безопасности', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -86,7 +86,7 @@ export const updateSecuritySettings = async (req: Request, res: Response) => {
     res.json(settings);
   } catch (err: any) {
     console.error('Error updating security settings:', err);
-    res.status(400).json({ error: err.message || 'Ошибка обновления настроек безопасности' });
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек безопасности', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -101,7 +101,7 @@ export const getGeolocationSettings = async (req: Request, res: Response) => {
     res.json(settings || {});
   } catch (err) {
     console.error('Error fetching geolocation settings:', err);
-    res.status(500).json({ error: 'Ошибка получения настроек геолокации' });
+    res.status(500).json({ error: 'Ошибка получения настроек геолокации', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -115,7 +115,7 @@ export const updateGeolocationSettings = async (req: Request, res: Response) => 
     res.json(settings);
   } catch (err: any) {
     console.error('Error updating geolocation settings:', err);
-    res.status(400).json({ error: err.message || 'Ошибка обновления настроек геолокации' });
+    res.status(400).json({ error: err.message || 'Ошибка обновления настроек геолокации', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -135,7 +135,7 @@ export const updateCoordinates = async (req: Request, res: Response) => {
     res.json(settings);
   } catch (err: any) {
     console.error('Error updating coordinates:', err);
-    res.status(400).json({ error: err.message || 'Ошибка обновления координат' });
+    res.status(400).json({ error: err.message || 'Ошибка обновления координат', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };
 
@@ -155,6 +155,6 @@ export const updateRadius = async (req: Request, res: Response) => {
     res.json(settings);
   } catch (err: any) {
     console.error('Error updating radius:', err);
-    res.status(400).json({ error: err.message || 'Ошибка обновления радиуса' });
+    res.status(400).json({ error: err.message || 'Ошибка обновления радиуса', details: err instanceof Error ? err.message : 'Unknown error' });
   }
 };

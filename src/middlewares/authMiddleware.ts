@@ -20,7 +20,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   verifyToken(token, req, res, next);
 }
 
-function verifyToken(token: string, req: Request, res: Response, next: NextFunction) {
+async function verifyToken(token: string, req: Request, res: Response, next: NextFunction) {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     console.error('❌ JWT_SECRET не установлен в переменных окружения!');
@@ -30,20 +30,37 @@ function verifyToken(token: string, req: Request, res: Response, next: NextFunct
   try {
     const decoded = jwt.verify(token, secret) as AuthUser;
 
-    User.findById(decoded.id).then(user => {
-      if (!user || !user.active) {
-        return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
-      }
+    // Проверяем, был ли уже отправлен ответ
+    if (res.headersSent) {
+      return;
+    }
 
-      res.locals.user = decoded;
-      (req as any).user = decoded;
-      console.log('✅ Пользователь аутентифицирован:', decoded.fullName, 'Роль:', decoded.role);
-      next();
-    }).catch(err => {
-      console.error('❌ Ошибка проверки пользователя:', err);
-      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя' });
-    });
+    const user = await User.findById(decoded.id);
+
+    if (!user || !user.active) {
+      return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
+    }
+
+    res.locals.user = decoded;
+    (req as any).user = decoded;
+    console.log('✅ Пользователь аутентифицирован:', decoded.fullName, 'Роль:', decoded.role);
+    next();
   } catch (err: any) {
+    // Проверяем, был ли уже отправлен ответ
+    if (res.headersSent) {
+      return;
+    }
+
+    if (err.name === 'CastError') {
+      // Ошибка при попытке преобразования ID
+      console.error('❌ Ошибка проверки пользователя (неправильный формат ID):', err);
+      return res.status(401).json({ error: 'Неверный идентификатор пользователя' });
+    } else if (err.name === 'MongoError' || err.name === 'MongooseError' || err.name === 'ConnectionError') {
+      // Ошибки базы данных
+      console.error('❌ Ошибка базы данных при проверке пользователя:', err);
+      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя' });
+    }
+
     let errorMessage = 'Неверный токен';
 
     if (err.name === 'TokenExpiredError') {
