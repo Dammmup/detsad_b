@@ -101,7 +101,7 @@ export class PayrollService {
         pObj.normDays = workingDays;
 
         if (pObj.total === 0 && (pObj.accruals > 0 || pObj.workedShifts > 0)) {
-          pObj.total = Math.max(0, (pObj.accruals || 0) - (pObj.penalties || 0));
+          pObj.total = (pObj.accruals || 0) - (pObj.penalties || 0);
         }
         return pObj;
       } else {
@@ -200,7 +200,7 @@ export class PayrollService {
           }
         }
 
-        const calculatedTotal = Math.max(0, accruals - penalties);
+        const calculatedTotal = accruals - penalties;
 
         return {
           _id: null,
@@ -281,11 +281,11 @@ export class PayrollService {
 
   async create(payrollData: Partial<IPayroll>) {
 
-    const total = Math.max(0, (payrollData.baseSalary || 0) +
+    const total = (payrollData.baseSalary || 0) +
       (payrollData.bonuses || 0) -
       (payrollData.penalties || 0) -
       (payrollData.advance || 0) +
-      (payrollData.accruals || 0));
+      (payrollData.accruals || 0);
 
     const newPayrollData = {
       ...payrollData,
@@ -348,7 +348,7 @@ export class PayrollService {
       const userFines = data.userFines !== undefined ? data.userFines : payroll.userFines || 0;
       const carryOverDebt = payroll.carryOverDebt || 0; // Долг с прошлого месяца
 
-      data.total = Math.max(0, accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt);
+      data.total = accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt;
     }
 
 
@@ -472,7 +472,7 @@ export class PayrollService {
     const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
     const carryOverDebt = payroll.carryOverDebt || 0;
 
-    payroll.total = Math.max(0, accruals + bonuses - penalties - advance - deductions - carryOverDebt);
+    payroll.total = accruals + bonuses - penalties - advance - deductions - carryOverDebt;
 
     await payroll.save();
 
@@ -511,7 +511,7 @@ export class PayrollService {
     const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
     const carryOverDebt = payroll.carryOverDebt || 0;
 
-    payroll.total = Math.max(0, accruals + bonuses - penalties - advance - deductions - carryOverDebt);
+    payroll.total = accruals + bonuses - penalties - advance - deductions - carryOverDebt;
 
     await payroll.save();
 
@@ -644,7 +644,7 @@ export class PayrollService {
 
 
 
-      const total = Math.max(0, accruals - totalPenalties);
+      const total = accruals - totalPenalties;
 
       if (existing) {
 
@@ -744,7 +744,7 @@ export class PayrollService {
 
   /**
    * Расчёт долга для отдельного сотрудника
-   * Если аванс > начислений, разница переносится на следующий месяц
+   * Если итоговая сумма к выплате отрицательная, разница переносится на следующий месяц
    */
   async calculateDebtForUser(staffId: string, period: string) {
     const payroll = await Payroll.findOne({ staffId, period });
@@ -767,19 +767,21 @@ export class PayrollService {
     const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
     const deductions = payroll.deductions || 0;
     const advance = payroll.advance || 0;
-    const carryOverDebt = payroll.carryOverDebt || 0; // Долг с прошлого месяца
+    const carryOverDebtFromPrevious = payroll.carryOverDebt || 0; // Долг с прошлого месяца
 
-    // Чистая зарплата (без аванса)
-    const netPay = accruals + bonuses - penalties - deductions - carryOverDebt;
+    // Рассчитываем сумму, которая должна быть к выплате (до переноса долга)
+    const totalBeforeDebt = accruals + bonuses - penalties - deductions - advance - carryOverDebtFromPrevious;
 
-    // Долг = аванс - чистая зарплата
-    const debt = Math.max(0, advance - netPay);
+    // Если итоговая сумма отрицательная, это означает, что сотрудник должен денег
+    // В этом случае, нужно перенести эту сумму как долг на следующий месяц
+    const debt = Math.max(0, -totalBeforeDebt); // Используем отрицание, чтобы получить положительное значение долга
 
     if (debt > 0) {
       // Рассчитываем следующий период
       const [year, month] = period.split('-').map(Number);
-      const nextDate = new Date(year, month, 1); // month уже 1-based в строке, Date принимает 0-based
-      const nextPeriod = nextDate.toISOString().slice(0, 7);
+      const nextDate = new Date(year, month, 1); // Создаем дату первого числа текущего месяца
+      nextDate.setMonth(nextDate.getMonth() + 1); // Переходим к следующему месяцу
+      const nextPeriod = nextDate.toISOString().slice(0, 7); // Формат YYYY-MM
 
       // Ищем или создаём запись за следующий месяц
       let nextPayroll = await Payroll.findOne({ staffId, period: nextPeriod });
@@ -818,7 +820,7 @@ export class PayrollService {
       period,
       accruals,
       advance,
-      netPay,
+      totalBeforeDebt,
       debt,
       message: debt > 0 ? `Долг ${debt} тг перенесён на следующий месяц` : 'Долга нет'
     };

@@ -193,7 +193,7 @@ PayrollSchema.pre('save', function (next) {
   const carryOverDebt = this.carryOverDebt || 0; // Долг с прошлого месяца
 
   // Формула: начисления + бонусы - штрафы - аванс - удержания - долг с прошлого месяца
-  this.total = Math.max(0, accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt);
+  this.total = accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt;
 
   this.penalties = latePenalties + absencePenalties + userFines;
 
