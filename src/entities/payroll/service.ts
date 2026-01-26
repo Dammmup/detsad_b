@@ -779,7 +779,7 @@ export class PayrollService {
     if (debt > 0) {
       // Рассчитываем следующий период
       const [year, month] = period.split('-').map(Number);
-      const nextDate = new Date(year, month, 1); // Создаем дату первого числа текущего месяца
+      const nextDate = new Date(year, month - 1, 1); // Создаем дату первого числа текущего месяца (месяцы в Date 0-based)
       nextDate.setMonth(nextDate.getMonth() + 1); // Переходим к следующему месяцу
       const nextPeriod = nextDate.toISOString().slice(0, 7); // Формат YYYY-MM
 
@@ -876,7 +876,7 @@ export class PayrollService {
   async getCarryOverDebt(staffId: string, period: string): Promise<number> {
     // Рассчитываем предыдущий период
     const [year, month] = period.split('-').map(Number);
-    const prevDate = new Date(year, month - 2, 1); // -2 потому что month в строке 1-based, а Date 0-based
+    const prevDate = new Date(year, month - 1 - 1, 1); // Переходим к предыдущему месяцу (месяцы в Date 0-based)
     const prevPeriod = prevDate.toISOString().slice(0, 7);
 
     const prevPayroll = await Payroll.findOne({ staffId, period: prevPeriod });
