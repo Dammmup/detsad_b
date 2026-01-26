@@ -7,6 +7,7 @@ import Shift from '../staffShifts/model';
 import Payroll from '../payroll/model';
 import { SettingsService } from '../settings/service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { sendTelegramNotificationToRoles } from '../../utils/telegramNotifications';
 
 
 
@@ -178,9 +179,6 @@ export class StaffAttendanceTrackingService {
 
     // Consolidated Telegram notification
     try {
-      const notificationSettings = await settingsService.getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id;
-
       const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
       const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
 
@@ -189,12 +187,7 @@ export class StaffAttendanceTrackingService {
 
       const message = `👤 <b>${escapedName}</b> отметил <b>ПРИХОД</b> на работу\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}`;
 
-      // Отправляем админу
-      if (adminChatId) {
-        await sendLogToTelegram(message, adminChatId);
-      } else {
-        await sendLogToTelegram(message);
-      }
+      await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
     } catch (e) {
       console.error('Telegram notify error (clockIn):', e);
     }
@@ -282,9 +275,6 @@ export class StaffAttendanceTrackingService {
 
     // Consolidated Telegram notification
     try {
-      const notificationSettings = await settingsService.getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
-
       const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
       const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
 
@@ -313,9 +303,7 @@ export class StaffAttendanceTrackingService {
 
       const message = `👤 <b>${escapedName}</b> отметил <b>УХОД</b> с работы\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}\n📍 Статус: ${inRangeText}`;
 
-      if (adminChatId) {
-        await sendLogToTelegram(message, adminChatId);
-      }
+      await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
     } catch (e) {
       console.error('Telegram notify error (clockOut):', e);
     }

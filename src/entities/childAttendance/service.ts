@@ -6,7 +6,8 @@ import User from '../users/model';
 import mongoose from 'mongoose';
 import Child from '../children/model';
 import { SettingsService } from '../settings/service';
-import { sendLogToTelegram, escapeHTML } from '../../utils/telegramLogger';
+import { escapeHTML } from '../../utils/telegramLogger';
+import { sendTelegramNotificationToRoles } from '../../utils/telegramNotifications';
 
 
 export class ChildAttendanceService {
@@ -185,16 +186,13 @@ export class ChildAttendanceService {
     }
 
     try {
-      const notificationSettings = await new SettingsService().getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
-
-      if (adminChatId && results.length > 0) {
+      if (results.length > 0) {
         const group = await Group.findById(groupId);
         const escapedGroupName = group?.name ? escapeHTML(group.name) : 'группа';
 
         const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
         const message = `👥 Массовое обновление посещаемости\nГруппа: <b>${escapedGroupName}</b>\nОбновлено записей: <b>${results.length}</b>\n🕒 Время: ${almatyTimeStr}`;
-        await sendLogToTelegram(message, adminChatId);
+        await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
       }
     } catch (e) {
       console.error('Telegram notify error (bulkChildAttendance):', e);

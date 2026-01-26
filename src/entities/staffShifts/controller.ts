@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ShiftsService } from './service';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { sendTelegramNotificationToRoles } from '../../utils/telegramNotifications';
 import User from '../users/model';
 import Shift from './model';
 import { AuthUser } from '../../middlewares/authMiddleware';
@@ -205,11 +206,6 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
 
     // Telegram notification
     try {
-      const { SettingsService } = require('../settings/service');
-      const settingsService = new SettingsService();
-      const notificationSettings = await settingsService.getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
-
       const user = await User.findById(req.user.id);
       const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
       const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
@@ -219,10 +215,7 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
 
       const message = `👤 <b>${escapedName}</b> отметил <b>ПРИХОД</b> на смену\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}`;
 
-      if (adminChatId) {
-        const { sendLogToTelegram } = require('../../utils/telegramLogger');
-        await sendLogToTelegram(message, adminChatId);
-      }
+      await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
     } catch (telegramError) {
       console.warn('Telegram log failed (checkInSimple):', telegramError);
     }
@@ -255,11 +248,6 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
 
     // Telegram notification
     try {
-      const { SettingsService } = require('../settings/service');
-      const settingsService = new SettingsService();
-      const notificationSettings = await settingsService.getNotificationSettings();
-      const adminChatId = notificationSettings?.telegram_chat_id || process.env.TELEGRAM_CHAT_ID;
-
       const user = await User.findById(req.user.id);
       const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
       const almatyDateStr = new Date().toLocaleDateString('ru-RU', { timeZone: 'Asia/Almaty' });
@@ -269,10 +257,7 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
 
       const message = `👤 <b>${escapedName}</b> отметил <b>УХОД</b> со смены\n🕒 Время: ${almatyDateStr} в ${almatyTimeStr}`;
 
-      if (adminChatId) {
-        const { sendLogToTelegram } = require('../../utils/telegramLogger');
-        await sendLogToTelegram(message, adminChatId);
-      }
+      await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
     } catch (telegramError) {
       console.warn('Telegram log failed (checkOutSimple):', telegramError);
     }

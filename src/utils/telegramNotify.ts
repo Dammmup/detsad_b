@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+/**
+ * Отправляет уведомление в Telegram по старой логике (один чат)
+ * @deprecated Используйте sendTelegramNotificationToRoles для уведомлений о действиях на платформе
+ */
 export async function sendTelegramNotification(chatId: string | undefined, text: string, botToken?: string) {
   try {
     if (!chatId) {

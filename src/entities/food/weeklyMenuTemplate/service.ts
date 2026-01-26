@@ -2,7 +2,7 @@ import WeeklyMenuTemplate, { IWeeklyMenuTemplate, WEEKDAYS, Weekday, IDayMeals }
 import DailyMenu from '../dailyMenu/model';
 import Dish from '../dishes/model';
 import { productsService } from '../products/service';
-import { sendTelegramNotification } from '../../../utils/telegramNotify';
+import { sendTelegramNotificationToRoles } from '../../../utils/telegramNotifications';
 
 export class WeeklyMenuTemplateService {
     async getAll(filters: { isActive?: boolean } = {}) {
@@ -339,8 +339,6 @@ export class WeeklyMenuTemplateService {
 
     // Отправка уведомления в Telegram
     private async sendShortageNotification(shortages: any[], startDate: Date, days: number) {
-        const chatId = process.env.TELEGRAM_NOTIFICATION_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
-
         let message = `⚠️ *Нехватка продуктов*\n\n`;
         message += `📅 Период: ${startDate.toLocaleDateString('ru-RU')} (${days} дней)\n\n`;
         message += `🛒 *Необходимо закупить:*\n`;
@@ -350,7 +348,7 @@ export class WeeklyMenuTemplateService {
             message += `  (требуется: ${s.required.toFixed(2)}, в наличии: ${s.available.toFixed(2)})\n`;
         }
 
-        await sendTelegramNotification(chatId, message);
+        await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
     }
 
     // Расчёт требуемых продуктов для периода
