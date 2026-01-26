@@ -175,7 +175,7 @@ function applySecurityFilters(query: QueryRequest): void {
     if (!query.authContext) return;
 
     const { userId, role, groupId } = query.authContext;
-    const isAdmin = role === 'admin' || role === 'manager';
+    const isAdmin = role === 'admin' || role === 'manager' || role === 'director';
 
     if (isAdmin) return; // Админам не ограничиваем на уровне исполнителя
 

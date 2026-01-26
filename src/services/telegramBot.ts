@@ -537,7 +537,7 @@ async function handleTextMessage(chatId: number, text: string, user: any): Promi
         await sendTypingAction(chatId);
 
         // Определяем ограничения по роли
-        const isAdmin = user.role === 'admin' || user.role === 'manager';
+        const isAdmin = user.role === 'admin' || user.role === 'manager' || user.role === 'director';
 
         // Формируем контекст ограничений для AI
         let accessContext = '';
