@@ -161,6 +161,12 @@ export const getMyPayrolls = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    // Проверка права на просмотр зарплаты
+    const user = await User.findById(req.user.id);
+    if (!user || !user.allowToSeePayroll) {
+      return res.status(403).json({ error: 'Доступ к информации о зарплате запрещен' });
+    }
+
     const { period, month } = req.query;
 
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);

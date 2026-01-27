@@ -13,7 +13,8 @@ import {
   removeUserFine,
   getUserTotalFines,
   generateTelegramCode,
-  changePassword
+  changePassword,
+  updateAllowToSeePayroll
 } from './controller';
 import { subscribe, unsubscribe, subscribeFCM, unsubscribeFCM } from './pushController';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -62,6 +63,8 @@ router.post('/:id/generate-telegram-code', authMiddleware, generateTelegramCode)
 
 
 router.post('/:id/change-password', authMiddleware, changePassword);
+
+router.put('/:id/allow-to-see-payroll', authMiddleware, authorizeRole(['admin']), updateAllowToSeePayroll);
 
 // Push Notifications
 router.post('/push/subscribe', authMiddleware, subscribe);

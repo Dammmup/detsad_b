@@ -789,3 +789,48 @@ export const getUserTotalFines = async (req: AuthenticatedRequest, res: Response
     res.status(500).json({ error: 'Error calculating total fines' });
   }
 };
+
+export const updateAllowToSeePayroll = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Только администратор может изменять это поле
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden: Only admin can change this setting' });
+    }
+
+    const user = await userService.getById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { allowToSeePayroll } = req.body;
+
+    if (allowToSeePayroll === undefined) {
+      return res.status(400).json({ error: 'allowToSeePayroll field is required' });
+    }
+
+    // Обновляем поле allowToSeePayroll
+    (user as any).allowToSeePayroll = allowToSeePayroll;
+
+    const updatedUser = await userService.update(req.params.id, user);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found after update' });
+    }
+
+    const userObj = (updatedUser as any).toObject ? (updatedUser as any).toObject() : updatedUser;
+    if (userObj.passwordHash) delete userObj.passwordHash;
+
+    res.json({
+      message: 'Allow to see payroll setting updated',
+      user: userObj
+    });
+  } catch (error) {
+    console.error('Error updating allowToSeePayroll:', error);
+    res.status(500).json({ error: 'Error updating allowToSeePayroll setting' });
+  }
+};
+
+

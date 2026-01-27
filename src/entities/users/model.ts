@@ -27,6 +27,7 @@ export interface IUser extends Document {
   shiftRate?: number;
   pushSubscriptions?: any[];
   fcmTokens?: string[];
+  allowToSeePayroll?: boolean;
 }
 
 const UserSchema: Schema = new Schema({
@@ -120,6 +121,10 @@ const UserSchema: Schema = new Schema({
   fcmTokens: {
     type: [String],
     default: []
+  },
+  allowToSeePayroll: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

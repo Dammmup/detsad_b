@@ -101,6 +101,29 @@ export class TaskListService {
       .populate('completedBy', 'fullName role')
       .populate('cancelledBy', 'fullName role');
 
+    // Отправляем push-уведомление всем сотрудникам о новой задаче
+    try {
+      console.log('Начинаем отправку push-уведомления о новой задаче...', {
+        taskId: task._id,
+        taskTitle: task.title,
+        assignedTo: task.assignedTo
+      });
+
+      const PushNotificationServiceModule = await import('../../services/pushNotificationService');
+      const PushNotificationService = PushNotificationServiceModule.PushNotificationService;
+      const title = 'Новая задача';
+      const body = `Создана новая задача: "${task.title}"`;
+      const url = `/tasks`; // URL страницы задач
+
+      console.log('Отправляем уведомление всем активным пользователям...');
+      // Отправляем уведомление всем активным пользователям
+      await PushNotificationService.broadcastNotification(null, title, body, url);
+      console.log('Уведомления успешно отправлены');
+    } catch (notificationError) {
+      console.error('Ошибка при отправке push-уведомления о новой задаче:', notificationError);
+      // Не прерываем создание задачи, если не удалось отправить уведомление
+    }
+
     return populatedTask;
   }
 

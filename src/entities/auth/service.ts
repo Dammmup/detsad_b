@@ -108,7 +108,7 @@ export class AuthService {
         throw new Error('Пользователь не найден или неактивен');
       }
 
-      return { valid: true, user: { id: user._id, fullName: user.fullName, role: user.role, active: user.active } };
+      return { valid: true, user: { id: user._id, fullName: user.fullName, role: user.role, active: user.active, allowToSeePayroll: user.allowToSeePayroll } };
     } catch (error) {
       console.error('❌ Ошибка валидации токена:', error);
       throw new Error('Недействительный токен');
