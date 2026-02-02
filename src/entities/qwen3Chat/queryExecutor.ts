@@ -7,6 +7,7 @@ const ALLOWED_COLLECTIONS = [
     'children',
     'groups',
     'staff_attendance_tracking',
+    'attendance', // Алиас для staff_attendance_tracking (для AI-запросов)
     'childattendances',
     'payrolls',
     'staff_shifts',
@@ -59,6 +60,11 @@ const MAX_LIMIT = 100;
 
 // Таймаут в миллисекундах
 const QUERY_TIMEOUT = 10000;
+
+// Маппинг алиасов коллекций (для удобства AI-запросов)
+const COLLECTION_ALIASES: Record<string, string> = {
+    'attendance': 'staff_attendance_tracking',
+};
 
 export interface QueryRequest {
     collection: string;
@@ -242,7 +248,9 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
             return { success: false, error: 'База данных не подключена' };
         }
 
-        const collection = db.collection(query.collection);
+        // Резолвинг алиасов коллекций
+        const resolvedCollectionName = COLLECTION_ALIASES[query.collection] || query.collection;
+        const collection = db.collection(resolvedCollectionName);
 
         // Применяем фильтры безопасности перед конвертацией типов
         applySecurityFilters(query);

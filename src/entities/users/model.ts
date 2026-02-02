@@ -25,6 +25,7 @@ export interface IUser extends Document {
   baseSalary?: number;
   baseSalaryType?: 'month' | 'shift';
   shiftRate?: number;
+  debt?: number; // Долг сотрудника, переносится между периодами
   pushSubscriptions?: any[];
   fcmTokens?: string[];
   allowToSeePayroll?: boolean;
@@ -111,6 +112,10 @@ const UserSchema: Schema = new Schema({
     default: 'month'
   },
   shiftRate: {
+    type: Number,
+    default: 0
+  },
+  debt: {
     type: Number,
     default: 0
   },

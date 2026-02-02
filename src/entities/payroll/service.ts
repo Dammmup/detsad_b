@@ -643,7 +643,8 @@ export class PayrollService {
       }
 
 
-
+      // Учитываем долг из user.debt
+      const userDebt = staff.debt || 0;
       const total = accruals - totalPenalties;
 
       if (existing) {
@@ -662,7 +663,8 @@ export class PayrollService {
           existing.workedDays = workedDays;
           existing.workedShifts = workedShifts;
           existing.shiftDetails = shiftDetails;
-          existing.total = total;
+          existing.carryOverDebt = userDebt; // Долг из user.debt
+          existing.total = total - userDebt; // Учитываем долг
 
           existing.baseSalary = baseSalary;
           existing.baseSalaryType = baseSalaryType as any;
@@ -690,7 +692,8 @@ export class PayrollService {
         workedDays: workedDays,
         workedShifts: workedShifts,
         shiftDetails: shiftDetails,
-        total: total,
+        carryOverDebt: userDebt, // Долг из user.debt
+        total: total - userDebt, // Учитываем долг
         status: 'draft',
         createdAt: new Date(),
         updatedAt: new Date()
@@ -744,7 +747,7 @@ export class PayrollService {
 
   /**
    * Расчёт долга для отдельного сотрудника
-   * Если итоговая сумма к выплате отрицательная, разница переносится на следующий месяц
+   * Если итоговая сумма к выплате отрицательная, разница записывается в user.debt
    */
   async calculateDebtForUser(staffId: string, period: string) {
     const payroll = await Payroll.findOne({ staffId, period });
@@ -762,54 +765,35 @@ export class PayrollService {
       };
     }
 
+    const user = await User.findById(staffId);
+    if (!user) {
+      throw new Error('Пользователь не найден');
+    }
+
     const accruals = payroll.accruals || 0;
     const bonuses = payroll.bonuses || 0;
     const penalties = (payroll.latePenalties || 0) + (payroll.absencePenalties || 0) + (payroll.userFines || 0);
     const deductions = payroll.deductions || 0;
     const advance = payroll.advance || 0;
-    const carryOverDebtFromPrevious = payroll.carryOverDebt || 0; // Долг с прошлого месяца
+    const previousDebt = user.debt || 0; // Долг с user, а не с payroll
 
-    // Рассчитываем сумму, которая должна быть к выплате (до переноса долга)
-    const totalBeforeDebt = accruals + bonuses - penalties - deductions - advance - carryOverDebtFromPrevious;
+    // Рассчитываем сумму, которая должна быть к выплате (учитывая долг из user.debt)
+    const totalBeforeDebt = accruals + bonuses - penalties - deductions - advance - previousDebt;
 
     // Если итоговая сумма отрицательная, это означает, что сотрудник должен денег
-    // В этом случае, нужно перенести эту сумму как долг на следующий месяц
-    const debt = Math.max(0, -totalBeforeDebt); // Используем отрицание, чтобы получить положительное значение долга
+    // В этом случае, нужно записать эту сумму как долг в user.debt
+    const newDebt = Math.max(0, -totalBeforeDebt); // Положительное значение долга
 
-    if (debt > 0) {
-      // Рассчитываем следующий период
-      const [year, month] = period.split('-').map(Number);
-      const nextDate = new Date(year, month - 1, 1); // Создаем дату первого числа текущего месяца (месяцы в Date 0-based)
-      nextDate.setMonth(nextDate.getMonth() + 1); // Переходим к следующему месяцу
-      const nextPeriod = nextDate.toISOString().slice(0, 7); // Формат YYYY-MM
+    // Обновляем user.debt
+    user.debt = newDebt;
+    await user.save();
+    console.log(`Долг ${newDebt} тг записан для сотрудника ${staffId} (было: ${previousDebt} тг)`);
 
-      // Ищем или создаём запись за следующий месяц
-      let nextPayroll = await Payroll.findOne({ staffId, period: nextPeriod });
+    // Обновляем carryOverDebt в текущем payroll для отображения
+    payroll.carryOverDebt = previousDebt;
 
-      if (!nextPayroll) {
-        // Создаём новую запись за следующий месяц с долгом
-        nextPayroll = new Payroll({
-          staffId,
-          period: nextPeriod,
-          baseSalary: payroll.baseSalary,
-          baseSalaryType: payroll.baseSalaryType,
-          shiftRate: payroll.shiftRate,
-          bonuses: 0,
-          deductions: 0,
-          accruals: 0,
-          penalties: 0,
-          carryOverDebt: debt,
-          total: 0,
-          status: 'draft'
-        });
-      } else {
-        // Обновляем существующую запись
-        nextPayroll.carryOverDebt = (nextPayroll.carryOverDebt || 0) + debt;
-      }
-
-      await nextPayroll.save();
-      console.log(`Долг ${debt} тг перенесён на период ${nextPeriod} для сотрудника ${staffId}`);
-    }
+    // Обновляем total с учётом долга
+    payroll.total = Math.max(0, totalBeforeDebt); // К выплате не может быть отрицательной
 
     // Отмечаем что долг за этот период рассчитан
     payroll.carryOverDebtCalculated = true;
@@ -820,9 +804,10 @@ export class PayrollService {
       period,
       accruals,
       advance,
+      previousDebt,
       totalBeforeDebt,
-      debt,
-      message: debt > 0 ? `Долг ${debt} тг перенесён на следующий месяц` : 'Долга нет'
+      debt: newDebt,
+      message: newDebt > 0 ? `Новый долг ${newDebt} тг записан в профиль сотрудника` : 'Долга нет'
     };
   }
 
