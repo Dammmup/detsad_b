@@ -103,8 +103,18 @@ export class Qwen3ChatService {
         return formatValue(current);
       };
 
-      // 1. Замена {count}
-      const count = Array.isArray(data) ? data.length : (typeof data === 'number' ? data : (data ? 1 : 0));
+      // 1. Замена {count} — правильно обрабатываем результаты CRUD операций
+      let count: number;
+      if (Array.isArray(data)) {
+        count = data.length;
+      } else if (typeof data === 'number') {
+        count = data;
+      } else if (data && typeof data === 'object') {
+        // Для updateMany/updateOne берём modifiedCount, для deleteMany/deleteOne — deletedCount
+        count = data.modifiedCount ?? data.deletedCount ?? data.matchedCount ?? (data._id ? 1 : 0);
+      } else {
+        count = data ? 1 : 0;
+      }
       resultText = resultText.replace(/{count}/g, count.toString());
 
       // ПРОФИЛАКТИКА: Если данных нет (пустой массив), а шаблон требует {result...}, 

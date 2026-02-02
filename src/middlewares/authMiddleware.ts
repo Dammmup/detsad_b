@@ -55,11 +55,14 @@ async function verifyToken(token: string, req: Request, res: Response, next: Nex
       // Ошибка при попытке преобразования ID
       console.error('❌ Ошибка проверки пользователя (неправильный формат ID):', err);
       return res.status(401).json({ error: 'Неверный идентификатор пользователя' });
-    } else if (err.name === 'MongoError' || err.name === 'MongooseError' || err.name === 'ConnectionError') {
-      // Ошибки базы данных
-      console.error('❌ Ошибка базы данных при проверке пользователя:', err);
-      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя' });
+    } else if (err.name === 'MongoError' || err.name === 'MongooseError' || err.name === 'MongoServerError') {
+      // Ошибки базы данных (MongoDB/Mongoose)
+      console.error('❌ Ошибка базы данных при проверке пользователя:', err.name, err.message);
+      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя', details: err.name });
     }
+
+    // Логируем любую другую ошибку для отладки
+    console.error('❌ Неизвестная ошибка при проверке токена:', err.name, err.message, err);
 
     let errorMessage = 'Неверный токен';
 
