@@ -53,14 +53,12 @@ export const sendMorningAttendanceReport = async () => {
   console.log('Запуск задачи: отчет о приходе сотрудников (11:00)');
   try {
     const now = new Date();
-    const almatyDayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' });
+    const almatyDayStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
 
     const staffShifts = await Shift.find({ [`shifts.${almatyDayStr}`]: { $exists: true } });
 
-    const startOfDay = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(`${almatyDayStr}T00:00:00+05:00`);
+    const endOfDay = new Date(`${almatyDayStr}T23:59:59.999+05:00`);
 
     const attendanceRecords = await StaffAttendanceTracking.find({
       date: { $gte: startOfDay, $lt: endOfDay },
@@ -78,14 +76,12 @@ export const sendEveningAttendanceReport = async () => {
   console.log('Запуск задачи: отчет об уходе сотрудников (18:00)');
   try {
     const now = new Date();
-    const almatyDayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' });
+    const almatyDayStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
 
     const staffShifts = await Shift.find({ [`shifts.${almatyDayStr}`]: { $exists: true } });
 
-    const startOfDay = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(`${almatyDayStr}T00:00:00+05:00`);
+    const endOfDay = new Date(`${almatyDayStr}T23:59:59.999+05:00`);
 
     const attendanceRecords = await StaffAttendanceTracking.find({
       date: { $gte: startOfDay, $lt: endOfDay },
@@ -103,7 +99,7 @@ export const sendDailySummaryReport = async () => {
   console.log('Запуск задачи: ежедневный итоговый отчёт (19:00)');
   try {
     const now = new Date();
-    const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Almaty' });
+    const today = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
 
     const staffShifts = await Shift.find({ [`shifts.${today}`]: { $exists: true } });
 
@@ -121,10 +117,8 @@ export const sendDailySummaryReport = async () => {
       };
     });
 
-    const startOfDay = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Almaty" }));
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setHours(23, 59, 59, 999);
+    const startOfDay = new Date(`${today}T00:00:00+05:00`);
+    const endOfDay = new Date(`${today}T23:59:59.999+05:00`);
 
     const attendanceRecords = await StaffAttendanceTracking.find({
       date: { $gte: startOfDay, $lt: endOfDay }

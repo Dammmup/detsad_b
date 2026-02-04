@@ -21,7 +21,7 @@ export interface IRent extends Document {
 const RentSchema = new Schema<IRent>({
   tenantId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'ExternalSpecialist',
     required: true,
     index: true
   },

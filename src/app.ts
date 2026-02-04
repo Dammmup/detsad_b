@@ -111,6 +111,8 @@ app.use('/weekly-menu-template', weeklyMenuTemplateRoutes);
 app.use('/product-purchases', productPurchaseRoutes);
 app.use('/product-reports', productReportsRoutes);
 app.use('/qwen3-chat', qwen3ChatRoutes);
+import externalSpecialistRoutes from './entities/externalSpecialists/route';
+app.use('/external-specialists', externalSpecialistRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/api/auth', authRoutes);

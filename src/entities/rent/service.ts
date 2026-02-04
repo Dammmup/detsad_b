@@ -1,3 +1,4 @@
+
 import Rent from './model';
 import { IRent } from './model';
 import { Types } from 'mongoose';
@@ -25,13 +26,13 @@ export class RentService {
     }
 
     return await Rent.find(query)
-      .populate('tenantId', 'fullName role')
+      .populate('tenantId', 'name type')
       .sort({ createdAt: -1 });
   }
 
 
   async getById(id: string) {
-    const rent = await Rent.findById(id).populate('tenantId', 'fullName role');
+    const rent = await Rent.findById(id).populate('tenantId', 'name type');
     if (!rent) {
       throw new Error('Аренда не найдена');
     }
@@ -47,7 +48,7 @@ export class RentService {
 
   async update(id: string, updateData: Partial<IRent>) {
     const rent = await Rent.findByIdAndUpdate(id, updateData, { new: true })
-      .populate('tenantId', 'fullName role');
+      .populate('tenantId', 'name type');
 
     if (!rent) {
       throw new Error('Аренда не найдена');
@@ -74,7 +75,7 @@ export class RentService {
         paymentDate: new Date()
       },
       { new: true }
-    ).populate('tenantId', 'fullName role');
+    ).populate('tenantId', 'name type');
 
     if (!rent) {
       throw new Error('Аренда не найдена');
@@ -86,7 +87,7 @@ export class RentService {
 
   async getByPeriod(period: string) {
     return await Rent.find({ period })
-      .populate('tenantId', 'fullName role');
+      .populate('tenantId', 'name type');
   }
 
 
@@ -94,7 +95,7 @@ export class RentService {
     return await Rent.findOne({
       tenantId: new Types.ObjectId(tenantId),
       period
-    }).populate('tenantId', 'fullName role');
+    }).populate('tenantId', 'name type');
   }
 
 
@@ -109,7 +110,7 @@ export class RentService {
         ...data,
         tenantId: new Types.ObjectId(tenantId),
         period
-      }, { new: true }).populate('tenantId', 'fullName role');
+      }, { new: true }).populate('tenantId', 'name type');
     } else {
       const rent = new Rent({
         ...data,
@@ -122,14 +123,12 @@ export class RentService {
 
   async generateRentSheets(period: string) {
     try {
+      // Lazy import to avoid circular dependency
+      const { default: ExternalSpecialist } = await import('../externalSpecialists/model');
 
-      const tenants = await User.find({ role: { $ne: 'admin' } });
-
+      const tenants = await ExternalSpecialist.find({ active: true });
 
       for (const tenant of tenants) {
-
-
-
         await this.createOrUpdateForTenant((tenant as any)._id.toString(), period, {
           tenantId: (tenant as any)._id,
           period: period,

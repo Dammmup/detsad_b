@@ -147,25 +147,26 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
 
     let tenants;
     if (tenantIds && Array.isArray(tenantIds) && tenantIds.length > 0) {
-
-      tenants = await User.find({
+      // Ищем среди ExternalSpecialist
+      const { default: ExternalSpecialist } = await import('../externalSpecialists/model');
+      tenants = await ExternalSpecialist.find({
         _id: { $in: tenantIds },
-        role: { $ne: 'admin' }
+        active: true
       });
     } else {
-
-      tenants = await User.find({ role: { $ne: 'admin' } });
+      // Берем всех активных ExternalSpecialist типов tenant или speech_therapist
+      const CUSTOM_TYPES = ['tenant', 'speech_therapist'];
+      const { default: ExternalSpecialist } = await import('../externalSpecialists/model');
+      tenants = await ExternalSpecialist.find({
+        type: { $in: CUSTOM_TYPES },
+        active: true
+      });
     }
 
-
     for (const tenant of tenants) {
+      // Создаем или обновляем запись аренды для этого специалиста
 
-
-
-
-
-      const total = 0;
-
+      const total = 0; // Логику расчета можно уточнить, пока 0
 
       await rentService.createOrUpdateForTenant((tenant as any)._id.toString(), period, {
         amount: 0,
