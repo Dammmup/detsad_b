@@ -584,7 +584,7 @@ export class PayrollService {
       let workedDays = 0;
       let workedShifts = 0;
 
-      const startDate = new Date(`${period}-01`);
+      const startDate = new Date(`${period}-01T00:00:00+05:00`);
       let workDaysInMonth = await getWorkingDaysInMonth(startDate);
 
       if (workDaysInMonth <= 0) {

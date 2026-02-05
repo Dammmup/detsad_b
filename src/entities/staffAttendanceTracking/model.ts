@@ -31,6 +31,7 @@ export interface IStaffAttendanceTracking extends Document {
   lateMinutes?: number;
   earlyLeaveMinutes?: number;
   notes?: string;
+  status?: string;
   isManualEntry: boolean;
   checkInDevice?: IDeviceMetadata;
   checkOutDevice?: IDeviceMetadata;
@@ -103,6 +104,11 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
     type: String,
     maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
+  status: {
+    type: String,
+    enum: ['absent', 'scheduled', 'completed', 'in_progress', 'pending_approval', 'late', 'checked_in', 'checked_out', 'on_break', 'overtime'],
+    default: undefined
+  },
   isManualEntry: {
     type: Boolean,
     default: false
@@ -133,11 +139,13 @@ StaffAttendanceTrackingSchema.pre('save', function (this: IStaffAttendanceTracki
 });
 
 
-// Пересчитываем Payroll после сохранения
+// Пересчитываем Payroll и синхронизируем смены после сохранения
 StaffAttendanceTrackingSchema.post('save', async function (this: IStaffAttendanceTracking) {
   try {
     const attendanceDate = this.date || new Date();
-    const period = `${attendanceDate.getFullYear()}-${String(attendanceDate.getMonth() + 1).padStart(2, '0')}`;
+    // Используем sv-SE локаль для получения YYYY-MM-DD
+    const dateStr = attendanceDate.toLocaleDateString('sv-SE', { timeZone: 'Asia/Almaty' });
+    const period = dateStr.slice(0, 7);
 
     const { PayrollService } = await import('../payroll/service');
     const payrollService = new PayrollService();
@@ -145,8 +153,48 @@ StaffAttendanceTrackingSchema.post('save', async function (this: IStaffAttendanc
     await payrollService.ensurePayrollForUser(this.staffId.toString(), period);
 
     console.log(`Payroll recalculated for staff ${this.staffId} period ${period} after attendance update`);
+
+    // Синхронизация со статусом смены
+    const ShiftModel = mongoose.model('Shift');
+    const staffShifts = await ShiftModel.findOne({ staffId: this.staffId });
+
+    if (staffShifts) {
+      const shiftDetail = staffShifts.shifts.get(dateStr);
+      if (shiftDetail) {
+        let newStatus = shiftDetail.status;
+
+        // Приоритет 1: Явный статус из записи посещаемости
+        if (this.status) {
+          const mapping: Record<string, string> = {
+            'checked_out': 'completed',
+            'completed': 'completed',
+            'checked_in': 'in_progress',
+            'in_progress': 'in_progress',
+            'late': 'late',
+            'absent': 'absent',
+            'pending_approval': 'pending_approval'
+          };
+          if (mapping[this.status]) {
+            newStatus = mapping[this.status] as any;
+          }
+        }
+        // Приоритет 2: Автоматический расчет по временам
+        else if (this.actualStart && this.actualEnd) {
+          newStatus = 'completed';
+        } else if (this.actualStart) {
+          newStatus = (this.lateMinutes || 0) >= 15 ? 'late' : 'in_progress';
+        }
+
+        if (shiftDetail.status !== newStatus) {
+          shiftDetail.status = newStatus as any;
+          staffShifts.shifts.set(dateStr, shiftDetail);
+          await staffShifts.save();
+          console.log(`[SYNC-SHIFT-HOOK] Sync status for ${this.staffId} on ${dateStr}: ${newStatus}`);
+        }
+      }
+    }
   } catch (error) {
-    console.error('Error recalculating payroll after attendance save:', error);
+    console.error('Error in post-save hook:', error);
   }
 });
 

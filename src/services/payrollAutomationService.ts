@@ -16,9 +16,11 @@ interface PayrollAutomationSettings {
 
 export const calculatePenalties = async (staffId: string, month: string, employee: IUser, rateOverride?: number) => {
 
-  const startDate = new Date(`${month}-01`);
-  const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
-  endDate.setHours(23, 59, 59, 999);
+  const startDate = new Date(`${month}-01T00:00:00+05:00`);
+  const year = startDate.getFullYear();
+  const monthIdx = startDate.getMonth();
+  const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+  const endDate = new Date(`${month}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:00`);
 
 
   const settingsService = new SettingsService();
@@ -248,9 +250,11 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     }> = [];
 
 
-    const startDate = new Date(`${month}-01`);
-    const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
-    endDate.setHours(23, 59, 59, 999);
+    const startDate = new Date(`${month}-01T00:00:00+05:00`);
+    const year = startDate.getFullYear();
+    const monthIdx = startDate.getMonth();
+    const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+    const endDate = new Date(`${month}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:00`);
 
 
     const workDaysInMonth = await getWorkingDaysInMonth(startDate);

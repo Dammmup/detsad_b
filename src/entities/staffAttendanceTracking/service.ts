@@ -255,12 +255,6 @@ export class StaffAttendanceTrackingService {
       if (earlyLeaveMinutes > 0) {
         attendanceRecord.earlyLeaveMinutes = earlyLeaveMinutes;
       }
-
-
-      // Используем виртуальный ID если его еще нет
-      if (!attendanceRecord.shiftId) {
-        attendanceRecord.shiftId = `${userId}_${dateStr}` as any;
-      }
     }
 
     // Удалено использование clockOutLocation и photoClockOut
@@ -520,7 +514,7 @@ export class StaffAttendanceTrackingService {
    * @param ids массив ID записей для обновления
    * @param data данные для обновления (timeStart, timeEnd как строки HH:mm, notes)
    */
-  async bulkUpdate(ids: string[], data: { timeStart?: string; timeEnd?: string; actualStart?: Date | string; actualEnd?: Date | string; notes?: string }) {
+  async bulkUpdate(ids: string[], data: { timeStart?: string; timeEnd?: string; actualStart?: Date | string; actualEnd?: Date | string; notes?: string; status?: string }) {
     if (!ids || ids.length === 0) {
       throw new Error('Нужно выбрать хотя бы одну запись');
     }
@@ -595,6 +589,10 @@ export class StaffAttendanceTrackingService {
           updateFields.notes = data.notes;
         }
 
+        if (data.status !== undefined) {
+          updateFields.status = data.status;
+        }
+
         // Пересчитываем workDuration
         const finalStart = updateFields.actualStart !== undefined ? updateFields.actualStart : record.actualStart;
         const finalEnd = updateFields.actualEnd !== undefined ? updateFields.actualEnd : record.actualEnd;
@@ -604,8 +602,9 @@ export class StaffAttendanceTrackingService {
           updateFields.workDuration = Math.max(0, Math.floor((endMs - startMs) / 60000));
         }
 
-        // Используем findByIdAndUpdate чтобы НЕ вызывать post-save хуки
-        await StaffAttendanceTracking.findByIdAndUpdate(id, { $set: updateFields });
+        // Обновляем поля и сохраняем через .save() для вызова хуков (синхронизация смен, пересчет зарплаты)
+        Object.assign(record, updateFields);
+        await record.save();
 
         const updatedRecord = await StaffAttendanceTracking.findById(id)
           .populate('staffId', 'fullName role');
