@@ -247,12 +247,14 @@ export class Qwen3ChatService {
    */
   private static getCurrentDateContext(): string {
     const now = new Date();
-    const kazakhstanOffset = 5 * 60; // UTC+5 в минутах
-    const localOffset = now.getTimezoneOffset();
-    const kazakhstanTime = new Date(now.getTime() + (kazakhstanOffset + localOffset) * 60000);
+    // Казахстан UTC+5
+    const KZ_OFFSET_MS = 5 * 60 * 60 * 1000;
 
-    const dateStr = kazakhstanTime.toISOString().split('T')[0];
-    const timeStr = kazakhstanTime.toTimeString().split(' ')[0].substring(0, 5);
+    // Псевдо-локальное время (как будто UTC - это локальное время в Алматы)
+    const kzPseudoTime = new Date(now.getTime() + KZ_OFFSET_MS);
+
+    const dateStr = kzPseudoTime.toISOString().split('T')[0];
+    const timeStr = kzPseudoTime.toISOString().split('T')[1].substring(0, 5);
 
     return `Текущая дата: ${dateStr}, время: ${timeStr} (Казахстан, UTC+5)`;
   }

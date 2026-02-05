@@ -47,7 +47,12 @@ export const sendMessage = async (req: Request, res: Response) => {
           model,
           currentPage,
           image: req.file,
-          sessionId: req.body.sessionId || req.headers['x-session-id'] as string || undefined
+          sessionId: req.body.sessionId || req.headers['x-session-id'] as string || undefined,
+          authContext: (req as any).user ? {
+            userId: (req as any).user.id,
+            role: (req as any).user.role,
+            groupId: (req as any).user.groupId
+          } : undefined
         };
 
         const result = await Qwen3ChatService.sendMessage(qwen3Request);
@@ -63,7 +68,12 @@ export const sendMessage = async (req: Request, res: Response) => {
           messages,
           model: model || 'qwen-plus',
           currentPage,
-          sessionId: req.body.sessionId || req.headers['x-session-id'] as string || undefined
+          sessionId: req.body.sessionId || req.headers['x-session-id'] as string || undefined,
+          authContext: (req as any).user ? {
+            userId: (req as any).user.id,
+            role: (req as any).user.role,
+            groupId: (req as any).user.groupId
+          } : undefined
         };
 
         const result = await Qwen3ChatService.sendMessage(qwen3Request);

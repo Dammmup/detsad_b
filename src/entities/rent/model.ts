@@ -13,6 +13,8 @@ export interface IRent extends Document {
   latePenaltyRate?: number;
   accruals?: number;
   paidAmount?: number;
+  debt?: number;
+  overpayment?: number;
   paymentDate?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +50,8 @@ const RentSchema = new Schema<IRent>({
   latePenaltyRate: Number,
   accruals: Number,
   paidAmount: Number,
+  debt: { type: Number, default: 0 },
+  overpayment: { type: Number, default: 0 },
   paymentDate: Date,
 }, {
   timestamps: true

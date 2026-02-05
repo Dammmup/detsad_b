@@ -53,7 +53,7 @@ const ALLOWED_OPERATIONS = [
 const WRITE_OPERATIONS = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
 
 // Запрещённые операторы (потенциально опасные)
-const FORBIDDEN_OPERATORS = ['$where', '$function', '$accumulator', '$expr'];
+const FORBIDDEN_OPERATORS = ['$where', '$function', '$accumulator'];
 
 // Максимальное количество документов
 const MAX_LIMIT = 100;
@@ -112,13 +112,52 @@ function containsForbiddenOperators(obj: any): boolean {
 }
 
 /**
- * Преобразует специальные типы MongoDB (даты и ObjectId) из строкового формата
+ * Получает переменные контекста для запроса (сегодня, завтра, 9 утра и т.д.)
+ * Все даты возвращаются в UTC, но соответствуют началу/концу дня в Казахстане (UTC+5)
  */
-function convertMongoTypes(obj: any): any {
-    if (!obj || typeof obj !== 'object') return obj;
+function getContextVariables(): Record<string, any> {
+    const now = new Date();
+    // Казахстан UTC+5
+    const KZ_OFFSET_MS = 5 * 60 * 60 * 1000;
+
+    // Псевдо-локальное время (как будто UTC - это локальное время в Алматы)
+    const kzPseudoTime = new Date(now.getTime() + KZ_OFFSET_MS);
+
+    // Сбрасываем часы в UTC (чтобы сбросить их именно в "алматинском" представлении)
+    const kzStartOfDayPseudo = new Date(kzPseudoTime);
+    kzStartOfDayPseudo.setUTCHours(0, 0, 0, 0);
+
+    // Конвертируем обратно в реальный UTC
+    const currentDayStart = new Date(kzStartOfDayPseudo.getTime() - KZ_OFFSET_MS);
+    const nextDayStart = new Date(currentDayStart.getTime() + 24 * 60 * 60 * 1000);
+    const prevDayStart = new Date(currentDayStart.getTime() - 24 * 60 * 60 * 1000);
+
+    const nineAM = new Date(currentDayStart.getTime() + 9 * 60 * 60 * 1000);
+
+    return {
+        '$$currentDayStart': currentDayStart,
+        '$$nextDayStart': nextDayStart,
+        '$$prevDayStart': prevDayStart,
+        '$$nineAM': nineAM,
+        '$$now': now
+    };
+}
+
+/**
+ * Преобразует специальные типы MongoDB (даты и ObjectId) из строкового формата
+ * Также заменяет переменные контекста ($$...)
+ */
+function convertMongoTypes(obj: any, contextVars?: Record<string, any>): any {
+    if (!obj || typeof obj !== 'object') {
+        // Если это строка-переменная, заменяем её
+        if (typeof obj === 'string' && obj.startsWith('$$') && contextVars && contextVars[obj]) {
+            return contextVars[obj];
+        }
+        return obj;
+    }
 
     if (Array.isArray(obj)) {
-        return obj.map(convertMongoTypes);
+        return obj.map(item => convertMongoTypes(item, contextVars));
     }
 
     const result: any = {};
@@ -129,13 +168,29 @@ function convertMongoTypes(obj: any): any {
         if (value && typeof value === 'object' && value.$oid) {
             result[key] = new mongoose.Types.ObjectId(value.$oid);
         }
-        // 2. Проверка, похоже ли значение на ISO дату
-        else if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
-            result[key] = new Date(value);
+        // 2. Проверка переменных контекста во вложенных объектах/значениях
+        else if (typeof value === 'string' && value.startsWith('$$') && contextVars && contextVars[value]) {
+            result[key] = contextVars[value];
         }
-        // 3. Рекурсивный обход
+        // 3. Проверка, похоже ли значение на ISO дату или короткую дату YYYY-MM-DD
+        else if (typeof value === 'string') {
+            // ISO формат: 2026-02-05T...
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                result[key] = new Date(value);
+            }
+            // Короткий формат: 2026-02-05
+            else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                // Если передана только дата, интерпретируем её как начало дня в Казахстане
+                const date = new Date(`${value}T00:00:00.000Z`);
+                // Учитываем смещение UTC+5
+                result[key] = new Date(date.getTime() - 5 * 60 * 60 * 1000);
+            } else {
+                result[key] = value;
+            }
+        }
+        // 4. Рекурсивный обход
         else if (typeof value === 'object') {
-            result[key] = convertMongoTypes(value);
+            result[key] = convertMongoTypes(value, contextVars);
         } else {
             result[key] = value;
         }
@@ -252,10 +307,16 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
         const resolvedCollectionName = COLLECTION_ALIASES[query.collection] || query.collection;
         const collection = db.collection(resolvedCollectionName);
 
+        // Получаем переменные контекста
+        const contextVars = getContextVariables();
+        console.log('📝 Context Variables applied:', JSON.stringify(contextVars, null, 2));
+
         // Применяем фильтры безопасности перед конвертацией типов
         applySecurityFilters(query);
 
-        const filter = query.filter ? convertMongoTypes(query.filter) : {};
+        const filter = query.filter ? convertMongoTypes(query.filter, contextVars) : {};
+        console.log(`🔍 [AI-DB] Op: ${query.operation}, Coll: ${resolvedCollectionName}, Filter:`, JSON.stringify(filter));
+
         const limit = Math.min(query.limit || MAX_LIMIT, MAX_LIMIT);
 
         let result: any;
@@ -291,7 +352,9 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                     return { success: false, error: 'Pipeline обязателен для aggregate' };
                 }
                 // Добавляем $limit в конец pipeline если его нет
-                const pipeline = convertMongoTypes(query.pipeline);
+                const pipeline = convertMongoTypes(query.pipeline, contextVars);
+                console.log('🔍 [AI-DB] Pipeline:', JSON.stringify(pipeline));
+
                 const hasLimit = pipeline.some((stage: any) => '$limit' in stage);
                 if (!hasLimit) {
                     pipeline.push({ $limit: limit });
@@ -304,7 +367,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 if (!query.document) {
                     return { success: false, error: 'Документ обязателен для insertOne' };
                 }
-                const documentToInsert = convertMongoTypes(query.document);
+                const documentToInsert = convertMongoTypes(query.document, contextVars);
                 // Добавляем timestamps
                 documentToInsert.createdAt = new Date();
                 documentToInsert.updatedAt = new Date();
@@ -315,7 +378,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 if (!query.update) {
                     return { success: false, error: 'Обновление обязательно для updateOne' };
                 }
-                const updateOne = convertMongoTypes(query.update);
+                const updateOne = convertMongoTypes(query.update, contextVars);
                 // Добавляем updatedAt
                 if (updateOne.$set) {
                     updateOne.$set.updatedAt = new Date();
@@ -329,7 +392,7 @@ export async function executeQuery(query: QueryRequest): Promise<QueryResult> {
                 if (!query.update) {
                     return { success: false, error: 'Обновление обязательно для updateMany' };
                 }
-                const updateMany = convertMongoTypes(query.update);
+                const updateMany = convertMongoTypes(query.update, contextVars);
                 // Добавляем updatedAt
                 if (updateMany.$set) {
                     updateMany.$set.updatedAt = new Date();
