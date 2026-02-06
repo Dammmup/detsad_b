@@ -8,7 +8,6 @@ import {
   getWorkingDaysInMonth,
   shouldCountAttendance
 } from '../../services/payrollAutomationService';
-import { isNonWorkingDay } from '../../utils/productionCalendar';
 
 
 

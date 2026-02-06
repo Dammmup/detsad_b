@@ -216,8 +216,8 @@ export const getWorkingDaysInMonth = async (date: Date): Promise<number> => {
   const year = date.getFullYear();
   const month = date.getMonth();
 
-  // Use Weekdays count (Mon-Fri) as the norm (e.g., 23 in Dec 2025)
-  return getWeekdaysInMonth(year, month);
+  // Use Production Calendar count (including holidays and transfers) as the norm
+  return getProductionWorkingDays(year, month);
 };
 
 

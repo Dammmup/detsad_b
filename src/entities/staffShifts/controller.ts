@@ -176,6 +176,30 @@ export const bulkDeleteShifts = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
+export const bulkUpdateShiftsStatus = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+    }
+
+    const { staffId, startDate, endDate, status } = req.body;
+
+    if (!startDate || !endDate || !status) {
+      return res.status(400).json({ error: 'Missing required fields: startDate, endDate, status' });
+    }
+
+    const result = await shiftsService.bulkUpdateStatus({ staffId, startDate, endDate, status }, req.user.id as string);
+    res.json(result);
+  } catch (err: any) {
+    console.error('Error bulk updating shifts status:', err);
+    res.status(500).json({ error: err.message || 'Ошибка массового обновления статусов' });
+  }
+};
+
 export const checkInSimple = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {

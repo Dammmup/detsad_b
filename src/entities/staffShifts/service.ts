@@ -243,6 +243,86 @@ export class ShiftsService {
     return { success: count, ids };
   }
 
+  async bulkUpdateStatus(filters: { staffId?: string, startDate: string, endDate: string, status: string }, userId: string) {
+    const { staffId, startDate, endDate, status } = filters;
+    const query: any = {};
+    if (staffId) query.staffId = staffId;
+
+    const records = await Shift.find(query);
+    const settings = await settingsService.getKindergartenSettings();
+    const results = [];
+
+    for (const record of records) {
+      let modified = false;
+      const currentStaffId = record.staffId.toString();
+
+      // Iterate through dates in range
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Almaty' });
+        if (record.shifts.has(dateStr)) {
+          const shift = record.shifts.get(dateStr)!;
+          if (shift.status !== status) {
+            shift.status = status as any;
+            shift.updatedAt = new Date();
+            record.shifts.set(dateStr, shift);
+            modified = true;
+
+            // If status is completed, update attendance tracking
+            if (status === 'completed') {
+              const almatyDay = new Date(`${dateStr}T00:00:00+05:00`);
+              let timeTracking = await StaffAttendanceTracking.findOne({
+                staffId: record.staffId,
+                date: almatyDay
+              });
+
+              if (!timeTracking) {
+                timeTracking = new StaffAttendanceTracking({
+                  staffId: record.staffId,
+                  date: almatyDay,
+                  isManualEntry: true
+                });
+              }
+
+              const [startH, startM] = (settings?.workingHours?.start || '09:00').split(':').map(Number);
+              const [endH, endM] = (settings?.workingHours?.end || '18:00').split(':').map(Number);
+
+              const actualStart = new Date(almatyDay);
+              actualStart.setHours(startH, startM, 0, 0);
+
+              const actualEnd = new Date(almatyDay);
+              actualEnd.setHours(endH, endM, 0, 0);
+
+              timeTracking.actualStart = actualStart;
+              timeTracking.actualEnd = actualEnd;
+              timeTracking.lateMinutes = 0;
+              timeTracking.earlyLeaveMinutes = 0;
+              timeTracking.status = 'completed';
+
+              await timeTracking.save();
+            } else if (status === 'absent') {
+              const almatyDay = new Date(`${dateStr}T00:00:00+05:00`);
+              await StaffAttendanceTracking.findOneAndUpdate(
+                { staffId: record.staffId, date: almatyDay },
+                { status: 'absent', actualStart: undefined, actualEnd: undefined },
+                { upsert: true }
+              );
+            }
+          }
+        }
+      }
+
+      if (modified) {
+        await record.save();
+        results.push(currentStaffId);
+      }
+    }
+
+    return { success: true, updatedStaffCount: results.length };
+  }
+
   /**
    * Получает текущий статус смены сотрудника на сегодня
    */

@@ -10,7 +10,8 @@ import {
   getTimeTrackingSimple,
   updateAdjustmentsSimple,
   updateLateShifts,
-  bulkDeleteShifts
+  bulkDeleteShifts,
+  bulkUpdateShiftsStatus
 } from './controller';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 import { authorizeRole } from '../../middlewares/authRole';
@@ -63,6 +64,8 @@ router.put('/timetracking/:id/adjustments', authMiddleware, authorizeRole(['admi
 
 
 router.post('/update-late', authMiddleware, authorizeRole(['admin', 'manager']), updateLateShifts);
+
+router.post('/bulk-update-status', authMiddleware, authorizeRole(['admin', 'manager']), bulkUpdateShiftsStatus);
 
 router.post('/bulk-delete', authMiddleware, authorizeRole(['admin', 'manager']), bulkDeleteShifts);
 
