@@ -1,11 +1,15 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface IRiskGroupChild extends Document {
+export interface IRiskGroupChildCreate {
   childId: mongoose.Types.ObjectId;
   date: Date;
   group?: string;
   reason?: string;
   notes?: string;
   fio?: string;
+  groupId?: mongoose.Types.ObjectId;
+}
+
+export interface IRiskGroupChild extends Document, IRiskGroupChildCreate {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +42,11 @@ const RiskGroupChildSchema = new Schema<IRiskGroupChild>({
   fio: {
     type: String,
     trim: true
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true

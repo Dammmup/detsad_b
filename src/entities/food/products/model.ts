@@ -18,7 +18,6 @@ export interface IProduct extends Document {
   attachments?: string[];
   status: 'active' | 'inactive' | 'discontinued';
   // Поля для учета закупок
-  childCount: number; // На сколько детей рассчитан продукт
   purchaseDays: number; // На сколько дней рассчитан продукт
   purchaseDate: Date; // Дата закупки
   createdAt: Date;
@@ -59,7 +58,7 @@ const ProductSchema = new Schema<IProduct>({
   },
   supplier: {
     type: String,
-    required: [true, 'Поставщик обязателен'],
+    required: false,
     trim: true,
     maxlength: [100, 'Поставщик не может превышать 100 символов']
   },
@@ -104,11 +103,6 @@ const ProductSchema = new Schema<IProduct>({
     maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
   attachments: [String],
-  childCount: {
-    type: Number,
-    min: [0, 'Количество детей не может быть отрицательным'],
-    default: 0
-  },
   purchaseDays: {
     type: Number,
     min: [0, 'Количество дней не может быть отрицательным'],

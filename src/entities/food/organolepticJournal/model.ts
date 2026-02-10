@@ -95,7 +95,7 @@ const OrganolepticJournalSchema = new Schema<IOrganolepticJournal>({
   },
   supplier: {
     type: String,
-    required: true,
+    required: false,
     trim: true,
     maxlength: [100, 'Поставщик не может превышать 100 символов']
   },

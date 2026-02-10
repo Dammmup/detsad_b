@@ -139,6 +139,27 @@ export class ProductsService {
             totalAlerts: expiring.length + expired.length + lowStock.length
         };
     }
+
+    async findByNameOrCreate(productData: { name: string, unit: string }): Promise<IProduct> {
+        const nameRegex = new RegExp(`^${productData.name.trim()}$`, 'i');
+        let product = await Product.findOne({ name: nameRegex });
+
+        if (product) {
+            return product;
+        } else {
+            const newProduct = new Product({
+                name: productData.name.trim(),
+                unit: productData.unit || 'г', // Default unit
+                category: 'Бакалея', // Default category
+                price: 0,
+                stockQuantity: 0,
+                minStockLevel: 100, // Default min stock
+                status: 'active'
+            });
+            await newProduct.save();
+            return newProduct;
+        }
+    }
 }
 
 export const productsService = new ProductsService();

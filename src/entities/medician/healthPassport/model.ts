@@ -22,6 +22,7 @@ export interface IHealthPassport extends Document {
   notes?: string;
   attachments?: string[];
   status: 'active' | 'inactive' | 'archived';
+  groupId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,7 +30,7 @@ export interface IHealthPassport extends Document {
 const HealthPassportSchema = new Schema<IHealthPassport>({
   childId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Child',
     required: true,
     unique: true
   },
@@ -96,6 +97,11 @@ const HealthPassportSchema = new Schema<IHealthPassport>({
     type: String,
     enum: ['active', 'inactive', 'archived'],
     default: 'active'
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true

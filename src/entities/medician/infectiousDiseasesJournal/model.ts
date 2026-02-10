@@ -1,11 +1,15 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface IInfectiousDiseasesJournal extends Document {
+export interface IInfectiousDiseasesJournalCreate {
   childId: mongoose.Types.ObjectId;
   date: Date;
   disease?: string;
   diagnosis?: string;
   notes?: string;
   fio?: string;
+  groupId?: mongoose.Types.ObjectId;
+}
+
+export interface IInfectiousDiseasesJournal extends Document, IInfectiousDiseasesJournalCreate {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +43,11 @@ const InfectiousDiseasesJournalSchema = new Schema<IInfectiousDiseasesJournal>({
   fio: {
     type: String,
     trim: true
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true

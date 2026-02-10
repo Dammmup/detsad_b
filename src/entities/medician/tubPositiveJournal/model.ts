@@ -1,10 +1,14 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface ITubPositiveJournal extends Document {
+export interface ITubPositiveJournalCreate {
   childId: mongoose.Types.ObjectId;
   date: Date;
   result?: string;
   notes?: string;
   fio?: string;
+  groupId?: mongoose.Types.ObjectId;
+}
+
+export interface ITubPositiveJournal extends Document, ITubPositiveJournalCreate {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +37,11 @@ const TubPositiveJournalSchema = new Schema<ITubPositiveJournal>({
   fio: {
     type: String,
     trim: true
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true

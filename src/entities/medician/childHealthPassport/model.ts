@@ -22,6 +22,7 @@ export interface IChildHealthPassport extends Document {
   notes?: string;
   attachments?: string[];
   status: 'active' | 'inactive' | 'archived';
+  groupId?: mongoose.Types.ObjectId;
   nextExaminationDate?: Date;
   recommendations?: string;
   createdAt: Date;
@@ -124,6 +125,11 @@ const ChildHealthPassportSchema = new Schema<IChildHealthPassport>({
     type: String,
     enum: ['active', 'inactive', 'archived'],
     default: 'active',
+    index: true
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
     index: true
   },
   nextExaminationDate: {

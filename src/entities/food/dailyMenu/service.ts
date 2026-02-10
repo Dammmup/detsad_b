@@ -256,6 +256,80 @@ export class DailyMenuService {
 
         return this.getById(id);
     }
+
+    // Расчёт расхода продуктов на день
+    async calculateDailyProductConsumption(date: Date, childCount: number) {
+        const menu = await this.getByDate(date);
+
+        if (!menu) {
+            throw new Error('Меню на выбранную дату не найдено');
+        }
+
+        const productConsumption: {
+            productId: string;
+            productName: string;
+            quantity: number;
+            unit: string;
+            mealTypes: string[];
+        }[] = [];
+
+        // Обработка всех приёмов пищи
+        const mealTypes: ('breakfast' | 'lunch' | 'dinner' | 'snack')[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+        for (const mealType of mealTypes) {
+            const meal = menu.meals[mealType];
+
+            if (!meal || !meal.dishes || meal.dishes.length === 0) {
+                continue;
+            }
+
+            // Проходим по каждому блюду в приёме пищи
+            for (const dishId of meal.dishes) {
+                const dish = await Dish.findById(dishId).populate('ingredients.productId');
+
+                if (!dish || !dish.ingredients) {
+                    continue;
+                }
+
+                // Проходим по каждому ингредиенту блюда
+                for (const ingredient of dish.ingredients) {
+                    const product = ingredient.productId as any;
+
+                    if (!product) {
+                        continue;
+                    }
+
+                    const requiredQuantity = ingredient.quantity * childCount;
+
+                    // Проверяем, есть ли уже такой продукт в списке
+                    const existingProduct = productConsumption.find(p => p.productId === product._id.toString());
+
+                    if (existingProduct) {
+                        // Увеличиваем количество и добавляем тип приёма пищи
+                        existingProduct.quantity += requiredQuantity;
+                        if (!existingProduct.mealTypes.includes(mealType)) {
+                            existingProduct.mealTypes.push(mealType);
+                        }
+                    } else {
+                        // Добавляем новый продукт
+                        productConsumption.push({
+                            productId: product._id.toString(),
+                            productName: product.name,
+                            quantity: requiredQuantity,
+                            unit: ingredient.unit,
+                            mealTypes: [mealType]
+                        });
+                    }
+                }
+            }
+        }
+
+        return {
+            date: menu.date,
+            childCount,
+            products: productConsumption
+        };
+    }
 }
 
 export const dailyMenuService = new DailyMenuService();

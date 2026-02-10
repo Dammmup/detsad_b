@@ -57,7 +57,7 @@ const ProductPurchaseSchema = new Schema<IProductPurchase>({
     },
     supplier: {
         type: String,
-        required: [true, 'Поставщик обязателен'],
+        required: false,
         trim: true,
         maxlength: [100, 'Поставщик не может превышать 100 символов']
     },

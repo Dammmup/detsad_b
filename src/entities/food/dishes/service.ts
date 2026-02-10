@@ -135,6 +135,15 @@ export class DishesService {
             missing
         };
     }
+
+    // Find dish by name (for duplicate checking)
+    async findByName(name: string) {
+        return Dish.findOne({
+            name: { $regex: new RegExp(name, 'i') }
+        }).populate('ingredients.productId', 'name unit price stockQuantity')
+            .populate('createdBy', 'fullName');
+    }
 }
 
 export const dishesService = new DishesService();
+

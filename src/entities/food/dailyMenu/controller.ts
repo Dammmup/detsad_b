@@ -209,3 +209,28 @@ export const removeDishFromMeal = async (req: Request, res: Response) => {
         res.status(400).json({ error: err.message || 'Ошибка удаления блюда' });
     }
 };
+
+export const calculateDailyProductConsumption = async (req: Request, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ error: 'Требуется авторизация' });
+        }
+
+        const { date } = req.params;
+        const { childCount } = req.body;
+
+        if (!childCount || childCount <= 0) {
+            return res.status(400).json({ error: 'Количество детей должно быть положительным числом' });
+        }
+
+        const result = await dailyMenuService.calculateDailyProductConsumption(
+            new Date(date),
+            childCount
+        );
+
+        res.json(result);
+    } catch (err: any) {
+        console.error('Error calculating daily product consumption:', err);
+        res.status(400).json({ error: err.message || 'Ошибка расчёта расхода продуктов' });
+    }
+};

@@ -186,10 +186,13 @@ StaffAttendanceTrackingSchema.post('save', async function (this: IStaffAttendanc
         }
 
         if (shiftDetail.status !== newStatus) {
+          console.log(`[SYNC-SHIFT-HOOK] Attempting to sync for staff ${this.staffId} on ${dateStr}. Old status: ${shiftDetail.status}, New status: ${newStatus}`);
           shiftDetail.status = newStatus as any;
           staffShifts.shifts.set(dateStr, shiftDetail);
           await staffShifts.save();
-          console.log(`[SYNC-SHIFT-HOOK] Sync status for ${this.staffId} on ${dateStr}: ${newStatus}`);
+          console.log(`[SYNC-SHIFT-HOOK] Successfully synced status for staff ${this.staffId} on ${dateStr}: ${newStatus}`);
+        } else {
+          console.log(`[SYNC-SHIFT-HOOK] No status change needed for staff ${this.staffId} on ${dateStr}. Current status: ${shiftDetail.status}`);
         }
       }
     }

@@ -89,3 +89,39 @@ export const sendMessage = async (req: Request, res: Response) => {
     }
   });
 };
+
+export const createDish = async (req: Request, res: Response) => {
+    try {
+        const { dishName, category } = req.body;
+
+        if (!dishName) {
+            return res.status(400).json({ error: 'dishName is required' });
+        }
+
+        const qwen3Request: Qwen3Request = {
+            messages: [{
+                id: 1, // Add a dummy ID
+                timestamp: new Date(), // Add current timestamp
+                sender: 'user',
+                text: `Добавь блюдо "${dishName}" в категорию "${category || 'без категории'}"`,
+            }],
+            model: 'qwen-plus',
+            authContext: (req as any).user ? {
+                userId: (req as any).user.id,
+                role: (req as any).user.role,
+                groupId: (req as any).user.groupId
+            } : undefined
+        };
+
+        const result = await Qwen3ChatService.sendMessage(qwen3Request);
+        res.json(result);
+
+    } catch (error: any) {
+        console.error('Error in createDish controller:', error);
+        res.status(500).json({
+            content: error.message || 'Ошибка при создании блюда через AI',
+            action: 'text',
+            error: true
+        });
+    }
+};

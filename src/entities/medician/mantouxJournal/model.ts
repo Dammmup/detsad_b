@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface IMantouxJournal extends Document {
+export interface IMantouxJournalCreate {
   childId: mongoose.Types.ObjectId;
   date: Date;
   reactionSize: number;
@@ -19,6 +19,10 @@ export interface IMantouxJournal extends Document {
   birthdate?: Date;
   fio?: string;
   has063?: boolean;
+  groupId?: mongoose.Types.ObjectId;
+}
+
+export interface IMantouxJournal extends Document, IMantouxJournalCreate {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -106,6 +110,11 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
   has063: {
     type: Boolean,
     default: false
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface IHelminthJournal extends Document {
+export interface IHelminthJournalCreate {
   childId: mongoose.Types.ObjectId;
   date: Date;
   result?: string;
@@ -7,6 +7,10 @@ export interface IHelminthJournal extends Document {
   examType?: string;
   month?: string;
   year?: string;
+  groupId?: mongoose.Types.ObjectId;
+}
+
+export interface IHelminthJournal extends Document, IHelminthJournalCreate {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +47,11 @@ const HelminthJournalSchema = new Schema<IHelminthJournal>({
   year: {
     type: String,
     trim: true
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true

@@ -2,6 +2,8 @@ import axios from 'axios';
 import { Qwen3Request } from './model';
 import { executeQuery, QueryRequest } from './queryExecutor';
 import { ASSISTANT_PROMPT, DATA_ACCESS_PROMPT, DATABASE_PROMPT } from './prompts';
+import { productsService } from '../food/products/service';
+import { dishesService } from '../food/dishes/service';
 
 const QWEN3_API_URL = process.env.QWEN3_API_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
 const QWEN3_API_KEY = process.env.QWEN3_API_KEY || 'sk-5aeb0fdc7fa446c391b6d51363102e79';
@@ -9,13 +11,12 @@ const QWEN3_API_KEY = process.env.QWEN3_API_KEY || 'sk-5aeb0fdc7fa446c391b6d5136
 // Локальный интерфейс для ответа (чтобы избежать проблем с кэшем ts-node-dev)
 interface ServiceResponse {
   content: string;
-  action?: 'query' | 'navigate' | 'text';
+  action?: 'query' | 'navigate' | 'text' | 'create_dish_from_name';
   navigateTo?: string;
 }
 
-
 interface AIAction {
-  action: 'query' | 'navigate' | 'text';
+  action: 'query' | 'navigate' | 'text' | 'create_dish_from_name' | 'check_dish_exists';
   query?: QueryRequest;
   navigate?: {
     route: string;
@@ -23,7 +24,11 @@ interface AIAction {
   };
   text?: string;
   responseTemplate?: string;
+  dishName?: string;
+  ingredients?: { productName: string, quantity: number, unit: string }[];
+  category?: 'breakfast' | 'lunch' | 'dinner' | 'snack'; // Add this line
 }
+
 
 export class Qwen3ChatService {
   /**
@@ -46,7 +51,7 @@ export class Qwen3ChatService {
       }
       return null;
     } catch (error) {
-      console.error('Ошибка парсинга JSON ответа AI:', error);
+      console.error('Ошибка парсинга JSON ответа AI:', error, 'Содержимое, которое не удалось распарсить:', content);
       // Если не получилось распарсить после очистки, пробуем исходный вариант
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -307,27 +312,45 @@ export class Qwen3ChatService {
 
       // Первый запрос к AI для получения действия
       console.log('📤 [AI] Отправка запроса. Пользователь:', request.messages[request.messages.length - 1].text);
+
+      // Валидируем сообщения перед отправкой
+      if (!messages || messages.length === 0) {
+        throw new Error('Нет сообщений для отправки в AI');
+      }
+
       const response = await axios.post(
         QWEN3_API_URL,
         {
           model: request.model || (request.image ? 'qwen-vl-max' : 'qwen-plus'),
-          messages: messages
+          messages: messages,
+          temperature: 0.7, // Добавляем температуру для более предсказуемого поведения
+          max_tokens: 2048, // Ограничиваем максимальное количество токенов
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${QWEN3_API_KEY}`
+            'Authorization': `Bearer ${QWEN3_API_KEY}`,
+            'User-Agent': 'Detsad-Bot/1.0' // Добавляем User-Agent для идентификации
           },
           timeout: 60000 // 60 секунд таймаут
         }
       );
-      const aiResponseText = response.data.choices[0].message.content;
-      console.log('📥 [AI] Сырой ответ:', aiResponseText);
+      // >>> ДОБАВЛЯЕМ ЛОГИРОВАНИЕ ПОЛНОГО ОТВЕТА API ЗДЕСЬ <<<
+      console.log('📥 [AI] Полный объект данных от Qwen3 API:', JSON.stringify(response.data, null, 2));
 
-      // Парсим JSON из ответа AI (он может быть обернут в ```json)
-      const jsonMatch = aiResponseText.match(/```json\s*([\s\S]*?)\s*```/) || [null, aiResponseText];
-      const aiAction = JSON.parse(jsonMatch[1].trim());
-      console.log('🧩 [AI] Распознанное действие:', aiAction.action);
+      const aiResponseText = response.data.choices[0].message.content;
+      console.log('📥 [AI] Сырой текст содержимого сообщения:', aiResponseText);
+
+      // Парсим JSON из ответа AI с помощью внутреннего метода
+      let aiAction = this.parseAIResponse(aiResponseText);
+
+      if (!aiAction) {
+        // Если не удалось распарсить JSON, считаем, что AI вернул просто текстовое сообщение
+        aiAction = { action: 'text', text: aiResponseText };
+        console.log('🧩 [AI] Распознанное действие: text (дефолтное, из-за отсутствия JSON)');
+      } else {
+        console.log('🧩 [AI] Распознанное действие:', aiAction.action);
+      }
 
       // Обрабатываем действие
       switch (aiAction.action) {
@@ -346,32 +369,119 @@ export class Qwen3ChatService {
               ...aiAction.query,
               authContext: request.authContext
             };
-            const queryResult = await executeQuery(queryWithAuth);
 
-            if (!queryResult.success) {
+            try {
+              const queryResult = await executeQuery(queryWithAuth);
+
+              if (!queryResult.success) {
+                return {
+                  content: `Ошибка выполнения запроса: ${queryResult.error || 'Неизвестная ошибка'}`,
+                  action: 'text'
+                };
+              }
+
+              console.log('📊 [DB] Результат получен. Элементов:', Array.isArray(queryResult.data) ? queryResult.data.length : (queryResult.data || queryResult.count ? 1 : 0));
+
+              const formattedResult = this.formatQueryResult(
+                queryResult.data ?? queryResult.count,
+                aiAction.responseTemplate,
+                queryResult.message
+              );
+
               return {
-                content: `Ошибка выполнения запроса: ${queryResult.error}`,
+                content: formattedResult,
+                action: 'text'
+              };
+            } catch (error: any) {
+              console.error('Ошибка при выполнении запроса к базе данных:', error);
+              return {
+                content: `Ошибка при работе с базой данных: ${error.message}`,
                 action: 'text'
               };
             }
-
-            console.log('📊 [DB] Результат получен. Элементов:', Array.isArray(queryResult.data) ? queryResult.data.length : (queryResult.data || queryResult.count ? 1 : 0));
-
-            const formattedResult = this.formatQueryResult(
-              queryResult.data ?? queryResult.count,
-              aiAction.responseTemplate,
-              queryResult.message
-            );
-
-            return {
-              content: formattedResult,
-              action: 'text'
-            };
           }
           return {
             content: 'Ошибка: запрос не указан',
             action: 'text'
           };
+
+        case 'check_dish_exists':
+          if (!aiAction.dishName) {
+            return {
+              content: 'Ошибка: Не указано название блюда для проверки.',
+              action: 'text'
+            };
+          }
+
+          try {
+            const existingDish = await dishesService.findByName(aiAction.dishName);
+
+            if (existingDish) {
+              return {
+                content: `Блюдо "${existingDish.name}" уже существует в базе данных. Категория: ${existingDish.category}.`,
+                action: 'text'
+              };
+            } else {
+              return {
+                content: `Блюдо "${aiAction.dishName}" не найдено в базе данных. Можно создать новое блюдо.`,
+                action: 'text'
+              };
+            }
+          } catch (error: any) {
+            console.error('Ошибка при проверке существования блюда:', error);
+            return {
+              content: `Ошибка при проверке существования блюда: ${error.message}`,
+              action: 'text'
+            };
+          }
+
+        case 'create_dish_from_name':
+          if (!aiAction.dishName || !aiAction.ingredients) {
+            return {
+              content: 'Ошибка: AI не вернул название блюда или ингредиенты.',
+              action: 'text'
+            };
+          }
+
+          try {
+            // Check if dish already exists before creating
+            const existingDish = await dishesService.findByName(aiAction.dishName);
+
+            if (existingDish) {
+              return {
+                content: `Блюдо "${existingDish.name}" уже существует в базе данных. Категория: ${existingDish.category}.`,
+                action: 'text'
+              };
+            }
+
+            const ingredients = [];
+            for (const ing of aiAction.ingredients) {
+              const product = await productsService.findByNameOrCreate({ name: ing.productName, unit: ing.unit });
+              ingredients.push({
+                productId: product._id,
+                quantity: ing.quantity,
+                unit: ing.unit
+              });
+            }
+
+            const newDish = await dishesService.create({
+              name: aiAction.dishName,
+              ingredients,
+              category: aiAction.category || 'breakfast', // use category from AI or default to breakfast
+              createdBy: request.authContext?.userId as any
+            });
+
+            return {
+              content: `Блюдо "${newDish.name}" успешно создано с ${newDish.ingredients.length} ингредиентами. Категория: ${newDish.category}.`,
+              action: 'text'
+            };
+          } catch (error: any) {
+            console.error('Ошибка при создании блюда:', error);
+            return {
+              content: `Ошибка при создании блюда: ${error.message}`,
+              action: 'text'
+            };
+          }
 
         case 'text':
         default:
@@ -382,8 +492,19 @@ export class Qwen3ChatService {
       }
 
     } catch (error: any) {
-      console.error('❌ Ошибка при вызове Qwen3 API:', error.response?.data || error.message);
-      throw new Error(`Qwen3 API error: ${JSON.stringify(error.response?.data || error.message)}`);
+      console.error('❌ Ошибка при вызове Qwen3 API:', error);
+      // Возвращаем более информативную ошибку в зависимости от типа ошибки
+      if (error.response) {
+        // Ошибка от API
+        throw new Error(`Ошибка API Qwen3: ${error.response.status} - ${error.response.statusText || 'Unknown error'}`);
+      } else if (error.request) {
+        // Ошибка запроса (нет соединения и т.д.)
+        throw new Error('Не удалось подключиться к API Qwen3. Проверьте соединение с интернетом.');
+      } else {
+        // Ошибка при настройке запроса
+        throw new Error(`Ошибка при подготовке запроса к Qwen3: ${error.message}`);
+      }
     }
   }
 }
+

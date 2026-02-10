@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
-export interface ISomaticJournal extends Document {
-  childId: mongoose.Types.ObjectId;
+export interface ISomaticJournalCreate {
+  childId: Schema.Types.ObjectId;
   date: Date;
   diagnosis?: string;
   fromDate?: Date;
@@ -8,6 +8,10 @@ export interface ISomaticJournal extends Document {
   days?: number;
   notes?: string;
   fio?: string;
+  groupId?: Schema.Types.ObjectId;
+}
+
+export interface ISomaticJournal extends Document, ISomaticJournalCreate {
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,6 +50,11 @@ const SomaticJournalSchema = new Schema<ISomaticJournal>({
   fio: {
     type: String,
     trim: true
+  },
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
   }
 }, {
   timestamps: true
