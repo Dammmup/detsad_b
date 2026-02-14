@@ -7,10 +7,11 @@ export const getAllDishes = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Требуется авторизация' });
         }
 
-        const { category, isActive, createdBy } = req.query;
+        const { category, subcategory, isActive, createdBy } = req.query;
 
         const dishes = await dishesService.getAll({
             category: category as string,
+            subcategory: subcategory as string,
             isActive: isActive !== undefined ? isActive === 'true' : undefined,
             createdBy: createdBy as string
         });

@@ -47,8 +47,11 @@ export class RentService {
 
 
   async update(id: string, updateData: Partial<IRent>) {
-    const rent = await Rent.findByIdAndUpdate(id, updateData, { new: true })
-      .populate('tenantId', 'name type');
+    const rent = await Rent.findByIdAndUpdate(
+      id,
+      { ...updateData, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    ).populate('tenantId', 'name type');
 
     if (!rent) {
       throw new Error('Аренда не найдена');
@@ -72,9 +75,10 @@ export class RentService {
       id,
       {
         status: 'paid',
-        paymentDate: new Date()
+        paymentDate: new Date(),
+        updatedAt: new Date()
       },
-      { new: true }
+      { new: true, runValidators: true }
     ).populate('tenantId', 'name type');
 
     if (!rent) {
@@ -109,8 +113,9 @@ export class RentService {
       return await Rent.findByIdAndUpdate(existingRent._id, {
         ...data,
         tenantId: new Types.ObjectId(tenantId),
-        period
-      }, { new: true }).populate('tenantId', 'name type');
+        period,
+        updatedAt: new Date()
+      }, { new: true, runValidators: true }).populate('tenantId', 'name type');
     } else {
       const rent = new Rent({
         ...data,

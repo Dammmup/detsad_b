@@ -306,8 +306,8 @@ export class ShiftsService {
               const almatyDay = new Date(`${dateStr}T00:00:00+05:00`);
               await StaffAttendanceTracking.findOneAndUpdate(
                 { staffId: record.staffId, date: almatyDay },
-                { status: 'absent', actualStart: undefined, actualEnd: undefined },
-                { upsert: true }
+                { status: 'absent', actualStart: undefined, actualEnd: undefined, updatedAt: new Date() },
+                { upsert: true, runValidators: true, setDefaultsOnInsert: true }
               );
             }
           }
@@ -493,8 +493,8 @@ export class ShiftsService {
   async updateAdjustments(id: string, penalties: any, bonuses: any, notes: string, userId: string) {
     const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
-      { bonuses, notes },
-      { new: true }
+      { bonuses, notes, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('staffId', 'fullName role');
 
     if (!record) throw new Error('Запись не найдена');

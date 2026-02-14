@@ -33,6 +33,7 @@ const roles = ['admin', 'manager', 'doctor', 'nurse', 'cook'];
 
 // Generate records from menu (POST /organoleptic-journal/generate-by-menu)
 router.post('/generate-by-menu', authMiddleware, authorizeRole(roles), generateDishQualityByMenu);
+router.post('/generate', authMiddleware, authorizeRole(roles), generateDishQualityByMenu);
 
 // Get all dish quality records (GET /organoleptic-journal)
 router.get('/', authMiddleware, authorizeRole(roles), getAllDishQualityRecords);
@@ -40,7 +41,8 @@ router.get('/', authMiddleware, authorizeRole(roles), getAllDishQualityRecords);
 // Create a new dish quality record (POST /organoleptic-journal)
 router.post('/', authMiddleware, authorizeRole(roles), createDishQualityRecord);
 
-// Delete all dish quality records (DELETE /organoleptic-journal)
+// Delete records (DELETE /organoleptic-journal/clear or DELETE /organoleptic-journal)
+router.delete('/clear', authMiddleware, authorizeRole(roles), deleteAllDishQualityRecords);
 router.delete('/', authMiddleware, authorizeRole(roles), deleteAllDishQualityRecords);
 
 // Get dish quality record by ID (GET /organoleptic-journal/:id)

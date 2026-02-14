@@ -96,8 +96,8 @@ export class GroupService {
 
     const updatedGroup = await this.groupModel.findByIdAndUpdate(
       id,
-      { $set: updateData },
-      { new: true }
+      { $set: { ...updateData, updatedAt: new Date() } },
+      { new: true, runValidators: true }
     );
     return updatedGroup;
   }

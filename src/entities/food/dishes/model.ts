@@ -10,6 +10,7 @@ export interface IDish extends Document {
     name: string;
     description?: string;
     category: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+    subcategory?: 'soup' | 'main' | 'porridge' | 'salad' | 'drink' | 'baking' | 'garnish' | 'other';
     ingredients: IIngredient[];
     servingsCount: number;
     preparationTime?: number; // в минутах
@@ -52,6 +53,12 @@ const DishSchema = new Schema<IDish>({
         type: String,
         enum: ['breakfast', 'lunch', 'dinner', 'snack'],
         required: [true, 'Категория обязательна'],
+        index: true
+    },
+    subcategory: {
+        type: String,
+        enum: ['soup', 'main', 'porridge', 'salad', 'drink', 'baking', 'garnish', 'other'],
+        default: 'other',
         index: true
     },
     ingredients: [IngredientSchema],

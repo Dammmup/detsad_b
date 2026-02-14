@@ -130,8 +130,8 @@ export class TaskListService {
   async update(id: string, data: Partial<ITask>) {
     const updatedTask = await Task.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('assignedTo', 'fullName role')
       .populate('assignedBy', 'fullName role')
       .populate('completedBy', 'fullName role')

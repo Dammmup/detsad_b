@@ -50,8 +50,8 @@ export class HelminthJournalService {
   async update(id: string, data: Partial<IHelminthJournal>) {
     const updatedJournal = await HelminthJournal.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName birthday address');
 
     if (!updatedJournal) {

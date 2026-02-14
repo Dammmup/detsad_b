@@ -50,8 +50,8 @@ export class MantouxJournalService {
   async update(id: string, data: Partial<IMantouxJournal>) {
     const updatedJournal = await MantouxJournal.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName birthday address');
 
     if (!updatedJournal) {

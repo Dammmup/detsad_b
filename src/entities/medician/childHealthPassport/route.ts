@@ -8,7 +8,8 @@ import {
   getChildHealthPassportsByChildId,
   updateChildHealthPassportStatus,
   addChildHealthPassportRecommendations,
-  getChildHealthPassportStatistics
+  getChildHealthPassportStatistics,
+  upsertChildHealthPassport
 } from './controller';
 import { authMiddleware } from '../../../middlewares/authMiddleware';
 import { authorizeRole } from '../../../middlewares/authRole';
@@ -29,6 +30,9 @@ router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 
 
 
 router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), deleteChildHealthPassport);
+
+
+router.post('/upsert', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), upsertChildHealthPassport);
 
 
 router.get('/child/:childId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getChildHealthPassportsByChildId);

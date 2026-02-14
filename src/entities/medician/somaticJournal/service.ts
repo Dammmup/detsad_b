@@ -50,8 +50,8 @@ export class SomaticJournalService {
   async update(id: string, data: Partial<ISomaticJournal>) {
     const updatedJournal = await SomaticJournal.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName birthday address');
 
     if (!updatedJournal) {

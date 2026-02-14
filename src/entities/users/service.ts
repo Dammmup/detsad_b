@@ -34,7 +34,11 @@ export class UserService {
     if ((data as any).initialPassword !== undefined) {
       // Handle initial password
     }
-    const updatedUser = await User.findByIdAndUpdate(id, data, { new: true }).select('-passwordHash');
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    ).select('-passwordHash');
     return updatedUser;
   }
 

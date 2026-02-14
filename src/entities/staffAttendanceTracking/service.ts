@@ -820,8 +820,8 @@ export class StaffAttendanceTrackingService {
   async addNotes(id: string, notes: string) {
     const record = await StaffAttendanceTracking.findByIdAndUpdate(
       id,
-      { notes },
-      { new: true }
+      { notes, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('staffId', 'fullName role');
 
     if (!record) {
@@ -837,9 +837,10 @@ export class StaffAttendanceTrackingService {
       id,
       {
         approvedBy,
-        approvedAt: new Date()
+        approvedAt: new Date(),
+        updatedAt: new Date()
       },
-      { new: true }
+      { new: true, runValidators: true }
     ).populate('staffId', 'fullName role');
 
     if (!record) {
@@ -904,9 +905,10 @@ export class StaffAttendanceTrackingService {
       {
         // approvedByTimeTracking: userId,
         // approvedAtTimeTracking: new Date(),
-        notes: reason ? `${existingRecord.notes || ''}\nRejection reason: ${reason}` : existingRecord.notes
+        notes: reason ? `${existingRecord.notes || ''}\nRejection reason: ${reason}` : existingRecord.notes,
+        updatedAt: new Date()
       },
-      { new: true }
+      { new: true, runValidators: true }
     ).populate('staffId', 'fullName role');
 
     if (!record) {

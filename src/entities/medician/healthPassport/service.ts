@@ -71,8 +71,8 @@ export class HealthPassportService {
   async update(id: string, data: Partial<IHealthPassport>) {
     const updatedPassport = await HealthPassport.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName iin');
 
     if (!updatedPassport) {

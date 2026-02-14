@@ -142,7 +142,20 @@ export const updateChildPayment = async (id: string, updateData: Partial<IChildP
     updateData.monthPeriod = `${year}-${String(month).padStart(2, '0')}`;
   }
 
-  const updated = await childPaymentModel.findByIdAndUpdate(id, updateData, { new: true })
+  // Явное обновление updatedAt
+  const finalUpdateData = {
+    ...updateData,
+    updatedAt: new Date()
+  };
+
+  const updated = await childPaymentModel.findByIdAndUpdate(
+    id,
+    finalUpdateData,
+    {
+      new: true,
+      runValidators: true  // Включаем валидацию при обновлении
+    }
+  )
     .populate('childId', 'fullName')
     .populate('userId', 'fullName');
 

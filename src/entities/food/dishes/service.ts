@@ -2,10 +2,11 @@ import Dish, { IDish } from './model';
 import { productsService } from '../products/service';
 
 export class DishesService {
-    async getAll(filters: { category?: string; isActive?: boolean; createdBy?: string } = {}) {
+    async getAll(filters: { category?: string; subcategory?: string; isActive?: boolean; createdBy?: string }): Promise<IDish[]> {
         const query: any = {};
 
         if (filters.category) query.category = filters.category;
+        if (filters.subcategory) query.subcategory = filters.subcategory;
         if (filters.isActive !== undefined) query.isActive = filters.isActive;
         if (filters.createdBy) query.createdBy = filters.createdBy;
 

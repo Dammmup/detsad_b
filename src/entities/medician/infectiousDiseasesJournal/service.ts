@@ -50,8 +50,8 @@ export class InfectiousDiseasesJournalService {
   async update(id: string, data: Partial<IInfectiousDiseasesJournal>) {
     const updatedJournal = await InfectiousDiseasesJournal.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName birthday address');
 
     if (!updatedJournal) {

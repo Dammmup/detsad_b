@@ -85,10 +85,15 @@ export const deleteAllDishQualityRecords = async (req: Request, res: Response) =
             return res.status(401).json({ error: 'Authentication required' });
         }
 
-        const result = await dishQualityService.deleteAll();
+        const { date, group } = req.query;
+
+        const result = await dishQualityService.deleteAll({
+            date: date as string,
+            group: group as string
+        });
         res.json(result);
     } catch (err: any) {
-        console.error('Error deleting all dish quality records:', err);
+        console.error('Error deleting dish quality records:', err);
         res.status(500).json({ error: err.message || 'Ошибка удаления записей оценки блюд' });
     }
 };

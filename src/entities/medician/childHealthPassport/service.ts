@@ -47,32 +47,26 @@ export class ChildHealthPassportService {
   }
 
   async create(passportData: Partial<IChildHealthPassport>, userId: string) {
-
     if (!passportData.childId) {
       throw new Error('Не указан ребенок');
     }
-    if (!passportData.birthDate) {
-      throw new Error('Не указана дата рождения');
-    }
-    if (!passportData.birthPlace) {
-      throw new Error('Не указано место рождения');
-    }
-    if (!passportData.bloodType) {
-      throw new Error('Не указана группа крови');
-    }
-    if (!passportData.rhesusFactor) {
-      throw new Error('Не указан резус-фактор');
-    }
-
 
     const child = await Child.findById(passportData.childId);
     if (!child) {
       throw new Error('Ребенок не найден');
     }
 
+    // Default dates if missing
+    if (!passportData.birthDate) {
+      passportData.birthDate = (child as any).birthday || new Date();
+    }
+    if (!passportData.birthPlace) {
+      passportData.birthPlace = 'Не указано';
+    }
+
     const passport = new ChildHealthPassport({
       ...passportData,
-      childId: userId
+      childId: passportData.childId // FIXED: was userId
     });
 
     await passport.save();
@@ -83,11 +77,42 @@ export class ChildHealthPassportService {
     return populatedPassport;
   }
 
+  async upsertByChildId(childId: string, data: Partial<IChildHealthPassport>) {
+    const child = await Child.findById(childId);
+    if (!child) {
+      throw new Error('Ребенок не найден');
+    }
+
+    let passport = await ChildHealthPassport.findOne({ childId });
+
+    if (passport) {
+      // Update existing
+      passport = await ChildHealthPassport.findByIdAndUpdate(
+        passport._id,
+        { ...data, updatedAt: new Date() },
+        { new: true, runValidators: true }
+      ).populate('childId', 'fullName iin');
+    } else {
+      // Create new
+      if (!data.birthDate) data.birthDate = (child as any).birthday || new Date();
+      if (!data.birthPlace) data.birthPlace = 'Не указано';
+
+      passport = new ChildHealthPassport({
+        ...data,
+        childId
+      });
+      await passport.save();
+      passport = await ChildHealthPassport.findById(passport._id).populate('childId', 'fullName iin');
+    }
+
+    return passport;
+  }
+
   async update(id: string, data: Partial<IChildHealthPassport>) {
     const updatedPassport = await ChildHealthPassport.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName iin');
 
     if (!updatedPassport) {
@@ -257,8 +282,8 @@ export class ChildHealthPassportService {
   async updateStatus(id: string, status: 'active' | 'inactive' | 'archived') {
     const passport = await ChildHealthPassport.findByIdAndUpdate(
       id,
-      { status },
-      { new: true }
+      { status, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName iin');
 
     if (!passport) {
@@ -271,8 +296,8 @@ export class ChildHealthPassportService {
   async addRecommendations(id: string, recommendations: string) {
     const passport = await ChildHealthPassport.findByIdAndUpdate(
       id,
-      { recommendations },
-      { new: true }
+      { recommendations, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName iin');
 
     if (!passport) {

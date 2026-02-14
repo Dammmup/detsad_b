@@ -50,8 +50,8 @@ export class TubPositiveJournalService {
   async update(id: string, data: Partial<ITubPositiveJournal>) {
     const updatedJournal = await TubPositiveJournal.findByIdAndUpdate(
       id,
-      data,
-      { new: true }
+      { ...data, updatedAt: new Date() },
+      { new: true, runValidators: true }
     ).populate('childId', 'fullName birthday address');
 
     if (!updatedJournal) {
