@@ -12,7 +12,14 @@ export interface AuthUser {
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
+  
+  // Дебаг-логирование для диагностики мобильного приложения
+  console.log('🔍 AuthMiddleware | Path:', req.path, '| Method:', req.method);
+  console.log('🔍 AuthMiddleware | Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🔍 AuthMiddleware | Authorization header:', authHeader);
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('❌ AuthMiddleware | Токен не предоставлен или неверный формат');
     return res.status(401).json({ error: 'Токен не предоставлен в заголовке Authorization' });
   }
 
