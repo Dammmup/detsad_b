@@ -361,9 +361,10 @@ export class ShiftsService {
 
     const shift = record.shifts.get(date)!;
 
-    if (locationData) {
-      await this.verifyGeofencing(locationData);
-    }
+    // ГЕОЛОКАЦИЯ ВРЕМЕННО ОТКЛЮЧЕНА ДЛЯ ДИАГНОСТИКИ
+    // if (locationData) {
+    //   await this.verifyGeofencing(locationData);
+    // }
 
     const settings = await settingsService.getKindergartenSettings();
 
@@ -430,9 +431,10 @@ export class ShiftsService {
 
     const shift = record.shifts.get(date)!;
 
-    if (locationData) {
-      await this.verifyGeofencing(locationData);
-    }
+    // ГЕОЛОКАЦИЯ ВРЕМЕННО ОТКЛЮЧЕНА ДЛЯ ДИАГНОСТИКИ
+    // if (locationData) {
+    //   await this.verifyGeofencing(locationData);
+    // }
     shift.status = 'completed';
     record.shifts.set(date, shift);
     await record.save();
