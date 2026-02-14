@@ -52,6 +52,7 @@ export class ShiftsService {
   }
 
   async getAll(filters: { staffId?: string, date?: string, status?: string, startDate?: string, endDate?: string }, userId: string, role: string) {
+    console.log('[getAll] Start - filters:', JSON.stringify(filters), 'userId:', userId, 'role:', role);
     const filter: any = {};
 
     if (role === 'teacher' || role === 'assistant') {
@@ -60,13 +61,21 @@ export class ShiftsService {
       filter.staffId = filters.staffId;
     }
 
+    console.log('[getAll] Mongo filter:', JSON.stringify(filter));
+
     const fetcher = async () => {
+      console.log('[getAll] Querying Shift.find...');
       const allStaffShifts = await Shift.find(filter)
         .populate('staffId', 'fullName role')
         .populate('shifts.$*.createdBy', 'fullName')
         .populate('shifts.$*.alternativeStaffId', 'fullName');
+      
+      console.log('[getAll] Found', allStaffShifts.length, 'records');
 
+      console.log('[getAll] Getting settings...');
       const settings = await settingsService.getKindergartenSettings();
+      console.log('[getAll] Settings:', settings ? 'loaded' : 'null');
+      
       const defaultStart = settings?.workingHours?.start || '08:00';
       const defaultEnd = settings?.workingHours?.end || '18:00';
 
