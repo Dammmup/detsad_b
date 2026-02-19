@@ -9,8 +9,12 @@ import {
     importChildPayments,
     importPayrolls
 } from './import';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { authorizeRole } from '../middlewares/authRole';
 
 const router = Router();
+
+router.use(authMiddleware, authorizeRole(['admin']));
 
 // POST /api/import/child-attendance - Импорт посещаемости детей
 router.post('/child-attendance', importChildAttendance);

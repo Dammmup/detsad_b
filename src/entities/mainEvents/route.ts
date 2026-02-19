@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { MainEventsService } from './service';
 import { authMiddleware } from '../../middlewares/authMiddleware';
+import { authorizeRole } from '../../middlewares/authRole';
 
 const router: Router = express.Router();
 const mainEventsService = new MainEventsService();
@@ -33,7 +34,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const mainEvent = await mainEventsService.create(req.body);
     res.status(201).json(mainEvent);
@@ -43,7 +44,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const mainEvent = await mainEventsService.update(req.params.id, req.body);
     res.json(mainEvent);
@@ -53,7 +54,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const result = await mainEventsService.delete(req.params.id);
     res.json(result);
@@ -63,7 +64,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 
-router.patch('/:id/toggle-enabled', authMiddleware, async (req, res) => {
+router.patch('/:id/toggle-enabled', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const mainEvent = await mainEventsService.toggleEnabled(req.params.id, req.body.enabled);
     res.json(mainEvent);
@@ -73,7 +74,7 @@ router.patch('/:id/toggle-enabled', authMiddleware, async (req, res) => {
 });
 
 
-router.post('/:id/export', authMiddleware, async (req, res) => {
+router.post('/:id/export', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const result = await mainEventsService.executeScheduledExport(req.params.id);
     res.json(result);
@@ -83,7 +84,7 @@ router.post('/:id/export', authMiddleware, async (req, res) => {
 });
 
 
-router.post('/execute-scheduled', authMiddleware, async (req, res) => {
+router.post('/execute-scheduled', authMiddleware, authorizeRole(['admin']), async (req, res) => {
   try {
     const results = await mainEventsService.checkAndExecuteScheduledEvents();
     res.json(results);

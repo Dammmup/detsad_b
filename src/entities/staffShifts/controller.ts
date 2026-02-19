@@ -11,6 +11,7 @@ interface AuthenticatedRequest extends Request {
 }
 
 const shiftsService = new ShiftsService();
+const MANAGING_ROLES = ['admin', 'manager', 'director'];
 
 export const getAllShifts = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -22,7 +23,7 @@ export const getAllShifts = async (req: AuthenticatedRequest, res: Response) => 
 
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    if (!MANAGING_ROLES.includes(req.user.role)) {
 
       staffId = req.user.id;
     }
@@ -47,7 +48,7 @@ export const createShift = async (req: AuthenticatedRequest, res: Response) => {
     }
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    if (!MANAGING_ROLES.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to create shifts' });
     }
 
@@ -119,7 +120,7 @@ export const updateShift = async (req: AuthenticatedRequest, res: Response) => {
     }
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    if (!MANAGING_ROLES.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update shifts' });
     }
 
@@ -182,7 +183,7 @@ export const bulkUpdateShiftsStatus = async (req: AuthenticatedRequest, res: Res
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    if (!MANAGING_ROLES.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }
 
@@ -303,8 +304,7 @@ export const getTimeTrackingSimple = async (req: AuthenticatedRequest, res: Resp
 
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-
+    if (!MANAGING_ROLES.includes(req.user.role)) {
       staffId = req.user.id;
     }
 
@@ -328,7 +328,7 @@ export const updateLateShifts = async (req: AuthenticatedRequest, res: Response)
     }
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    if (!MANAGING_ROLES.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update late shifts' });
     }
 
@@ -352,7 +352,7 @@ export const updateAdjustmentsSimple = async (req: AuthenticatedRequest, res: Re
     }
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    if (!MANAGING_ROLES.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to update adjustments' });
     }
 

@@ -6,11 +6,14 @@ import {
 
 
 
-let automationSettings = {
-  autoCalculationDay: 25,
-  emailRecipients: 'admin@example.com',
-  autoClearData: true
-};
+// Дефолтные настройки из переменных окружения
+const getDefaultSettings = () => ({
+  autoCalculationDay: parseInt(process.env.PAYROLL_AUTO_CALC_DAY || '25'),
+  emailRecipients: process.env.PAYROLL_EMAIL_RECIPIENTS || '',
+  autoClearData: process.env.PAYROLL_AUTO_CLEAR !== 'false'
+});
+
+let automationSettings = getDefaultSettings();
 
 export const runPayrollAutomationController = async (req: Request, res: Response) => {
   try {

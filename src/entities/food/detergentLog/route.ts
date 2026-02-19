@@ -17,37 +17,20 @@ import { authorizeRole } from '../../../middlewares/authRole';
 
 const router = express.Router();
 
+const auth = [authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse'])] as const;
 
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getAllDetergentLogs);
+// Специфические GET-маршруты ПЕРЕД /:id
+router.get('/', ...auth, getAllDetergentLogs);
+router.get('/expiring', ...auth, getExpiringSoon);
+router.get('/statistics', ...auth, getDetergentLogStatistics);
+router.get('/product/:productId', ...auth, getDetergentLogsByProductId);
+router.get('/receiver/:receiverId', ...auth, getDetergentLogsByReceiverId);
+router.get('/:id', ...auth, getDetergentLogById);
 
-
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getDetergentLogById);
-
-
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), createDetergentLog);
-
-
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateDetergentLog);
-
-
-router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), deleteDetergentLog);
-
-
-router.get('/product/:productId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getDetergentLogsByProductId);
-
-
-router.get('/receiver/:receiverId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getDetergentLogsByReceiverId);
-
-
-router.get('/expiring', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getExpiringSoon);
-
-
-router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateDetergentLogStatus);
-
-
-router.patch('/:id/notes', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), addDetergentLogNotes);
-
-
-router.get('/statistics', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getDetergentLogStatistics);
+router.post('/', ...auth, createDetergentLog);
+router.put('/:id', ...auth, updateDetergentLog);
+router.delete('/:id', ...auth, deleteDetergentLog);
+router.patch('/:id/status', ...auth, updateDetergentLogStatus);
+router.patch('/:id/notes', ...auth, addDetergentLogNotes);
 
 export default router;

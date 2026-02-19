@@ -1,24 +1,5 @@
-import FoodStaffHealth from './model';
-import { IFoodStaffHealth } from './model';
+import FoodStaffHealth, { IFoodStaffHealth } from './model';
 import User from '../../users/model';
-
-
-let FoodStaffHealthModel: any = null;
-let UserModel: any = null;
-
-const getFoodStaffHealthModel = () => {
-  if (!FoodStaffHealthModel) {
-    FoodStaffHealthModel = FoodStaffHealth;
-  }
-  return FoodStaffHealthModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
 
 export class FoodStaffHealthService {
   async getAll(filters: { staffId?: string, date?: string, doctorId?: string, status?: string, healthStatus?: string, vaccinationStatus?: string, startDate?: string, endDate?: string }) {
@@ -40,7 +21,7 @@ export class FoodStaffHealthService {
 
     const records = await FoodStaffHealth.find(filter)
       .populate('staffId', 'fullName role')
-      .populate('fullName role')
+      .populate('doctor', 'fullName role')
       .sort({ date: -1 });
 
     return records;
@@ -49,7 +30,7 @@ export class FoodStaffHealthService {
   async getById(id: string) {
     const record = await FoodStaffHealth.findById(id)
       .populate('staffId', 'fullName role')
-      .populate('fullName role');
+      .populate('doctor', 'fullName role');
 
     if (!record) {
       throw new Error('Запись здоровья сотрудника не найдена');
@@ -113,7 +94,7 @@ export class FoodStaffHealthService {
 
     const populatedRecord = await foodStaffHealthModel.findById(record._id)
       .populate('staffId', 'fullName role')
-      .populate('fullName role');
+      .populate('doctor', 'fullName role');
 
     return populatedRecord;
   }
@@ -124,7 +105,7 @@ export class FoodStaffHealthService {
       data,
       { new: true }
     ).populate('staffId', 'fullName role')
-      .populate('fullName role');
+      .populate('doctor', 'fullName role');
 
     if (!updatedRecord) {
       throw new Error('Запись здоровья сотрудника не найдена');
@@ -161,7 +142,7 @@ export class FoodStaffHealthService {
 
     const records = await FoodStaffHealth.find(filter)
       .populate('staffId', 'fullName role')
-      .populate('fullName role')
+      .populate('doctor', 'fullName role')
       .sort({ date: -1 });
 
     return records;
@@ -183,7 +164,7 @@ export class FoodStaffHealthService {
 
     const records = await FoodStaffHealth.find(filter)
       .populate('staffId', 'fullName role')
-      .populate('fullName role')
+      .populate('doctor', 'fullName role')
       .sort({ date: -1 });
 
     return records;
@@ -202,7 +183,7 @@ export class FoodStaffHealthService {
       status: { $ne: 'completed' }
     })
       .populate('staffId', 'fullName role')
-      .populate('fullName role')
+      .populate('doctor', 'fullName role')
       .sort({ nextMedicalCommissionDate: 1 });
 
     return records;
@@ -221,7 +202,7 @@ export class FoodStaffHealthService {
       status: { $ne: 'completed' }
     })
       .populate('staffId', 'fullName role')
-      .populate('fullName role')
+      .populate('doctor', 'fullName role')
       .sort({ nextSanitaryMinimumDate: 1 });
 
     return records;
@@ -240,7 +221,7 @@ export class FoodStaffHealthService {
       vaccinationStatus: { $ne: 'up_to_date' }
     })
       .populate('staffId', 'fullName role')
-      .populate('fullName role')
+      .populate('doctor', 'fullName role')
       .sort({ nextVaccinationDate: 1 });
 
     return records;
@@ -252,7 +233,7 @@ export class FoodStaffHealthService {
       { status },
       { new: true }
     ).populate('staffId', 'fullName role')
-      .populate('fullName role');
+      .populate('doctor', 'fullName role');
 
     if (!record) {
       throw new Error('Запись здоровья сотрудника не найдена');
@@ -267,7 +248,7 @@ export class FoodStaffHealthService {
       { recommendations },
       { new: true }
     ).populate('staffId', 'fullName role')
-      .populate('fullName role');
+      .populate('doctor', 'fullName role');
 
     if (!record) {
       throw new Error('Запись здоровья сотрудника не найдена');

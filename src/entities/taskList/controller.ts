@@ -1,15 +1,9 @@
 import { Request, Response } from 'express';
-import { AuthUser } from '../../middlewares/authMiddleware';
 import { TaskListService } from './service';
-
-
-interface AuthenticatedRequest extends Request {
-  user?: AuthUser;
-}
 
 const taskListService = new TaskListService();
 
-export const getAllTasks = async (req: AuthenticatedRequest, res: Response) => {
+export const getAllTasks = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -35,7 +29,7 @@ export const getAllTasks = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const getTaskById = async (req: AuthenticatedRequest, res: Response) => {
+export const getTaskById = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -69,7 +63,7 @@ export const getTaskById = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const createTask = async (req: AuthenticatedRequest, res: Response) => {
+export const createTask = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -83,7 +77,7 @@ export const createTask = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const updateTask = async (req: AuthenticatedRequest, res: Response) => {
+export const updateTask = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -113,7 +107,7 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const deleteTask = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteTask = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -132,7 +126,7 @@ export const deleteTask = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const markTaskAsCompleted = async (req: AuthenticatedRequest, res: Response) => {
+export const markTaskAsCompleted = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -162,7 +156,7 @@ export const markTaskAsCompleted = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
-export const markTaskAsCancelled = async (req: AuthenticatedRequest, res: Response) => {
+export const markTaskAsCancelled = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -192,7 +186,7 @@ export const markTaskAsCancelled = async (req: AuthenticatedRequest, res: Respon
   }
 };
 
-export const markTaskAsInProgress = async (req: AuthenticatedRequest, res: Response) => {
+export const markTaskAsInProgress = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -206,7 +200,7 @@ export const markTaskAsInProgress = async (req: AuthenticatedRequest, res: Respo
   }
 };
 
-export const updateTaskPriority = async (req: AuthenticatedRequest, res: Response) => {
+export const updateTaskPriority = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -226,7 +220,7 @@ export const updateTaskPriority = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
-export const addTaskAttachment = async (req: AuthenticatedRequest, res: Response) => {
+export const addTaskAttachment = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -246,7 +240,7 @@ export const addTaskAttachment = async (req: AuthenticatedRequest, res: Response
   }
 };
 
-export const removeTaskAttachment = async (req: AuthenticatedRequest, res: Response) => {
+export const removeTaskAttachment = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -266,7 +260,7 @@ export const removeTaskAttachment = async (req: AuthenticatedRequest, res: Respo
   }
 };
 
-export const addTaskNote = async (req: AuthenticatedRequest, res: Response) => {
+export const addTaskNote = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -286,7 +280,7 @@ export const addTaskNote = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-export const getOverdueTasks = async (req: AuthenticatedRequest, res: Response) => {
+export const getOverdueTasks = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -310,7 +304,7 @@ export const getOverdueTasks = async (req: AuthenticatedRequest, res: Response) 
   }
 };
 
-export const getTasksByUser = async (req: AuthenticatedRequest, res: Response) => {
+export const getTasksByUser = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -334,7 +328,7 @@ export const getTasksByUser = async (req: AuthenticatedRequest, res: Response) =
   }
 };
 
-export const getTaskStatistics = async (req: AuthenticatedRequest, res: Response) => {
+export const getTaskStatistics = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -353,7 +347,7 @@ export const getTaskStatistics = async (req: AuthenticatedRequest, res: Response
   }
 };
 
-export const toggleTaskStatus = async (req: AuthenticatedRequest, res: Response) => {
+export const toggleTaskStatus = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

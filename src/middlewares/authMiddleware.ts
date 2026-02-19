@@ -1,14 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../entities/users/model';
-
-export interface AuthUser {
-  id: string;
-  role: string;
-  [key: string]: any;
-  phone: string;
-  fullName: string;
-}
+import { AuthUser } from '../types/express';
+export type { AuthUser } from '../types/express';
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -31,7 +25,6 @@ async function verifyToken(token: string, req: Request, res: Response, next: Nex
   try {
     const decoded = jwt.verify(token, secret) as AuthUser;
 
-    // Проверяем, был ли уже отправлен ответ
     if (res.headersSent) {
       return;
     }
@@ -42,27 +35,20 @@ async function verifyToken(token: string, req: Request, res: Response, next: Nex
       return res.status(401).json({ error: 'Пользователь не найден или неактивен' });
     }
 
-    res.locals.user = decoded;
-    (req as any).user = decoded;
+    req.user = decoded;
     next();
   } catch (err: any) {
-    // Проверяем, был ли уже отправлен ответ
     if (res.headersSent) {
       return;
     }
 
     if (err.name === 'CastError') {
-      // Ошибка при попытке преобразования ID
       console.error('❌ Ошибка проверки пользователя (неправильный формат ID):', err);
       return res.status(401).json({ error: 'Неверный идентификатор пользователя' });
     } else if (err.name === 'MongoError' || err.name === 'MongooseError' || err.name === 'MongoServerError') {
-      // Ошибки базы данных (MongoDB/Mongoose)
       console.error('❌ Ошибка базы данных при проверке пользователя:', err.name, err.message);
-      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя', details: err.name });
+      return res.status(500).json({ error: 'Ошибка сервера при проверке пользователя' });
     }
-
-    // Логируем любую другую ошибку для отладки
-    console.error('❌ Неизвестная ошибка при проверке токена:', err.name, err.message, err);
 
     let errorMessage = 'Неверный токен';
 

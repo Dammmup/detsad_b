@@ -1,16 +1,4 @@
-import createDocumentModel from './model';
-import Document from './model';
-import { IDocument } from './model';
-
-
-let DocumentModel: any = null;
-
-const getDocumentModel = () => {
-  if (!DocumentModel) {
-    DocumentModel = Document;
-  }
-  return DocumentModel;
-};
+import Document, { IDocument } from './model';
 
 export class DocumentsService {
   async getAll(filters: { ownerId?: string, category?: string, isPublic?: boolean, tags?: string[] }) {
@@ -99,11 +87,13 @@ export class DocumentsService {
   }
 
   async search(query: string, filters: { ownerId?: string, category?: string }) {
+    // Экранируем спецсимволы regex для предотвращения ReDoS
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const searchFilter: any = {
       $or: [
-        { title: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } },
-        { tags: { $regex: query, $options: 'i' } }
+        { title: { $regex: escapedQuery, $options: 'i' } },
+        { description: { $regex: escapedQuery, $options: 'i' } },
+        { tags: { $regex: escapedQuery, $options: 'i' } }
       ]
     };
 

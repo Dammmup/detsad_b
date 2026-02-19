@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { productReportsController } from './controller';
 import { authMiddleware } from '../../../middlewares/authMiddleware';
+import { authorizeRole } from '../../../middlewares/authRole';
 
 const router = Router();
 
-router.use(authMiddleware);
+router.use(authMiddleware, authorizeRole(['admin', 'manager']));
 
 // Отчёт по расходу за период
 router.get('/consumption', (req, res, next) => productReportsController.getConsumptionReport(req, res, next));

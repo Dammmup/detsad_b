@@ -324,12 +324,15 @@ export class StaffAttendanceTrackingService {
     }
 
     const fetcher = async () => {
+      const settingsService = new SettingsService();
+      const settings = await settingsService.getKindergartenSettings();
+
       const records = await StaffAttendanceTracking.find(filter)
-        .populate('staffId', 'fullName role penaltyType penaltyAmount')
+        .populate('staffId', 'fullName role penaltyType penaltyAmount baseSalary baseSalaryType shiftRate')
         .sort({ date: -1 });
 
       // Рассчитываем штрафы (penalties) на лету на основе lateMinutes и настроек сотрудника
-      return await Promise.all(records.map(record => this._applyPenalties(record)));
+      return records.map(record => this._applyPenalties(record, settings));
     };
 
 
@@ -338,23 +341,24 @@ export class StaffAttendanceTrackingService {
 
   async getById(id: string) {
     const record = await StaffAttendanceTracking.findById(id)
-      .populate('staffId', 'fullName role penaltyType penaltyAmount');
+      .populate('staffId', 'fullName role penaltyType penaltyAmount baseSalary baseSalaryType shiftRate');
 
     if (!record) {
       throw new Error('Запись посещаемости сотрудника не найдена');
     }
 
-    return await this._applyPenalties(record);
+    const settingsService = new SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+
+    return this._applyPenalties(record, settings);
   }
 
-  private async _applyPenalties(record: any) {
+  private _applyPenalties(record: any, settings: any) {
     const doc = record.toObject();
     const staff = record.staffId as any;
     let penalties = 0;
 
     if (doc.lateMinutes > 0 && staff) {
-      const settingsService = new SettingsService();
-      const settings = await settingsService.getKindergartenSettings();
       const amount = settings?.payroll?.latePenaltyRate || 50;
       const type = settings?.payroll?.latePenaltyType || 'per_minute';
 
@@ -416,9 +420,14 @@ export class StaffAttendanceTrackingService {
     await record.save();
 
     const populatedRecord = await StaffAttendanceTracking.findById(record._id)
-      .populate('staffId', 'fullName role penaltyType penaltyAmount');
+      .populate('staffId', 'fullName role penaltyType penaltyAmount baseSalary baseSalaryType shiftRate');
 
-    return populatedRecord ? await this._applyPenalties(populatedRecord) : null;
+    if (!populatedRecord) return null;
+
+    const settingsService = new SettingsService();
+    const settings = await settingsService.getKindergartenSettings();
+
+    return this._applyPenalties(populatedRecord, settings);
   }
 
   async update(id: string, data: Partial<IStaffAttendanceTracking>) {
@@ -494,9 +503,9 @@ export class StaffAttendanceTrackingService {
 
     // Populate and return
     const updatedRecord = await StaffAttendanceTracking.findById(id)
-      .populate('staffId', 'fullName role penaltyType penaltyAmount');
+      .populate('staffId', 'fullName role penaltyType penaltyAmount baseSalary baseSalaryType shiftRate');
 
-    return updatedRecord ? await this._applyPenalties(updatedRecord) : null;
+    return updatedRecord ? this._applyPenalties(updatedRecord, settings) : null;
   }
 
   async delete(id: string) {

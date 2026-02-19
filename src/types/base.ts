@@ -5,8 +5,6 @@ export interface IBaseEntity extends Document {
   updatedAt: Date;
 }
 
-export interface IBaseEntityWithId extends Document {
+export interface IBaseEntityWithId extends IBaseEntity {
   _id: string;
-  createdAt: Date;
- updatedAt: Date;
 }

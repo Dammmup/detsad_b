@@ -19,43 +19,22 @@ import { authorizeRole } from '../../../middlewares/authRole';
 
 const router = express.Router();
 
+const auth = [authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse'])] as const;
 
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getAllProductCertificates);
+// Специфические GET-маршруты ПЕРЕД /:id
+router.get('/', ...auth, getAllProductCertificates);
+router.get('/expiring', ...auth, getExpiringSoon);
+router.get('/statistics', ...auth, getProductCertificateStatistics);
+router.get('/product/:productId', ...auth, getProductCertificatesByProductId);
+router.get('/inspector/:inspectorId', ...auth, getProductCertificatesByInspectorId);
+router.get('/:id', ...auth, getProductCertificateById);
 
-
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getProductCertificateById);
-
-
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), createProductCertificate);
-
-
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateProductCertificate);
-
-
-router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), deleteProductCertificate);
-
-
-router.get('/product/:productId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getProductCertificatesByProductId);
-
-
-router.get('/inspector/:inspectorId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getProductCertificatesByInspectorId);
-
-
-router.get('/expiring', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getExpiringSoon);
-
-
-router.patch('/:id/approve', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), approveProductCertificate);
-
-
-router.patch('/:id/reject', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), rejectProductCertificate);
-
-
-router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateProductCertificateStatus);
-
-
-router.patch('/:id/recommendations', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), addProductCertificateRecommendations);
-
-
-router.get('/statistics', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getProductCertificateStatistics);
+router.post('/', ...auth, createProductCertificate);
+router.put('/:id', ...auth, updateProductCertificate);
+router.delete('/:id', ...auth, deleteProductCertificate);
+router.patch('/:id/approve', ...auth, approveProductCertificate);
+router.patch('/:id/reject', ...auth, rejectProductCertificate);
+router.patch('/:id/status', ...auth, updateProductCertificateStatus);
+router.patch('/:id/recommendations', ...auth, addProductCertificateRecommendations);
 
 export default router;

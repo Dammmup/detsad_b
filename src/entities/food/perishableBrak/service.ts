@@ -1,35 +1,7 @@
-import PerishableBrak from './model';
-import { IPerishableBrak } from './model';
+import PerishableBrak, { IPerishableBrak } from './model';
 import User from '../../users/model';
 import Product from '../products/model';
 
-
-let PerishableBrakModel: any = null;
-let UserModel: any = null;
-
-const getPerishableBrakModel = () => {
-  if (!PerishableBrakModel) {
-    PerishableBrakModel = PerishableBrak;
-  }
-  return PerishableBrakModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
-
-
-let ProductModel: any = null;
-
-const getProductModel = () => {
-  if (!ProductModel) {
-    ProductModel = Product;
-  }
-  return ProductModel;
-};
 export class PerishableBrakService {
   async getAll(filters: { productId?: string, inspectorId?: string, status?: string, startDate?: string, endDate?: string, disposalStartDate?: string, disposalEndDate?: string, productName?: string, batchNumber?: string }) {
     const filter: any = {};

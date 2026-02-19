@@ -94,6 +94,12 @@ export class DailyScheduleService {
 
     async copyFromPreviousWeek(groupId: string, targetDate: string) {
         const target = new Date(targetDate);
+
+        // Приводим targetDate к понедельнику
+        const dayOfWeek = target.getDay();
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        target.setDate(target.getDate() + diffToMonday);
+
         const source = new Date(target);
         source.setDate(source.getDate() - 7);
 
@@ -107,14 +113,20 @@ export class DailyScheduleService {
             const targetDateCopy = new Date(target);
             targetDateCopy.setDate(targetDateCopy.getDate() + i);
 
-            const existing = await DailySchedule.findOne({ groupId, date: sourceDate });
-            if (existing) {
+            // Проверяем, не существует ли уже расписание на целевую дату
+            const existingTarget = await DailySchedule.findOne({ groupId, date: targetDateCopy });
+            if (existingTarget) {
+                continue; // Пропускаем, если расписание уже есть
+            }
+
+            const existingSource = await DailySchedule.findOne({ groupId, date: sourceDate });
+            if (existingSource) {
                 const newSchedule = new DailySchedule({
                     groupId,
                     date: targetDateCopy,
                     dayOfWeek: sourceDays[i],
-                    blocks: existing.blocks,
-                    createdBy: existing.createdBy
+                    blocks: existingSource.blocks,
+                    createdBy: existingSource.createdBy
                 });
                 await newSchedule.save();
                 results.push(newSchedule);

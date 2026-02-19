@@ -1,35 +1,6 @@
-import FoodStockLog from './model';
-import { IFoodStockLog } from './model';
+import FoodStockLog, { IFoodStockLog } from './model';
 import User from '../../users/model';
 import Product from '../products/model';
-
-
-let FoodStockLogModel: any = null;
-let UserModel: any = null;
-
-const getFoodStockLogModel = () => {
-  if (!FoodStockLogModel) {
-    FoodStockLogModel = FoodStockLog;
-  }
-  return FoodStockLogModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
-
-
-let ProductModel: any = null;
-
-const getProductModel = () => {
-  if (!ProductModel) {
-    ProductModel = Product;
-  }
-  return ProductModel;
-};
 
 export class FoodStockLogService {
   async getAll(filters: { productId?: string, batchNumber?: string, supplier?: string, status?: string, startDate?: string, endDate?: string, expirationStartDate?: string, expirationEndDate?: string, productName?: string, supplierContact?: string }) {

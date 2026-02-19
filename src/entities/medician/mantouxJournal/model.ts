@@ -62,7 +62,7 @@ const MantouxJournalSchema = new Schema<IMantouxJournal>({
   },
   notes: {
     type: String,
-    maxlength: [50, 'Заметки не могут превышать 500 символов']
+    maxlength: [500, 'Заметки не могут превышать 500 символов']
   },
   attachments: [String],
   status: {

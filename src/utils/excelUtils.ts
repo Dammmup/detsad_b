@@ -10,16 +10,26 @@ export async function createExcelBuffer(headers: Header[], data: any[], sheetNam
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(sheetName);
 
-
+  // Сначала добавляем metadata как обычные строки
   metadata.forEach(row => {
     worksheet.addRow(row);
   });
 
-  worksheet.columns = headers.map(h => ({ header: h.header, key: h.key, width: h.width }));
+  // Добавляем строку заголовков вручную (после metadata)
+  const headerRow = worksheet.addRow(headers.map(h => h.header));
+  headerRow.font = { bold: true };
 
+  // Устанавливаем ширину колонок
+  headers.forEach((h, index) => {
+    const col = worksheet.getColumn(index + 1);
+    col.width = h.width;
+    col.key = h.key;
+  });
+
+  // Добавляем данные
   data.forEach(row => {
     worksheet.addRow(row);
   });
 
-  return await workbook.xlsx.writeBuffer() as unknown as Buffer;
+  return await workbook.xlsx.writeBuffer() as Buffer;
 }

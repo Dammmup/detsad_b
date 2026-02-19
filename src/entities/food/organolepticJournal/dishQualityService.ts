@@ -4,11 +4,6 @@ import DailyMenu from '../dailyMenu/model';
 import WeeklyMenuTemplate, { WEEKDAYS } from '../weeklyMenuTemplate/model';
 import Dish from '../dishes/model';
 
-
-const getDishQualityModel = () => {
-    return DishQualityAssessment;
-};
-
 const menuItemsService = new MenuItemsService();
 
 export class DishQualityService {
@@ -27,7 +22,7 @@ export class DishQualityService {
             filter.group = filters.group;
         }
 
-        const records = await getDishQualityModel().find(filter)
+        const records = await DishQualityAssessment.find(filter)
             .populate('inspector', 'fullName role')
             .sort({ createdAt: -1 });
 
@@ -35,7 +30,7 @@ export class DishQualityService {
     }
 
     async getById(id: string) {
-        const record = await getDishQualityModel().findById(id)
+        const record = await DishQualityAssessment.findById(id)
             .populate('inspector', 'fullName role');
 
         if (!record) {
@@ -56,7 +51,7 @@ export class DishQualityService {
             throw new Error('Не указана группа');
         }
 
-        const Model = getDishQualityModel();
+        const Model = DishQualityAssessment;
         const record = new Model({
             ...data,
             inspector: userId
@@ -71,7 +66,7 @@ export class DishQualityService {
     }
 
     async update(id: string, data: Partial<IDishQualityAssessment>) {
-        const updatedRecord = await getDishQualityModel().findByIdAndUpdate(
+        const updatedRecord = await DishQualityAssessment.findByIdAndUpdate(
             id,
             data,
             { new: true }
@@ -85,7 +80,7 @@ export class DishQualityService {
     }
 
     async delete(id: string) {
-        const result = await getDishQualityModel().findByIdAndDelete(id);
+        const result = await DishQualityAssessment.findByIdAndDelete(id);
 
         if (!result) {
             throw new Error('Запись оценки блюда не найдена');
@@ -109,7 +104,7 @@ export class DishQualityService {
             filter.group = filters.group;
         }
 
-        await getDishQualityModel().deleteMany(filter);
+        await DishQualityAssessment.deleteMany(filter);
         return { message: 'Записи оценки блюд успешно удалены' };
     }
 
@@ -190,7 +185,7 @@ export class DishQualityService {
         }
 
         // Create records
-        const Model = getDishQualityModel();
+        const Model = DishQualityAssessment;
         const records = [];
         const groups = group === 'all'
             ? ['Ясельная', 'Младшая', 'Средняя', 'Старшая', 'Подготовительная']
@@ -235,7 +230,7 @@ export class DishQualityService {
     }
 
     private async createRecordsFromMenuItems(menuItems: any[], date: Date, group: string, userId: string) {
-        const Model = getDishQualityModel();
+        const Model = DishQualityAssessment;
         const records = [];
 
         // If group is 'all', create records for all standard groups

@@ -25,8 +25,8 @@ const MainEventSchema: Schema = new Schema({
   dayOfMonth: {
     type: Number,
     required: true,
-    min: 0,
-    max: 6
+    min: 1,
+    max: 31
   },
   enabled: {
     type: Boolean,

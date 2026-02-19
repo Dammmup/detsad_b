@@ -13,7 +13,7 @@ import { authorizeRole } from '../../middlewares/authRole';
 const router = express.Router();
 
 
-router.get('/debug', authMiddleware, debugAttendance);
+router.get('/debug', authMiddleware, authorizeRole(['admin']), debugAttendance);
 
 
 router.get('/', authMiddleware, getAllAttendance);

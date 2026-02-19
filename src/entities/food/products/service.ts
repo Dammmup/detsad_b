@@ -88,30 +88,38 @@ export class ProductsService {
         }).sort({ stockQuantity: 1 });
     }
 
-    // Уменьшение запаса продукта
+    // Атомарное уменьшение запаса продукта (защита от race condition)
     async decreaseStock(id: string, quantity: number) {
-        const product = await Product.findById(id);
+        const product = await Product.findOneAndUpdate(
+            { _id: id, stockQuantity: { $gte: quantity } },
+            { $inc: { stockQuantity: -quantity } },
+            { new: true }
+        );
+
         if (!product) {
-            throw new Error('Продукт не найден');
+            const existing = await Product.findById(id);
+            if (!existing) {
+                throw new Error('Продукт не найден');
+            }
+            throw new Error(`Недостаточно продукта "${existing.name}" на складе`);
         }
 
-        if (product.stockQuantity < quantity) {
-            throw new Error(`Недостаточно продукта "${product.name}" на складе`);
-        }
-
-        product.stockQuantity -= quantity;
-        return product.save();
+        return product;
     }
 
-    // Увеличение запаса продукта
+    // Атомарное увеличение запаса продукта
     async increaseStock(id: string, quantity: number) {
-        const product = await Product.findById(id);
+        const product = await Product.findByIdAndUpdate(
+            id,
+            { $inc: { stockQuantity: quantity } },
+            { new: true }
+        );
+
         if (!product) {
             throw new Error('Продукт не найден');
         }
 
-        product.stockQuantity += quantity;
-        return product.save();
+        return product;
     }
 
     // Получить категории продуктов

@@ -1,25 +1,6 @@
-import OrganolepticJournal from './model';
-import { IOrganolepticJournal } from './model';
+import OrganolepticJournal, { IOrganolepticJournal } from './model';
 import User from '../../users/model';
 import Child from '../../children/model';
-
-
-let OrganolepticJournalModel: any = null;
-let UserModel: any = null;
-
-const getOrganolepticJournalModel = () => {
-  if (!OrganolepticJournalModel) {
-    OrganolepticJournalModel = OrganolepticJournal;
-  }
-  return OrganolepticJournalModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
 
 export class OrganolepticJournalService {
   async getAll(filters: { childId?: string, date?: string, inspectorId?: string, status?: string, productName?: string, supplier?: string, startDate?: string, endDate?: string }) {

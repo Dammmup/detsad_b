@@ -1,35 +1,7 @@
-import ProductCertificate from './model';
-import { IProductCertificate } from './model';
+import ProductCertificate, { IProductCertificate } from './model';
 import User from '../../users/model';
 import Product from '../products/model';
 
-
-let ProductCertificateModel: any = null;
-let UserModel: any = null;
-
-const getProductCertificateModel = () => {
-  if (!ProductCertificateModel) {
-    ProductCertificateModel = ProductCertificate;
-  }
-  return ProductCertificateModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
-
-
-let ProductModel: any = null;
-
-const getProductModel = () => {
-  if (!ProductModel) {
-    ProductModel = Product;
-  }
-  return ProductModel;
-};
 export class ProductCertificatesService {
   async getAll(filters: { productId?: string, certificateNumber?: string, issuer?: string, productCategory?: string, status?: string, startDate?: string, endDate?: string, expiryStartDate?: string, expiryEndDate?: string, productName?: string, batchNumber?: string }) {
     const filter: any = {};

@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 
 export const getSalarySummary = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!req.user || req.user.role !== 'admin') {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'director')) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -111,7 +111,8 @@ export const getAllPayrolls = async (req: AuthenticatedRequest, res: Response) =
     const { userId, period, status, month } = req.query;
     const targetPeriod = (period as string) || (month as string) || new Date().toISOString().slice(0, 7);
 
-    const isStaffRequest = req.user.role !== 'admin' && req.user.role !== 'manager';
+    const MANAGING_ROLES = ['admin', 'manager', 'director'];
+    const isStaffRequest = !MANAGING_ROLES.includes(req.user.role);
     const staffIdFilter = isStaffRequest
       ? req.user.id
       : (userId as string); // Для админов позволяем фильтровать по userId если он передан
@@ -274,7 +275,8 @@ export const updatePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
 
-    const updaterId = (req.user.role === 'admin' || req.user.role === 'manager') ? undefined : req.user.id;
+    const MANAGING_ROLES = ['admin', 'manager', 'director'];
+    const updaterId = MANAGING_ROLES.includes(req.user.role) ? undefined : req.user.id;
     const payroll = await payrollService.update(req.params.id, req.body, updaterId);
     res.json(payroll);
   } catch (err: any) {
@@ -293,7 +295,8 @@ export const deletePayroll = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const checkUser = (req.user.role === 'admin' || req.user.role === 'manager') ? undefined : req.user.id;
+    const MANAGING_ROLES = ['admin', 'manager', 'director'];
+    const checkUser = MANAGING_ROLES.includes(req.user.role) ? undefined : req.user.id;
     const payroll = await payrollService.getById(req.params.id, checkUser);
     const result = await payrollService.delete(req.params.id);
     res.json(result);
@@ -481,7 +484,7 @@ export const addFine = async (req: AuthenticatedRequest, res: Response) => {
     }
 
 
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'director') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to add fines' });
     }
 
@@ -541,7 +544,7 @@ export const removeFine = async (req: AuthenticatedRequest, res: Response) => {
     }
 
 
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'director') {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to remove fines' });
     }
 
@@ -609,9 +612,9 @@ export const calculateDebt = async (req: AuthenticatedRequest, res: Response) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Только админ может рассчитывать долг
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
+    // Только админ или директор может рассчитывать долг
+    if (req.user.role !== 'admin' && req.user.role !== 'director') {
+      return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора или директора.' });
     }
 
     const { period } = req.body;

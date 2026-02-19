@@ -1,35 +1,6 @@
-import DetergentLog from './model';
-import { IDetergentLog } from './model';
+import DetergentLog, { IDetergentLog } from './model';
 import User from '../../users/model';
 import Product from '../products/model';
-
-
-let DetergentLogModel: any = null;
-let UserModel: any = null;
-
-const getDetergentLogModel = () => {
-  if (!DetergentLogModel) {
-    DetergentLogModel = DetergentLog;
-  }
-  return DetergentLogModel;
-};
-
-const getUserModel = () => {
-  if (!UserModel) {
-    UserModel = User;
-  }
-  return UserModel;
-};
-
-
-let ProductModel: any = null;
-
-const getProductModel = () => {
-  if (!ProductModel) {
-    ProductModel = Product;
-  }
-  return ProductModel;
-};
 
 export class DetergentLogService {
   async getAll(filters: { productId?: string, batchNumber?: string, supplier?: string, status?: string, startDate?: string, endDate?: string, expirationStartDate?: string, expirationEndDate?: string, productName?: string, supplierContact?: string }) {

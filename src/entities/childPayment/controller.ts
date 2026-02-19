@@ -83,29 +83,14 @@ export const deleteItem = async (req: Request, res: Response): Promise<void> => 
 
 export const getByPeriod = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { childId, userId } = req.query;
-    const { period } = req.params;
+    const { childId, userId, start, end } = req.query;
 
-
-    let periodObj;
-    try {
-      const parsed = JSON.parse(period);
-      if (parsed.start && parsed.end) {
-        periodObj = parsed;
-      } else {
-        res.status(400).json({ error: 'Invalid period format. Expected { start: string, end: string }' });
-        return;
-      }
-    } catch {
-
-      res.status(400).json({ error: 'Period must be in JSON format { start: string, end: string }' });
+    if (!start || !end) {
+      res.status(400).json({ error: 'start and end query parameters are required' });
       return;
     }
 
-    if (!periodObj) {
-      res.status(400).json({ error: 'Period is required' });
-      return;
-    }
+    const periodObj = { start: start as string, end: end as string };
 
     const payment = await getChildPaymentByPeriod(
       periodObj,

@@ -35,13 +35,9 @@ export interface TemplateData {
 }
 
 
-const VALID_DOCUMENT_TYPES = ['contract', 'certificate', 'report', 'policy', 'other'];
-const VALID_DOCUMENT_CATEGORIES = ['staff', 'children', 'financial', 'administrative', 'other'];
+const VALID_TYPES = ['contract', 'certificate', 'report', 'policy', 'other'];
+const VALID_CATEGORIES = ['staff', 'children', 'financial', 'administrative', 'other'];
 const VALID_DOCUMENT_STATUSES = ['active', 'archived'];
-
-
-const VALID_TEMPLATE_TYPES = ['contract', 'certificate', 'report', 'policy', 'other'];
-const VALID_TEMPLATE_CATEGORIES = ['staff', 'children', 'financial', 'administrative', 'other'];
 
 export const validateDocument = (document: Partial<DocumentData>): DocumentValidationResult => {
   const errors: string[] = [];
@@ -53,13 +49,13 @@ export const validateDocument = (document: Partial<DocumentData>): DocumentValid
 
   if (!document.type) {
     errors.push('Поле "type" обязательно');
-  } else if (!VALID_DOCUMENT_TYPES.includes(document.type)) {
+  } else if (!VALID_TYPES.includes(document.type)) {
     errors.push('Недопустимый тип документа');
   }
 
   if (!document.category) {
     errors.push('Поле "category" обязательно');
-  } else if (!VALID_DOCUMENT_CATEGORIES.includes(document.category)) {
+  } else if (!VALID_CATEGORIES.includes(document.category)) {
     errors.push('Недопустимая категория документа');
   }
 
@@ -113,13 +109,13 @@ export const validateDocumentTemplate = (template: Partial<TemplateData>): Docum
 
   if (!template.type) {
     errors.push('Поле "type" обязательно');
-  } else if (!VALID_TEMPLATE_TYPES.includes(template.type)) {
+  } else if (!VALID_TYPES.includes(template.type)) {
     errors.push('Недопустимый тип шаблона');
   }
 
   if (!template.category) {
     errors.push('Поле "category" обязательно');
-  } else if (!VALID_TEMPLATE_CATEGORIES.includes(template.category)) {
+  } else if (!VALID_CATEGORIES.includes(template.category)) {
     errors.push('Недопустимая категория шаблона');
   }
 
@@ -162,7 +158,7 @@ export const validateEmail = (email: string): boolean => {
 
 export const validatePhone = (phone: string): boolean => {
 
-  const phoneRegex = /^(\+7|8)?7\d{9}$/;
+  const phoneRegex = /^(\+7|8)7\d{9}$/;
   return phoneRegex.test(phone.replace(/\s+/g, ''));
 };
 
@@ -199,7 +195,7 @@ export const validateIIN = (iin: string): boolean => {
     }
     controlDigit = sum % 11;
     if (controlDigit === 10) {
-      controlDigit = 0;
+      return false; // ИИН невалиден если обе проверки дают 10
     }
   }
 

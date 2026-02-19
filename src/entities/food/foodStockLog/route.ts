@@ -19,43 +19,22 @@ import { authorizeRole } from '../../../middlewares/authRole';
 
 const router = express.Router();
 
+const auth = [authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse'])] as const;
 
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getAllFoodStockLogs);
+// Специфические GET-маршруты ПЕРЕД /:id
+router.get('/', ...auth, getAllFoodStockLogs);
+router.get('/expiring', ...auth, getExpiringSoon);
+router.get('/statistics', ...auth, getFoodStockLogStatistics);
+router.get('/product/:productId', ...auth, getFoodStockLogsByProductId);
+router.get('/receiver/:receiverId', ...auth, getFoodStockLogsByReceiverId);
+router.get('/:id', ...auth, getFoodStockLogById);
 
-
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStockLogById);
-
-
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), createFoodStockLog);
-
-
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateFoodStockLog);
-
-
-router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), deleteFoodStockLog);
-
-
-router.get('/product/:productId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStockLogsByProductId);
-
-
-router.get('/receiver/:receiverId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStockLogsByReceiverId);
-
-
-router.get('/expiring', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getExpiringSoon);
-
-
-router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateFoodStockLogStatus);
-
-
-router.patch('/:id/use', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), markFoodStockLogAsUsed);
-
-
-router.patch('/:id/dispose', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), markFoodStockLogAsDisposed);
-
-
-router.patch('/:id/notes', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), addFoodStockLogNotes);
-
-
-router.get('/statistics', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStockLogStatistics);
+router.post('/', ...auth, createFoodStockLog);
+router.put('/:id', ...auth, updateFoodStockLog);
+router.delete('/:id', ...auth, deleteFoodStockLog);
+router.patch('/:id/status', ...auth, updateFoodStockLogStatus);
+router.patch('/:id/use', ...auth, markFoodStockLogAsUsed);
+router.patch('/:id/dispose', ...auth, markFoodStockLogAsDisposed);
+router.patch('/:id/notes', ...auth, addFoodStockLogNotes);
 
 export default router;

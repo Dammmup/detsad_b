@@ -1,16 +1,4 @@
-
-
 import MenuItem, { IMenuItem } from './model';
-
-
-let MenuItemModel: any = null;
-
-const getMenuItemModel = () => {
-  if (!MenuItemModel) {
-    MenuItemModel = MenuItem;
-  }
-  return MenuItemModel;
-};
 
 export class MenuItemsService {
   async getAll(filters: { category?: string, dayOfWeek?: number, weekNumber?: number, isAvailable?: boolean, createdBy?: string }) {

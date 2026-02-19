@@ -1,15 +1,9 @@
 import { Request, Response } from 'express';
-import { AuthUser } from '../../middlewares/authMiddleware';
 import { ChildAttendanceService } from './service';
-
-
-interface AuthenticatedRequest extends Request {
-  user?: AuthUser;
-}
 
 const childAttendanceService = new ChildAttendanceService();
 
-export const getAllAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const getAllAttendance = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -19,7 +13,8 @@ export const getAllAttendance = async (req: AuthenticatedRequest, res: Response)
 
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    const MANAGING_ROLES = ['admin', 'manager', 'director'];
+    if (!MANAGING_ROLES.includes(req.user.role)) {
 
       if (req.user.role === 'teacher' || req.user.role === 'assistant') {
 
@@ -45,7 +40,7 @@ export const getAllAttendance = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
-export const createOrUpdateAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const createOrUpdateAttendance = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -59,7 +54,7 @@ export const createOrUpdateAttendance = async (req: AuthenticatedRequest, res: R
   }
 };
 
-export const bulkCreateOrUpdateAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const bulkCreateOrUpdateAttendance = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -89,7 +84,7 @@ export const bulkCreateOrUpdateAttendance = async (req: AuthenticatedRequest, re
   }
 };
 
-export const getAttendanceStats = async (req: AuthenticatedRequest, res: Response) => {
+export const getAttendanceStats = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -99,7 +94,8 @@ export const getAttendanceStats = async (req: AuthenticatedRequest, res: Respons
 
 
 
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
+    const MANAGING_ROLES = ['admin', 'manager', 'director'];
+    if (!MANAGING_ROLES.includes(req.user.role)) {
 
 
       if (!groupId && req.user.role !== 'teacher' && req.user.role !== 'assistant') {
@@ -118,7 +114,7 @@ export const getAttendanceStats = async (req: AuthenticatedRequest, res: Respons
   }
 };
 
-export const deleteAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteAttendance = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -132,7 +128,7 @@ export const deleteAttendance = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
-export const debugAttendance = async (req: AuthenticatedRequest, res: Response) => {
+export const debugAttendance = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });

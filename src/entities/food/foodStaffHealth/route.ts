@@ -19,43 +19,22 @@ import { authorizeRole } from '../../../middlewares/authRole';
 
 const router = express.Router();
 
+const auth = [authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse'])] as const;
 
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getAllFoodStaffHealthRecords);
+// Специфические GET-маршруты ПЕРЕД /:id
+router.get('/', ...auth, getAllFoodStaffHealthRecords);
+router.get('/commissions', ...auth, getUpcomingMedicalCommissions);
+router.get('/sanitary', ...auth, getUpcomingSanitaryMinimums);
+router.get('/vaccinations', ...auth, getUpcomingVaccinations);
+router.get('/statistics', ...auth, getFoodStaffHealthStatistics);
+router.get('/staff/:staffId', ...auth, getFoodStaffHealthRecordsByStaffId);
+router.get('/doctor/:doctorId', ...auth, getFoodStaffHealthRecordsByDoctorId);
+router.get('/:id', ...auth, getFoodStaffHealthRecordById);
 
-
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStaffHealthRecordById);
-
-
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), createFoodStaffHealthRecord);
-
-
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateFoodStaffHealthRecord);
-
-
-router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), deleteFoodStaffHealthRecord);
-
-
-router.get('/staff/:staffId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStaffHealthRecordsByStaffId);
-
-
-router.get('/doctor/:doctorId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStaffHealthRecordsByDoctorId);
-
-
-router.get('/commissions', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getUpcomingMedicalCommissions);
-
-
-router.get('/sanitary', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getUpcomingSanitaryMinimums);
-
-
-router.get('/vaccinations', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getUpcomingVaccinations);
-
-
-router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updateFoodStaffHealthRecordStatus);
-
-
-router.patch('/:id/recommendations', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), addFoodStaffHealthRecordRecommendations);
-
-
-router.get('/statistics', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getFoodStaffHealthStatistics);
+router.post('/', ...auth, createFoodStaffHealthRecord);
+router.put('/:id', ...auth, updateFoodStaffHealthRecord);
+router.delete('/:id', ...auth, deleteFoodStaffHealthRecord);
+router.patch('/:id/status', ...auth, updateFoodStaffHealthRecordStatus);
+router.patch('/:id/recommendations', ...auth, addFoodStaffHealthRecordRecommendations);
 
 export default router;

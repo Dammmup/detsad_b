@@ -146,6 +146,7 @@ const journalConfigs: JournalConfig<any>[] = [
                 injectionSite: 'Левое предплечье',
                 doctor: new Types.ObjectId(), // Placeholder for a doctor ID
                 notes: `Реакция: ${reactionType}`,
+                status: 'completed' as const,
                 fio: child.fullName,
                 groupId: group._id as Types.ObjectId,
             };
@@ -290,7 +291,7 @@ async function generateMedicalJournalEntries() {
                         const childGroupId: Types.ObjectId = (child.groupId instanceof Types.ObjectId)
                             ? child.groupId
                             : (child.groupId as IGroup)._id as Types.ObjectId;
-                        childGroup = allGroups.find(group => group._id.equals(childGroupId));
+                        childGroup = allGroups.find(group => (group._id as Types.ObjectId).equals(childGroupId));
                     }
 
                     if (childGroup) {

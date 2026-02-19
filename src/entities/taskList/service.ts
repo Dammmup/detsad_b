@@ -1,6 +1,18 @@
 import Task, { ITask } from './model';
 import User from '../users/model';
 
+const TASK_POPULATE_FIELDS = [
+  { path: 'assignedTo', select: 'fullName role' },
+  { path: 'assignedBy', select: 'fullName role' },
+  { path: 'assignedToSpecificUser', select: 'fullName role' },
+  { path: 'completedBy', select: 'fullName role' },
+  { path: 'cancelledBy', select: 'fullName role' }
+];
+
+function populateTask(query: any) {
+  return TASK_POPULATE_FIELDS.reduce((q, field) => q.populate(field.path, field.select), query);
+}
+
 export class TaskListService {
   async getAll(filters: { assignedTo?: string, assignedBy?: string, status?: string, priority?: string, category?: string, dueDate?: string, startDate?: string, endDate?: string }, userId?: string) {
     const filter: any = {};
@@ -29,24 +41,14 @@ export class TaskListService {
       if (filters.endDate) filter.dueDate.$lte = new Date(filters.endDate);
     }
 
-    const tasks = await Task.find(filter)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('assignedToSpecificUser', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role')
+    const tasks = await populateTask(Task.find(filter))
       .sort({ dueDate: -1, priority: -1 });
 
     return tasks;
   }
 
   async getById(id: string) {
-    const task = await Task.findById(id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('assignedToSpecificUser', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const task = await populateTask(Task.findById(id));
 
     if (!task) {
       throw new Error('Задача не найдена');
@@ -94,12 +96,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('assignedToSpecificUser', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     // Отправляем push-уведомление всем сотрудникам о новой задаче
     try {
@@ -128,14 +125,9 @@ export class TaskListService {
   }
 
   async update(id: string, data: Partial<ITask>) {
-    const updatedTask = await Task.findByIdAndUpdate(
-      id,
-      { ...data, updatedAt: new Date() },
-      { new: true, runValidators: true }
-    ).populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const updatedTask = await populateTask(
+      Task.findByIdAndUpdate(id, { ...data, updatedAt: new Date() }, { new: true, runValidators: true })
+    );
 
     if (!updatedTask) {
       throw new Error('Задача не найдена');
@@ -173,11 +165,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -201,11 +189,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -222,11 +206,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -243,11 +223,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -267,11 +243,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -290,11 +262,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -314,11 +282,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }
@@ -329,8 +293,7 @@ export class TaskListService {
 
     const filter: any = {
       dueDate: { $lt: today },
-      status: { $ne: 'completed' },
-      $and: [{ status: { $ne: 'cancelled' } }]
+      status: { $nin: ['completed', 'cancelled'] }
     };
 
 
@@ -341,26 +304,20 @@ export class TaskListService {
       ];
     }
 
-    const tasks = await Task.find(filter)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
+    const tasks = await populateTask(Task.find(filter))
       .sort({ dueDate: 1 });
 
     return tasks;
   }
 
   async getTasksByUser(userId: string) {
-    const tasks = await Task.find({
+    const tasks = await populateTask(Task.find({
       $or: [
         { assignedTo: userId },
         { assignedBy: userId },
         { assignedToSpecificUser: userId }
       ]
-    })
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('assignedToSpecificUser', 'fullName role')
-      .sort({ dueDate: 1, priority: -1 });
+    })).sort({ dueDate: 1, priority: -1 });
 
     return tasks;
   }
@@ -405,8 +362,7 @@ export class TaskListService {
     const total = await Task.countDocuments();
     const overdue = await Task.countDocuments({
       dueDate: { $lt: new Date() },
-      status: { $ne: 'completed' },
-      $and: [{ status: { $ne: 'cancelled' } }]
+      status: { $nin: ['completed', 'cancelled'] }
     });
 
     return {
@@ -449,12 +405,7 @@ export class TaskListService {
 
     await task.save();
 
-    const populatedTask = await Task.findById(task._id)
-      .populate('assignedTo', 'fullName role')
-      .populate('assignedBy', 'fullName role')
-      .populate('assignedToSpecificUser', 'fullName role')
-      .populate('completedBy', 'fullName role')
-      .populate('cancelledBy', 'fullName role');
+    const populatedTask = await populateTask(Task.findById(task._id));
 
     return populatedTask;
   }

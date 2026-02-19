@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import ExcelJS from 'exceljs';
-import { Readable } from 'stream';
 
 export interface ExcelReportData {
   filename: string;
@@ -25,22 +24,92 @@ interface PayrollReportData {
   }>;
 }
 
+// Хелпер для получения буквенного обозначения колонки Excel (A, B, ..., Z, AA, AB, ...)
+function getColumnLetter(colNumber: number): string {
+  let result = '';
+  let num = colNumber;
+  while (num > 0) {
+    num--;
+    result = String.fromCharCode(65 + (num % 26)) + result;
+    num = Math.floor(num / 26);
+  }
+  return result;
+}
+
 class EmailService {
   private transporter: nodemailer.Transporter;
 
   constructor() {
-
     const smtpConfig: SMTPTransport.Options = {
-      host: process.env.SMTP_HOST || 'smtp.example.com',
+      host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: process.env.SMTP_USER || 'user@example.com',
-        pass: process.env.SMTP_PASS || 'password'
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
       }
     };
 
     this.transporter = nodemailer.createTransport(smtpConfig);
+  }
+
+  /**
+   * Общий метод для создания Excel-буфера из данных отчёта
+   */
+  private async buildExcelBuffer(options: {
+    sheetName: string;
+    title: string;
+    subtitle?: string;
+    headers: string[];
+    data: any[][];
+  }): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(options.sheetName);
+
+    const lastCol = getColumnLetter(options.headers.length);
+
+    // Заголовок
+    worksheet.mergeCells(`A1:${lastCol}1`);
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = options.title;
+    titleCell.font = { bold: true, size: 14 };
+    titleCell.alignment = { horizontal: 'center' };
+
+    // Подзаголовок
+    if (options.subtitle) {
+      worksheet.mergeCells(`A2:${lastCol}2`);
+      const subtitleCell = worksheet.getCell('A2');
+      subtitleCell.value = options.subtitle;
+      subtitleCell.font = { italic: true, size: 12 };
+      subtitleCell.alignment = { horizontal: 'center' };
+    }
+
+    // Строка заголовков
+    const headerRow = worksheet.addRow(options.headers);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFCCCCCC' }
+    };
+
+    // Данные
+    options.data.forEach(rowData => {
+      worksheet.addRow(rowData);
+    });
+
+    // Автоподбор ширины
+    worksheet.columns.forEach(column => {
+      let maxWidth = 0;
+      if (column && typeof column.eachCell === 'function') {
+        column.eachCell({ includeEmpty: true }, cell => {
+          maxWidth = Math.max(maxWidth, cell.value ? cell.value.toString().length : 0);
+        });
+        column.width = Math.min(maxWidth + 2, 50);
+      }
+    });
+
+    return await workbook.xlsx.writeBuffer() as Buffer;
   }
 
   async testConnection(): Promise<boolean> {
@@ -65,54 +134,13 @@ class EmailService {
     data: any[][];
   }): Promise<any> {
     try {
-
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet(options.sheetName);
-
-
-      worksheet.mergeCells('A1', `${String.fromCharCode(64 + options.headers.length)}1`);
-      const titleCell = worksheet.getCell('A1');
-      titleCell.value = options.title;
-      titleCell.font = { bold: true, size: 14 };
-      titleCell.alignment = { horizontal: 'center' };
-
-
-      if (options.subtitle) {
-        worksheet.mergeCells('A2', `${String.fromCharCode(64 + options.headers.length)}2`);
-        const subtitleCell = worksheet.getCell('A2');
-        subtitleCell.value = options.subtitle;
-        subtitleCell.font = { italic: true, size: 12 };
-        subtitleCell.alignment = { horizontal: 'center' };
-      }
-
-
-      const headerRow = worksheet.addRow(options.headers);
-      headerRow.font = { bold: true };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFCCCCCC' }
-      };
-
-
-      options.data.forEach(rowData => {
-        worksheet.addRow(rowData);
+      const buffer = await this.buildExcelBuffer({
+        sheetName: options.sheetName,
+        title: options.title,
+        subtitle: options.subtitle,
+        headers: options.headers,
+        data: options.data
       });
-
-
-      worksheet.columns.forEach(column => {
-        let maxWidth = 0;
-        if (column && typeof column.eachCell === 'function') {
-          column.eachCell({ includeEmpty: true }, cell => {
-            maxWidth = Math.max(maxWidth, cell.value ? cell.value.toString().length : 0);
-          });
-          column.width = Math.min(maxWidth + 2, 50);
-        }
-      });
-
-
-      const buffer = await workbook.xlsx.writeBuffer();
-
 
       const mailOptions = {
         from: process.env.SMTP_FROM || 'noreply@example.com',
@@ -122,7 +150,7 @@ class EmailService {
         attachments: [
           {
             filename: `${options.filename}.xlsx`,
-            content: buffer as unknown as Buffer
+            content: buffer
           }
         ]
       };
@@ -146,58 +174,17 @@ class EmailService {
 
       for (const reportData of reportsData) {
         try {
-
-          const workbook = new ExcelJS.Workbook();
-          const worksheet = workbook.addWorksheet(reportData.sheetName);
-
-
-          worksheet.mergeCells('A1', `${String.fromCharCode(64 + reportData.headers.length)}1`);
-          const titleCell = worksheet.getCell('A1');
-          titleCell.value = reportData.title;
-          titleCell.font = { bold: true, size: 14 };
-          titleCell.alignment = { horizontal: 'center' };
-
-
-          if (reportData.subtitle) {
-            worksheet.mergeCells('A2', `${String.fromCharCode(64 + reportData.headers.length)}2`);
-            const subtitleCell = worksheet.getCell('A2');
-            subtitleCell.value = reportData.subtitle;
-            subtitleCell.font = { italic: true, size: 12 };
-            subtitleCell.alignment = { horizontal: 'center' };
-          }
-
-
-          const headerRowIndex = reportData.subtitle ? 3 : 2;
-          const headerRow = worksheet.addRow(reportData.headers);
-          headerRow.font = { bold: true };
-          headerRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFCCCCCC' }
-          };
-
-
-          reportData.data.forEach(rowData => {
-            worksheet.addRow(rowData);
+          const buffer = await this.buildExcelBuffer({
+            sheetName: reportData.sheetName,
+            title: reportData.title,
+            subtitle: reportData.subtitle,
+            headers: reportData.headers,
+            data: reportData.data
           });
-
-
-          worksheet.columns.forEach(column => {
-            let maxWidth = 0;
-            if (column && typeof column.eachCell === 'function') {
-              column.eachCell({ includeEmpty: true }, cell => {
-                maxWidth = Math.max(maxWidth, cell.value ? cell.value.toString().length : 0);
-              });
-              column.width = Math.min(maxWidth + 2, 50);
-            }
-          });
-
-
-          const buffer = await workbook.xlsx.writeBuffer();
 
           attachments.push({
             filename: `${reportData.filename}.xlsx`,
-            content: buffer as any
+            content: buffer
           });
         } catch (reportError) {
           console.error(`❌ Error processing report ${reportData.filename}:`, reportError);

@@ -3,33 +3,33 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-let isInitialized = false;
-let appInstance: any = null;
+let initPromise: Promise<any> | null = null;
 
 const initialize = async () => {
-    if (isInitialized && appInstance) {
-        return appInstance;
+    if (initPromise) {
+        return initPromise;
     }
 
-    try {
-        console.log('🔄 Connecting to database for Vercel...');
+    initPromise = (async () => {
+        try {
+            console.log('🔄 Connecting to database for Vercel...');
 
-        // Подключаемся к БД
-        const { connectDB } = await import('../config/database');
-        await connectDB();
+            const { connectDB } = await import('../config/database');
+            await connectDB();
 
-        console.log('✅ Database connected');
+            console.log('✅ Database connected');
 
-        // Импортируем app после подключения БД
-        const { default: app } = await import('../app');
-        appInstance = app;
-        isInitialized = true;
+            const { default: app } = await import('../app');
+            return app;
+        } catch (error) {
+            // Сброс промиса при ошибке, чтобы можно было повторить инициализацию
+            initPromise = null;
+            console.error('❌ Initialization error:', error);
+            throw error;
+        }
+    })();
 
-        return appInstance;
-    } catch (error) {
-        console.error('❌ Initialization error:', error);
-        throw error;
-    }
+    return initPromise;
 };
 
 export default async function handler(req: Request, res: Response) {
@@ -39,8 +39,7 @@ export default async function handler(req: Request, res: Response) {
     } catch (error: any) {
         console.error('Handler error:', error);
         return res.status(500).json({
-            error: 'Server initialization failed',
-            message: error.message
+            error: 'Server initialization failed'
         });
     }
 }

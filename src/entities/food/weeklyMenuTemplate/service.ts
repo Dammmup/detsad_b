@@ -32,16 +32,33 @@ export class WeeklyMenuTemplateService {
             throw new Error('Шаблон меню не найден');
         }
 
-        // Популяция блюд для каждого дня
+        // Собираем все уникальные dishId из всех дней одним проходом
+        const allDishIds = new Set<string>();
         const populatedTemplate = template.toObject();
         for (const day of WEEKDAYS) {
             for (const mealType of ['breakfast', 'lunch', 'snack', 'dinner'] as const) {
                 const dishIds = populatedTemplate.days[day]?.[mealType] || [];
+                dishIds.forEach((id: any) => allDishIds.add(id.toString()));
+            }
+        }
+
+        // Один запрос для всех блюд вместо 28 отдельных
+        const dishMap = new Map<string, any>();
+        if (allDishIds.size > 0) {
+            const dishes = await Dish.find({ _id: { $in: Array.from(allDishIds) } })
+                .select('name category ingredients')
+                .populate('ingredients.productId', 'name unit');
+            dishes.forEach(dish => dishMap.set(dish._id.toString(), dish));
+        }
+
+        // Заменяем ID на объекты блюд
+        for (const day of WEEKDAYS) {
+            for (const mealType of ['breakfast', 'lunch', 'snack', 'dinner'] as const) {
+                const dishIds = populatedTemplate.days[day]?.[mealType] || [];
                 if (dishIds.length > 0) {
-                    const dishes = await Dish.find({ _id: { $in: dishIds } })
-                        .select('name category ingredients')
-                        .populate('ingredients.productId', 'name unit');
-                    (populatedTemplate.days[day] as any)[mealType] = dishes;
+                    (populatedTemplate.days[day] as any)[mealType] = dishIds
+                        .map((id: any) => dishMap.get(id.toString()))
+                        .filter(Boolean);
                 }
             }
         }
@@ -128,118 +145,67 @@ export class WeeklyMenuTemplateService {
 
     // Применить шаблон к неделе (создание DailyMenu на 7 дней)
     async applyToWeek(templateId: string, startDate: Date, childCount: number, userId: string) {
-        const template = await this.getByIdWithDishes(templateId);
-        if (!template) {
-            throw new Error('Шаблон меню не найден');
-        }
-
-        const createdMenus: any[] = [];
-        const shortages: any[] = [];
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(start);
-            date.setDate(start.getDate() + i);
-
-            const dayIndex = date.getDay();
-            // Преобразуем воскресенье (0) в конец массива
-            const weekdayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
-            const weekday = WEEKDAYS[weekdayIndex];
-            const dayMeals = template.days[weekday];
-
-            // Проверяем существует ли меню на эту дату
-            const existingMenu = await DailyMenu.findOne({
-                date: { $gte: new Date(date.setHours(0, 0, 0, 0)), $lte: new Date(date.setHours(23, 59, 59, 999)) }
-            });
-
-            if (existingMenu) {
-                continue; // Пропускаем если меню уже есть
-            }
-
-            // Рассчитываем требуемые продукты для этого дня
-            const dayShortages = await this.calculateDayShortages(dayMeals as any, childCount);
-            shortages.push(...dayShortages);
-
-            // Создаём дневное меню
-            const dailyMenu = new DailyMenu({
-                date,
-                totalChildCount: childCount,
-                meals: {
-                    breakfast: { dishes: dayMeals?.breakfast?.map((d: any) => d._id) || [], childCount: 0 },
-                    lunch: { dishes: dayMeals?.lunch?.map((d: any) => d._id) || [], childCount: 0 },
-                    snack: { dishes: dayMeals?.snack?.map((d: any) => d._id) || [], childCount: 0 },
-                    dinner: { dishes: dayMeals?.dinner?.map((d: any) => d._id) || [], childCount: 0 }
-                },
-                createdBy: userId
-            });
-
-            await dailyMenu.save();
-            createdMenus.push(dailyMenu);
-        }
-
-        // Уникальные нехватки продуктов
-        const uniqueShortages = this.aggregateShortages(shortages);
-
-        // Отправка уведомления в Telegram если есть нехватки
-        if (uniqueShortages.length > 0) {
-            await this.sendShortageNotification(uniqueShortages, startDate, 7);
-        }
-
-        return {
-            createdMenus,
-            shortages: uniqueShortages,
-            message: `Создано ${createdMenus.length} меню на неделю`
-        };
+        return this.applyToPeriod(templateId, startDate, 7, childCount, userId, 'неделю');
     }
 
     // Применить шаблон к месяцу (циклом на каждую неделю)
     async applyToMonth(templateId: string, startDate: Date, childCount: number, userId: string) {
-        const template = await this.getByIdWithDishes(templateId);
-        if (!template) {
-            throw new Error('Шаблон меню не найден');
-        }
-
-        const createdMenus: any[] = [];
-        const shortages: any[] = [];
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
-
-        // Получаем количество дней в месяце
         const year = start.getFullYear();
         const month = start.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const startDay = start.getDate();
         const remainingDays = daysInMonth - startDay + 1;
 
-        for (let i = 0; i < remainingDays; i++) {
+        return this.applyToPeriod(templateId, startDate, remainingDays, childCount, userId, 'месяц');
+    }
+
+    // Общий метод для применения шаблона на период
+    private async applyToPeriod(templateId: string, startDate: Date, days: number, childCount: number, userId: string, periodName: string) {
+        const template = await this.getByIdWithDishes(templateId);
+        if (!template) {
+            throw new Error('Шаблон меню не найден');
+        }
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+
+        // Собираем все даты периода
+        const allDates: Date[] = [];
+        for (let i = 0; i < days; i++) {
             const date = new Date(start);
             date.setDate(start.getDate() + i);
+            allDates.push(date);
+        }
+
+        // Проверяем существующие меню одним запросом вместо N запросов
+        const periodEnd = new Date(allDates[allDates.length - 1]);
+        periodEnd.setHours(23, 59, 59, 999);
+        const existingMenus = await DailyMenu.find({
+            date: { $gte: start, $lte: periodEnd }
+        }).select('date');
+
+        const existingDates = new Set(
+            existingMenus.map(m => new Date(m.date).toDateString())
+        );
+
+        const createdMenus: any[] = [];
+        const shortages: any[] = [];
+
+        for (const date of allDates) {
+            if (existingDates.has(date.toDateString())) {
+                continue;
+            }
 
             const dayIndex = date.getDay();
             const weekdayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
             const weekday = WEEKDAYS[weekdayIndex];
             const dayMeals = template.days[weekday];
 
-            // Проверяем существует ли меню на эту дату
-            const startOfDay = new Date(date);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(date);
-            endOfDay.setHours(23, 59, 59, 999);
-
-            const existingMenu = await DailyMenu.findOne({
-                date: { $gte: startOfDay, $lte: endOfDay }
-            });
-
-            if (existingMenu) {
-                continue;
-            }
-
-            // Рассчитываем нехватки
             const dayShortages = await this.calculateDayShortages(dayMeals as any, childCount);
             shortages.push(...dayShortages);
 
-            // Создаём меню
             const dailyMenu = new DailyMenu({
                 date,
                 totalChildCount: childCount,
@@ -259,13 +225,13 @@ export class WeeklyMenuTemplateService {
         const uniqueShortages = this.aggregateShortages(shortages);
 
         if (uniqueShortages.length > 0) {
-            await this.sendShortageNotification(uniqueShortages, startDate, remainingDays);
+            await this.sendShortageNotification(uniqueShortages, startDate, days);
         }
 
         return {
             createdMenus,
             shortages: uniqueShortages,
-            message: `Создано ${createdMenus.length} меню на месяц`
+            message: `Создано ${createdMenus.length} меню на ${periodName}`
         };
     }
 

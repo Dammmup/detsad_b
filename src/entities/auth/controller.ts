@@ -7,7 +7,6 @@ const authService = new AuthService();
 
 export const login = async (req: Request, res: Response) => {
   const { phone, password } = req.body;
-  console.log('login:', phone, password);
   try {
     const result = await authService.login(phone, password);
 
@@ -25,7 +24,9 @@ export const login = async (req: Request, res: Response) => {
     res.json(result);
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Server error' });
+    const message = err instanceof Error ? err.message : 'Server error';
+    const isAuthError = message.includes('Неверный') || message.includes('не найден') || message.includes('Invalid') || message.includes('not found');
+    res.status(isAuthError ? 401 : 500).json({ error: message });
   }
 };
 

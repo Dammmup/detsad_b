@@ -18,40 +18,21 @@ import { authorizeRole } from '../../../middlewares/authRole';
 
 const router = express.Router();
 
+const auth = [authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse'])] as const;
 
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getAllPerishableBraks);
+// Специфические GET-маршруты ПЕРЕД /:id
+router.get('/', ...auth, getAllPerishableBraks);
+router.get('/expired', ...auth, getExpiredProducts);
+router.get('/statistics', ...auth, getPerishableBrakStatistics);
+router.get('/product/:productId', ...auth, getPerishableBraksByProductId);
+router.get('/inspector/:inspectorId', ...auth, getPerishableBraksByInspectorId);
+router.get('/:id', ...auth, getPerishableBrakById);
 
-
-router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getPerishableBrakById);
-
-
-router.post('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), createPerishableBrak);
-
-
-router.put('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updatePerishableBrak);
-
-
-router.delete('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), deletePerishableBrak);
-
-
-router.get('/product/:productId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getPerishableBraksByProductId);
-
-
-router.get('/inspector/:inspectorId', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getPerishableBraksByInspectorId);
-
-
-router.get('/expired', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getExpiredProducts);
-
-
-router.patch('/:id/dispose', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), markPerishableBrakAsDisposed);
-
-
-router.patch('/:id/status', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), updatePerishableBrakStatus);
-
-
-router.patch('/:id/recommendations', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), addPerishableBrakRecommendations);
-
-
-router.get('/statistics', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getPerishableBrakStatistics);
+router.post('/', ...auth, createPerishableBrak);
+router.put('/:id', ...auth, updatePerishableBrak);
+router.delete('/:id', ...auth, deletePerishableBrak);
+router.patch('/:id/dispose', ...auth, markPerishableBrakAsDisposed);
+router.patch('/:id/status', ...auth, updatePerishableBrakStatus);
+router.patch('/:id/recommendations', ...auth, addPerishableBrakRecommendations);
 
 export default router;

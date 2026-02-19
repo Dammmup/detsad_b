@@ -102,7 +102,7 @@ TaskSchema.virtual('daysUntilDue').get(function (this: ITask) {
   const today = new Date();
   const dueDate = new Date(this.dueDate);
   const diffTime = dueDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 24));
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
 

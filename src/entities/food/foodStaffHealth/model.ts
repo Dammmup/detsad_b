@@ -76,7 +76,7 @@ const FoodStaffHealthSchema = new Schema<IFoodStaffHealth>({
   },
   sanitaryMinimumNotes: {
     type: String,
-    maxlength: [50, 'Заметки санминимума не могут превышать 500 символов']
+    maxlength: [500, 'Заметки санминимума не могут превышать 500 символов']
   },
   sanitaryMinimumAttachments: [String],
   vaccinationStatus: {

@@ -1,12 +1,11 @@
 import * as Sentry from '@sentry/node';
 
-
-const SENTRY_DSN = process.env.SENTRY_DSN || 'https://6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f@o45051200000.ingest.sentry.io/45051200000';
+const SENTRY_DSN = process.env.SENTRY_DSN;
 
 if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
-    tracesSampleRate: 1.0,
+    tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
   });
 
   console.log('✅ Sentry initialized successfully');
