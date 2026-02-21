@@ -35,6 +35,8 @@ export interface IStaffAttendanceTracking extends Document {
   isManualEntry: boolean;
   checkInDevice?: IDeviceMetadata;
   checkOutDevice?: IDeviceMetadata;
+  createdBy?: mongoose.Types.ObjectId;
+  updatedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -115,6 +117,16 @@ const StaffAttendanceTrackingSchema = new Schema<IStaffAttendanceTracking>({
   },
   checkInDevice: DeviceMetadataSchema,
   checkOutDevice: DeviceMetadataSchema,
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
 }, {
   timestamps: true
 });

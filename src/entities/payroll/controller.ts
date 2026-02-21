@@ -5,6 +5,7 @@ import { autoCalculatePayroll } from '../../services/payrollAutomationService';
 import Payroll from './model';
 import User from '../users/model';
 import mongoose from 'mongoose';
+import { logAction } from '../../utils/auditLogger';
 
 export const getSalarySummary = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -253,6 +254,18 @@ export const createPayroll = async (req: AuthenticatedRequest, res: Response) =>
     };
 
     const payroll = await payrollService.create(payrollData);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'create',
+      entityType: 'payroll',
+      entityId: payroll._id?.toString() || '',
+      entityName: '',
+      details: `Создана запись зарплаты`
+    });
+
     res.status(201).json(payroll);
   } catch (err: any) {
     console.error('Error creating payroll:', err);
@@ -278,6 +291,17 @@ export const updatePayroll = async (req: AuthenticatedRequest, res: Response) =>
     const MANAGING_ROLES = ['admin', 'manager', 'director'];
     const updaterId = MANAGING_ROLES.includes(req.user.role) ? undefined : req.user.id;
     const payroll = await payrollService.update(req.params.id, req.body, updaterId);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'payroll',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(payroll);
   } catch (err: any) {
     console.error('Error updating payroll:', err);
@@ -299,6 +323,17 @@ export const deletePayroll = async (req: AuthenticatedRequest, res: Response) =>
     const checkUser = MANAGING_ROLES.includes(req.user.role) ? undefined : req.user.id;
     const payroll = await payrollService.getById(req.params.id, checkUser);
     const result = await payrollService.delete(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'payroll',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting payroll:', err);
@@ -319,6 +354,18 @@ export const approvePayroll = async (req: AuthenticatedRequest, res: Response) =
 
     const payroll = await payrollService.getById(req.params.id, req.user.id);
     const updatedPayroll = await payrollService.approve(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'payroll',
+      entityId: req.params.id,
+      entityName: '',
+      details: 'Зарплата подтверждена'
+    });
+
     res.json(updatedPayroll);
   } catch (err: any) {
     console.error('Error approving payroll:', err);
@@ -339,6 +386,18 @@ export const markPayrollAsPaid = async (req: AuthenticatedRequest, res: Response
 
     const payroll = await payrollService.getById(req.params.id, req.user.id);
     const updatedPayroll = await payrollService.markAsPaid(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'payroll',
+      entityId: req.params.id,
+      entityName: '',
+      details: 'Зарплата отмечена как оплаченная'
+    });
+
     res.json(updatedPayroll);
   } catch (err: any) {
     console.error('Error marking payroll as paid:', err);
@@ -381,6 +440,17 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       autoCalculationDay: 0,
       emailRecipients: '',
       autoClearData: false
+    });
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'generate',
+      entityType: 'payroll',
+      entityId: targetPeriod,
+      entityName: `Генерация за ${targetPeriod}`,
+      details: `Сгенерированы расчётные листы за ${targetPeriod}`
     });
 
     res.status(200).json({ message: `Расчетные листы успешно сгенерированы для периода: ${targetPeriod}`, data: results });
@@ -503,6 +573,17 @@ export const addFine = async (req: AuthenticatedRequest, res: Response) => {
       notes
     });
 
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'payroll',
+      entityId: payrollId,
+      entityName: '',
+      details: `Добавлен штраф: ${amount} тг — ${reason}`
+    });
+
     res.status(201).json(updatedPayroll);
   } catch (error) {
     console.error('Error adding fine:', error);
@@ -552,6 +633,17 @@ export const removeFine = async (req: AuthenticatedRequest, res: Response) => {
 
     const payrollService = new PayrollService();
     const updatedPayroll = await payrollService.removeFine(payrollId, Number(fineIndex));
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'payroll',
+      entityId: payrollId,
+      entityName: '',
+      details: `Удалён штраф: индекс ${fineIndex}`
+    });
 
     res.json(updatedPayroll);
   } catch (error) {

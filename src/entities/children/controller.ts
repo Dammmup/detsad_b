@@ -3,6 +3,7 @@ import { ChildService } from './service';
 import { AuthenticatedRequest } from '../../types/express';
 import { getChildPayments, createChildPayment } from '../childPayment/service';
 import mongoose from 'mongoose';
+import { logAction, computeChanges } from '../../utils/auditLogger';
 
 const childService = new ChildService();
 const DEFAULT_PAYMENT_AMOUNT = 40000;
@@ -38,6 +39,15 @@ export const getChildrenByGroupId = async (req: Request, res: Response) => {
 export const createChild = async (req: Request, res: Response) => {
   try {
     const child = await childService.create(req.body);
+    logAction({
+      userId: req.user?.id || 'system',
+      userFullName: req.user?.fullName || 'Система',
+      userRole: req.user?.role || 'system',
+      action: 'create',
+      entityType: 'child',
+      entityId: child._id.toString(),
+      entityName: child.fullName || ''
+    });
     res.status(201).json(child);
   } catch (error) {
     res.status(400).json({ error: 'Ошибка при создании ребенка', details: error });
@@ -46,8 +56,26 @@ export const createChild = async (req: Request, res: Response) => {
 
 export const updateChild = async (req: Request, res: Response) => {
   try {
+    const oldChild = await childService.getById(req.params.id);
     const child = await childService.update(req.params.id, req.body);
     if (!child) return res.status(404).json({ error: 'Ребенок не найден' });
+    if (oldChild) {
+      const changes = computeChanges(
+        oldChild.toObject ? oldChild.toObject() : oldChild,
+        req.body,
+        ['fullName', 'groupId', 'active', 'birthday', 'parentName', 'parentPhone', 'paymentAmount', 'notes']
+      );
+      logAction({
+        userId: req.user?.id || 'system',
+        userFullName: req.user?.fullName || 'Система',
+        userRole: req.user?.role || 'system',
+        action: 'update',
+        entityType: 'child',
+        entityId: req.params.id,
+        entityName: child.fullName || oldChild.fullName || '',
+        changes
+      });
+    }
     res.json(child);
   } catch (error) {
     res.status(400).json({ error: 'Ошибка при обновлении данных ребенка', details: error });
@@ -56,8 +84,18 @@ export const updateChild = async (req: Request, res: Response) => {
 
 export const deleteChild = async (req: Request, res: Response) => {
   try {
+    const oldChild = await childService.getById(req.params.id);
     const result = await childService.delete(req.params.id);
     if (!result) return res.status(404).json({ error: 'Ребенок не найден' });
+    logAction({
+      userId: req.user?.id || 'system',
+      userFullName: req.user?.fullName || 'Система',
+      userRole: req.user?.role || 'system',
+      action: 'delete',
+      entityType: 'child',
+      entityId: req.params.id,
+      entityName: oldChild?.fullName || ''
+    });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при удалении ребенка' });
@@ -133,6 +171,16 @@ export const generateMissingPayments = async (req: Request, res: Response) => {
       }
     }
 
+    logAction({
+      userId: req.user?.id || 'system',
+      userFullName: req.user?.fullName || 'Система',
+      userRole: req.user?.role || 'system',
+      action: 'generate',
+      entityType: 'childPayment',
+      entityId: monthPeriod,
+      entityName: `Генерация за ${monthPeriod}`,
+      details: `Создано: ${createdCount}, пропущено: ${skippedCount}, ошибок: ${errors.length}`
+    });
     res.json({
       success: true,
       message: `Генерация завершена за ${monthPeriod}`,

@@ -4,7 +4,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "ts-node-dev src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "start:fast": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "script": "ts-node scripts/create-admin-user.ts",
@@ -68,6 +69,7 @@
     "ts-jest": "^29.4.4",
     "ts-node-dev": "^2.0.0",
     "ts-prune": "^0.10.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.4.5"
   }
 }

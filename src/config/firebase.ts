@@ -1,4 +1,6 @@
 import * as admin from 'firebase-admin';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Check if Firebase Admin SDK has already been initialized
 if (!admin.apps.length) {
@@ -24,7 +26,25 @@ if (!admin.apps.length) {
 
         console.log('✅ Firebase Admin SDK initialized with application default credentials');
     } else {
-        console.warn('⚠️ No Firebase service account found in environment variables. FCM notifications will not be available.');
+        // Try to load from local firebase-service-account.json file
+        const serviceAccountPath = path.resolve(process.cwd(), 'firebase-service-account.json');
+
+        if (fs.existsSync(serviceAccountPath)) {
+            try {
+                const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf-8'));
+
+                admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount)
+                });
+
+                console.log('✅ Firebase Admin SDK initialized with service account from firebase-service-account.json');
+            } catch (error) {
+                console.error('❌ Failed to load Firebase service account from file:', error);
+                console.warn('⚠️ FCM notifications will not be available.');
+            }
+        } else {
+            console.warn('⚠️ No Firebase service account found in environment variables or firebase-service-account.json file. FCM notifications will not be available.');
+        }
     }
 }
 

@@ -15,6 +15,8 @@ export interface IUser extends Document {
   notes?: string;
   iin?: string;
   groupId?: mongoose.Types.ObjectId;
+  createdBy?: mongoose.Types.ObjectId;
+  updatedBy?: mongoose.Types.ObjectId;
 
   birthday?: Date;
   photo?: string;
@@ -84,6 +86,16 @@ const UserSchema: Schema = new Schema({
   groupId: {
     type: Schema.Types.ObjectId,
     ref: 'Group',
+    index: true
+  },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
     index: true
   },
 

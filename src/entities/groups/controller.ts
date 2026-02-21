@@ -1,5 +1,6 @@
 import { Response, Request } from 'express';
 import { GroupService } from './service';
+import { logAction, computeChanges } from '../../utils/auditLogger';
 
 const groupService = new GroupService();
 
@@ -52,7 +53,15 @@ export const createGroup = async (req: Request, res: Response) => {
 
     const group = await groupService.create(req.body, req.user?.id as string);
 
-
+    logAction({
+      userId: req.user?.id || 'system',
+      userFullName: req.user?.fullName || 'Система',
+      userRole: req.user?.role || 'system',
+      action: 'create',
+      entityType: 'group',
+      entityId: group._id.toString(),
+      entityName: group.name || ''
+    });
     res.status(201).json(group);
 
   } catch (err) {
@@ -76,6 +85,21 @@ export const updateGroup = async (req: Request, res: Response) => {
 
     const updatedGroup = await groupService.update(req.params.id, req.body);
 
+    const changes = computeChanges(
+      group.toObject ? group.toObject() : group,
+      req.body,
+      ['name', 'teacherId', 'active', 'description', 'ageRange']
+    );
+    logAction({
+      userId: req.user?.id || 'system',
+      userFullName: req.user?.fullName || 'Система',
+      userRole: req.user?.role || 'system',
+      action: 'update',
+      entityType: 'group',
+      entityId: req.params.id,
+      entityName: updatedGroup?.name || group.name || '',
+      changes
+    });
     res.json(updatedGroup);
   } catch (err) {
     const error = err as Error;
@@ -100,6 +124,15 @@ export const deleteGroup = async (req: Request, res: Response) => {
 
     const result = await groupService.delete(req.params.id);
     if (result) {
+      logAction({
+        userId: req.user?.id || 'system',
+        userFullName: req.user?.fullName || 'Система',
+        userRole: req.user?.role || 'system',
+        action: 'delete',
+        entityType: 'group',
+        entityId: req.params.id,
+        entityName: group.name || ''
+      });
       res.json({ message: 'Группа успешно удалена' });
     } else {
       res.status(500).json({ error: 'Ошибка при удалении группы' });

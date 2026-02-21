@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { DailyScheduleService } from './service';
+import { logAction } from '../../../utils/auditLogger';
 
 const service = new DailyScheduleService();
 
@@ -51,7 +52,20 @@ export const dailyScheduleController = {
     async create(req: Request, res: Response) {
         try {
             const userId = (req as any).user?.id || (req as any).user?._id;
+            const userFullName = (req as any).user?.fullName || 'Система';
+            const userRole = (req as any).user?.role || 'system';
             const schedule = await service.create(req.body, userId);
+
+            logAction({
+                userId: userId || 'system',
+                userFullName,
+                userRole,
+                action: 'create',
+                entityType: 'dailySchedule',
+                entityId: schedule._id.toString(),
+                entityName: `Расписание для группы ${schedule.groupId}`
+            });
+
             res.status(201).json(schedule);
         } catch (error: any) {
             res.status(400).json({ error: error.message });
@@ -60,7 +74,21 @@ export const dailyScheduleController = {
 
     async update(req: Request, res: Response) {
         try {
+            const userId = (req as any).user?.id || (req as any).user?._id;
+            const userFullName = (req as any).user?.fullName || 'Система';
+            const userRole = (req as any).user?.role || 'system';
             const schedule = await service.update(req.params.id, req.body);
+
+            logAction({
+                userId: userId || 'system',
+                userFullName,
+                userRole,
+                action: 'update',
+                entityType: 'dailySchedule',
+                entityId: req.params.id,
+                entityName: schedule ? `Расписание ${schedule._id}` : ''
+            });
+
             res.json(schedule);
         } catch (error: any) {
             res.status(400).json({ error: error.message });
@@ -78,7 +106,21 @@ export const dailyScheduleController = {
 
     async delete(req: Request, res: Response) {
         try {
+            const userId = (req as any).user?.id || (req as any).user?._id;
+            const userFullName = (req as any).user?.fullName || 'Система';
+            const userRole = (req as any).user?.role || 'system';
             const result = await service.delete(req.params.id);
+
+            logAction({
+                userId: userId || 'system',
+                userFullName,
+                userRole,
+                action: 'delete',
+                entityType: 'dailySchedule',
+                entityId: req.params.id,
+                entityName: ''
+            });
+
             res.json(result);
         } catch (error: any) {
             res.status(404).json({ error: error.message });

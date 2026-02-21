@@ -5,6 +5,7 @@ import { sendTelegramNotificationToRoles } from '../../utils/telegramNotificatio
 import User from '../users/model';
 import Shift from './model';
 import { AuthUser } from '../../middlewares/authMiddleware';
+import { logAction } from '../../utils/auditLogger';
 
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
@@ -62,6 +63,18 @@ export const createShift = async (req: AuthenticatedRequest, res: Response) => {
     };
 
     const result = await shiftsService.create(processedShiftData, req.user.id as string);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'create',
+      entityType: 'staffShift',
+      entityId: result._id?.toString() || '',
+      entityName: '',
+      details: `Создана смена на ${shiftData.date || ''}`
+    });
+
     res.status(201).json(result);
   } catch (err: any) {
     console.error('Error creating shift:', err);
@@ -128,6 +141,17 @@ export const updateShift = async (req: AuthenticatedRequest, res: Response) => {
     const { actualStart, actualEnd, breakTime, overtimeMinutes, lateMinutes, earlyLeaveMinutes, ...shiftData } = req.body;
 
     const result = await shiftsService.update(req.params.id, shiftData);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'staffShift',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err) {
     console.error('Error updating shift:', err);
@@ -147,6 +171,17 @@ export const deleteShift = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const result = await shiftsService.delete(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'staffShift',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err) {
     console.error('Error deleting shift:', err);
@@ -170,6 +205,18 @@ export const bulkDeleteShifts = async (req: AuthenticatedRequest, res: Response)
     }
 
     const result = await shiftsService.bulkDelete(ids);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'bulk_update',
+      entityType: 'staffShift',
+      entityId: ids.join(','),
+      entityName: '',
+      details: `Массовое удаление ${ids.length} смен`
+    });
+
     res.json(result);
   } catch (err) {
     console.error('Error bulk deleting shifts:', err);
@@ -245,6 +292,17 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
       console.warn('Telegram log failed (checkInSimple):', telegramError);
     }
 
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffShift',
+      entityId: shiftId,
+      entityName: req.user!.fullName,
+      details: 'Чек-ин'
+    });
+
     res.json(result);
   } catch (err) {
     console.error('Error checking in:', err);
@@ -286,6 +344,17 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
     } catch (telegramError) {
       console.warn('Telegram log failed (checkOutSimple):', telegramError);
     }
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffShift',
+      entityId: shiftId,
+      entityName: req.user!.fullName,
+      details: 'Чек-аут'
+    });
 
     res.json(result);
   } catch (err) {

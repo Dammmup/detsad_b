@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { DocumentsService } from './service';
+import { logAction } from '../../utils/auditLogger';
 
 const documentsService = new DocumentsService();
 
@@ -72,6 +73,17 @@ export const createDocument = async (req: Request & { file?: MulterFile }, res: 
     documentData.owner = req.user.id;
 
     const document = await documentsService.create(documentData);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'create',
+      entityType: 'document',
+      entityId: document._id.toString(),
+      entityName: document.title || document.fileName || ''
+    });
+
     res.status(201).json(document);
   } catch (err: any) {
     console.error('Error creating document:', err);
@@ -86,6 +98,17 @@ export const updateDocument = async (req: Request, res: Response) => {
     }
 
     const document = await documentsService.update(req.params.id, req.body);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'document',
+      entityId: req.params.id,
+      entityName: document?.title || document?.fileName || ''
+    });
+
     res.json(document);
   } catch (err: any) {
     console.error('Error updating document:', err);
@@ -100,6 +123,17 @@ export const deleteDocument = async (req: Request, res: Response) => {
     }
 
     const result = await documentsService.delete(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'document',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting document:', err);

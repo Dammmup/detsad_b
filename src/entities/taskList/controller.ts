@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { TaskListService } from './service';
+import { logAction, computeChanges } from '../../utils/auditLogger';
 
 const taskListService = new TaskListService();
 
@@ -70,6 +71,17 @@ export const createTask = async (req: Request, res: Response) => {
     }
 
     const task = await taskListService.create(req.body, req.user.id as string);
+
+    logAction({
+      userId: req.user.id,
+      userFullName: req.user.fullName,
+      userRole: req.user.role,
+      action: 'create',
+      entityType: 'task',
+      entityId: task._id.toString(),
+      entityName: task.title
+    });
+
     res.status(201).json(task);
   } catch (err: any) {
     console.error('Error creating task:', err);
@@ -100,6 +112,17 @@ export const updateTask = async (req: Request, res: Response) => {
     }
 
     const updatedTask = await taskListService.update(req.params.id, req.body);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'task',
+      entityId: req.params.id,
+      entityName: updatedTask?.title || ''
+    });
+
     res.json(updatedTask);
   } catch (err: any) {
     console.error('Error updating task:', err);
@@ -119,6 +142,17 @@ export const deleteTask = async (req: Request, res: Response) => {
     }
 
     const result = await taskListService.delete(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'task',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting task:', err);
@@ -149,6 +183,18 @@ export const markTaskAsCompleted = async (req: Request, res: Response) => {
     }
 
     const updatedTask = await taskListService.markAsCompleted(req.params.id, req.user.id as string);
+
+    logAction({
+      userId: req.user.id,
+      userFullName: req.user.fullName,
+      userRole: req.user.role,
+      action: 'status_change',
+      entityType: 'task',
+      entityId: req.params.id,
+      entityName: updatedTask?.title || '',
+      details: 'Задача завершена'
+    });
+
     res.json(updatedTask);
   } catch (err: any) {
     console.error('Error marking task as completed:', err);
@@ -179,6 +225,18 @@ export const markTaskAsCancelled = async (req: Request, res: Response) => {
     }
 
     const updatedTask = await taskListService.markAsCancelled(req.params.id, req.user.id as string);
+
+    logAction({
+      userId: req.user.id,
+      userFullName: req.user.fullName,
+      userRole: req.user.role,
+      action: 'status_change',
+      entityType: 'task',
+      entityId: req.params.id,
+      entityName: updatedTask?.title || '',
+      details: 'Задача отменена'
+    });
+
     res.json(updatedTask);
   } catch (err: any) {
     console.error('Error marking task as cancelled:', err);

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { ChildAttendanceService } from './service';
+import { logAction } from '../../utils/auditLogger';
 
 const childAttendanceService = new ChildAttendanceService();
 
@@ -47,6 +48,16 @@ export const createOrUpdateAttendance = async (req: Request, res: Response) => {
     }
 
     const attendance = await childAttendanceService.createOrUpdate(req.body, req.user.id as string);
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'childAttendance',
+      entityId: attendance._id?.toString() || req.body.childId || '',
+      entityName: '',
+      details: 'Отметил посещаемость'
+    });
     res.status(201).json(attendance);
   } catch (err) {
     console.error('Error creating/updating attendance:', err);
@@ -72,6 +83,16 @@ export const bulkCreateOrUpdateAttendance = async (req: Request, res: Response) 
 
     const result = await childAttendanceService.bulkCreateOrUpdate(records, groupId, req.user.id as string);
 
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'bulk_update',
+      entityType: 'childAttendance',
+      entityId: groupId,
+      entityName: '',
+      details: `Массовая отметка посещаемости: ${records.length} записей`
+    });
 
     if (result.errorCount > 0 && result.success === 0) {
       return res.status(400).json(result);
@@ -121,6 +142,15 @@ export const deleteAttendance = async (req: Request, res: Response) => {
     }
 
     const result = await childAttendanceService.delete(req.params.id);
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'childAttendance',
+      entityId: req.params.id,
+      entityName: ''
+    });
     res.json(result);
   } catch (err) {
     console.error('Error deleting attendance:', err);

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { StaffAttendanceTrackingService } from './service';
+import { logAction } from '../../utils/auditLogger';
 
 export const staffAttendanceTrackingService = new StaffAttendanceTrackingService();
 
@@ -16,6 +17,17 @@ export const clockIn = async (req: Request, res: Response) => {
       { latitude, longitude },
       notes
     );
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffAttendance',
+      entityId: (result as any)?._id?.toString() || userId,
+      entityName: req.user!.fullName,
+      details: 'Чек-ин'
+    });
 
     res.status(201).json(result);
   } catch (error) {
@@ -43,6 +55,17 @@ export const clockOut = async (req: Request, res: Response) => {
       photo,
       notes
     );
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffAttendance',
+      entityId: (result as any)?._id?.toString() || userId,
+      entityName: req.user!.fullName,
+      details: 'Чек-аут'
+    });
 
     res.json(result);
   } catch (error) {
@@ -185,6 +208,18 @@ export const createStaffAttendanceRecord = async (req: Request, res: Response) =
     }
 
     const record = await staffAttendanceTrackingService.create(recordData, req.user.id as string);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'create',
+      entityType: 'staffAttendance',
+      entityId: record._id?.toString() || '',
+      entityName: '',
+      details: 'Создана запись посещаемости'
+    });
+
     res.status(201).json(record);
   } catch (err: any) {
     console.error('Error creating staff attendance record:', err);
@@ -210,6 +245,17 @@ export const updateStaffAttendanceRecord = async (req: Request, res: Response) =
     }
 
     const record = await staffAttendanceTrackingService.update(req.params.id, recordData);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'staffAttendance',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(record);
   } catch (err: any) {
     console.error('Error updating staff attendance record:', err);
@@ -224,6 +270,17 @@ export const deleteStaffAttendanceRecord = async (req: Request, res: Response) =
     }
 
     const result = await staffAttendanceTrackingService.delete(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'staffAttendance',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting staff attendance record:', err);
@@ -342,6 +399,18 @@ export const updateStaffAttendanceRecordStatus = async (req: Request, res: Respo
     }
 
     const record = await staffAttendanceTrackingService.updateStatus(req.params.id, status);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffAttendance',
+      entityId: req.params.id,
+      entityName: '',
+      details: `Статус изменён на: ${status}`
+    });
+
     res.json(record);
   } catch (err: any) {
     console.error('Error updating staff attendance record status:', err);
@@ -433,6 +502,18 @@ export const approveStaffAttendance = async (req: Request, res: Response) => {
     }
 
     const record = await staffAttendanceTrackingService.approveAttendance(req.params.id, req.user.id as string);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffAttendance',
+      entityId: req.params.id,
+      entityName: '',
+      details: 'Подтверждена запись'
+    });
+
     res.json(record);
   } catch (err: any) {
     console.error('Error approving staff attendance record:', err);
@@ -453,6 +534,17 @@ export const rejectStaffAttendance = async (req: Request, res: Response) => {
       req.user.id as string,
       reason
     );
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'staffAttendance',
+      entityId: req.params.id,
+      entityName: '',
+      details: `Отклонена запись: ${reason || ''}`
+    });
 
     res.json(record);
   } catch (err: any) {
@@ -726,6 +818,17 @@ export const bulkUpdateStaffAttendanceRecords = async (req: Request, res: Respon
       timeStart,
       timeEnd,
       notes
+    });
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'bulk_update',
+      entityType: 'staffAttendance',
+      entityId: ids.join(','),
+      entityName: '',
+      details: `Массовое обновление ${ids.length} записей`
     });
 
     res.json(result);

@@ -111,7 +111,9 @@ app.use('/product-purchases', productPurchaseRoutes);
 app.use('/product-reports', productReportsRoutes);
 app.use('/qwen3-chat', qwen3ChatRoutes);
 import externalSpecialistRoutes from './entities/externalSpecialists/route';
+import auditLogRoutes from './entities/auditLog/route';
 app.use('/external-specialists', externalSpecialistRoutes);
+app.use('/audit-log', auditLogRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/api/auth', authRoutes);

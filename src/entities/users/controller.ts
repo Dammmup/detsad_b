@@ -4,6 +4,7 @@ import { AuthUser } from '../../middlewares/authMiddleware';
 import { hashPassword } from '../../utils/hash';
 import Payroll from '../payroll/model';
 import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { logAction, computeChanges } from '../../utils/auditLogger';
 
 
 interface AuthenticatedRequest extends Request {
@@ -175,6 +176,7 @@ export const createUser = async (req: Request, res: Response) => {
       ...req.body,
       uniqNumber: req.body.iin || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: new Date(),
+      createdBy: req.user?.id || null,
 
       _id: undefined
     };
@@ -232,6 +234,16 @@ export const createUser = async (req: Request, res: Response) => {
         console.error('Ошибка при автосоздании payroll:', e);
       }
     }
+    logAction({
+      userId: req.user?.id || 'system',
+      userFullName: req.user?.fullName || 'Система',
+      userRole: req.user?.role || 'system',
+      action: 'create',
+      entityType: 'staff',
+      entityId: user._id.toString(),
+      entityName: user.fullName || ''
+    });
+
     res.status(201).json(userObj);
   } catch (error) {
     console.error('Ошибка при создании пользователя:', error);
@@ -319,8 +331,28 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(404).json({ error: 'Пользователь не найден после обновления' });
     }
 
+    // Обновляем updatedBy
+    (updatedUser as any).updatedBy = req.user!.id;
+    await (updatedUser as any).save();
+
     const userObj = (updatedUser as any).toObject ? (updatedUser as any).toObject() : updatedUser;
     if (userObj.passwordHash) delete userObj.passwordHash;
+
+    const changes = computeChanges(
+      {},
+      req.body,
+      ['fullName', 'phone', 'role', 'active', 'groupId', 'iin', 'notes', 'photo']
+    );
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'staff',
+      entityId: req.params.id,
+      entityName: updatedUser.fullName || '',
+      changes
+    });
 
     if (req.user.role === 'admin' || req.user.id === req.params.id) {
       res.json(userObj);
@@ -453,8 +485,20 @@ export const deleteUser = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions to delete users' });
     }
 
+    const oldUser = await userService.getById(req.params.id);
     const result = await userService.delete(req.params.id);
     if (!result) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'staff',
+      entityId: req.params.id,
+      entityName: oldUser?.fullName || ''
+    });
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при удалении пользователя' });
@@ -653,6 +697,17 @@ export const addUserFine = async (req: AuthenticatedRequest, res: Response) => {
       await sendLogToTelegram(msg);
     }
 
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'staff',
+      entityId: userId,
+      entityName: (populatedPayroll?.staffId as any)?.fullName || '',
+      details: `Добавлен штраф: ${amount} тг — ${reason}`
+    });
+
     res.status(201).json(populatedPayroll);
   } catch (error) {
     console.error('Error adding fine:', error);
@@ -749,6 +804,17 @@ export const removeUserFine = async (req: AuthenticatedRequest, res: Response) =
         `Итого Вычетов за период: ${populatedPayroll.userFines} тг`;
       await sendLogToTelegram(msg);
     }
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'staff',
+      entityId: req.params.id,
+      entityName: (populatedPayroll?.staffId as any)?.fullName || '',
+      details: `Удалён штраф: ${fineAmount} тг — ${removedFine.reason}`
+    });
 
     res.json({ message: 'Fine removed successfully', updatedPayroll: populatedPayroll });
   } catch (error) {

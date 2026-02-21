@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { RentService } from './service';
 import { AuthUser } from '../../middlewares/authMiddleware';
 import User from '../users/model';
+import { logAction } from '../../utils/auditLogger';
 
 
 interface AuthenticatedRequest extends Request {
@@ -57,6 +58,17 @@ export const createRent = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const rent = await rentService.create(req.body);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'create',
+      entityType: 'rent',
+      entityId: rent._id.toString(),
+      entityName: `Аренда за ${rent.period}`
+    });
+
     res.status(201).json(rent);
   } catch (err: any) {
     console.error('Error creating rent:', err);
@@ -76,6 +88,17 @@ export const updateRent = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const rent = await rentService.update(req.params.id, req.body);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'update',
+      entityType: 'rent',
+      entityId: req.params.id,
+      entityName: rent ? `Аренда за ${rent.period}` : ''
+    });
+
     res.json(rent);
   } catch (err: any) {
     console.error('Error updating rent:', err);
@@ -95,6 +118,17 @@ export const deleteRent = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const result = await rentService.delete(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'delete',
+      entityType: 'rent',
+      entityId: req.params.id,
+      entityName: ''
+    });
+
     res.json(result);
   } catch (err: any) {
     console.error('Error deleting rent:', err);
@@ -114,6 +148,18 @@ export const markRentAsPaid = async (req: AuthenticatedRequest, res: Response) =
     }
 
     const rent = await rentService.markAsPaid(req.params.id);
+
+    logAction({
+      userId: req.user!.id,
+      userFullName: req.user!.fullName,
+      userRole: req.user!.role,
+      action: 'status_change',
+      entityType: 'rent',
+      entityId: req.params.id,
+      entityName: rent ? `Аренда за ${rent.period}` : '',
+      details: 'Аренда отмечена как оплаченная'
+    });
+
     res.json(rent);
   } catch (err: any) {
     console.error('Error marking rent as paid:', err);

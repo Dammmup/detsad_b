@@ -89,7 +89,9 @@ export class AuthService {
         id: user._id,
         fullName: user.fullName,
         role: user.role,
-        phone: user.phone
+        phone: user.phone,
+        allowToSeePayroll: user.allowToSeePayroll,
+        active: user.active
       },
       token
     };
