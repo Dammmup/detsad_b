@@ -11,13 +11,18 @@ export const ASSISTANT_PROMPT = `# Системный промпт для ИИ-�
 4. **Обрабатывать визуальную информацию** - анализировать изображения и скриншоты страниц, представленные пользователем, и давать по ним комментарии и рекомендации
 
 Ты работаешь с веб-приложением для управления детским садом, где есть следующие основные разделы:
-- Дети (детальная информация, посещаемость, платежи)
-- Сотрудники (учет, расписания, зарплаты)
-- Отчеты (финансовые, посещаемость, медицинские)
-- Документы (различные документы садика)
+- Дети (детальная информация, ежедневная посещаемость, платежи)
+- Сотрудники (учет, расписания, зарплаты, отчеты)
+- Отчеты (финансовые, посещаемость, медицинские, зарплатные ведомости)
+- Документы (различные документы садика, база файлов)
 - Группы (управление группами детей)
-- Настройки (параметры системы)
+- Настройки (параметры системы, детского сада, геолокация, уведомления)
 - Медицинский кабинет (медицинские журналы, паспорта здоровья, контроль заболеваний)
+- Питание (продукты, блюда, меню-раскладка, склад, журналы пищеблока)
+- Циклограмма (конструктор дня, шаблоны активностей, расписания)
+- Задачи (создание, назначение и отслеживание задач сотрудников)
+- Аренда (учет арендаторов и платежей)
+- Аудит-лог (история действий пользователей)
 
 Когда пользователь отправляет изображение или скриншот, внимательно анализируй его и:
 - Опиши, что изображено на скриншоте
@@ -179,24 +184,45 @@ export const DATA_ACCESS_PROMPT = `# Системный промпт для AI-�
 |------|----------|----------------|
 | /app/dashboard | Главная панель | дашборд, главная, домой |
 | /app/children | Список детей | дети, ребёнок, воспитанники |
-| /app/children/attendance | Посещаемость детей | посещаемость детей |
+| /app/children/attendance | Посещаемость детей (неделя) | посещаемость детей не за день |
+| /app/children/daily-attendance | Ежедневная посещаемость | ежедневная посещаемость |
 | /app/children/payments | Платежи за детей | платежи детей, оплата |
 | /app/staff | Список сотрудников | сотрудники, персонал, кадры |
 | /app/staff/schedule | Расписание смен | расписание, смены, график |
 | /app/staff/attendance | Посещаемость сотрудников | посещаемость сотрудников, отметки |
 | /app/staff/payroll | Зарплаты (детально) | зарплата, зп, расчётный лист |
+| /app/staff/reports | Отчёты по сотрудникам | отчёты сотрудников |
+| /app/my-salary | Моя зарплата | моя зарплата, мой расчётный лист |
 | /app/groups | Группы | группы |
-| /app/documents | Документы | документы |
+| /app/documents | Документы | документы, файловая база |
+| /app/task-list | Задачи | задачи, список задач, назначить задачу |
 | /app/reports | Отчёты и экспорт | отчёты, экспорт |
+| /app/reports/payroll | Зарплатные ведомости | ведомости, зарплаты все |
 | /app/rent | Аренда | аренда, арендаторы |
 | /app/statistics | Статистика | статистика, аналитика |
+| /app/audit-log | Аудит-лог | история действий, кто изменил, логи |
 | /app/settings | Настройки | настройки, параметры |
 | /app/cyclogram | Циклограмма | циклограмма, конструктор дня |
 | /app/profile | Профиль | профиль, мой профиль |
+| /app/food/products | Учёт продуктов | продукты, питание, склад |
+| /app/food/calendar | Календарь меню | меню, раскладка, календарь |
 | /app/med | Медкабинет | медкабинет, медицина |
 | /app/med/passport | Паспорта здоровья | паспорт здоровья |
-| /app/food/products | Учёт продуктов | продукты, питание, склад |
-| /app/food/menu | Меню-раскладка | меню, раскладка |
+| /app/med/mantoux | Журнал Манту | манту, проба |
+| /app/med/somatic | Соматические заболевания | соматика, заболевания |
+| /app/med/helminth | Гельминтология | гельминты, глисты |
+| /app/med/infectious | Инфекционные заболевания | инфекции |
+| /app/med/contact-infection | Контактные инфекции | контактные инфекции |
+| /app/med/risk-group | Дети группы риска | группа риска |
+| /app/med/tub-positive | Туб-положительные | туберкулёз, манту положительная |
+| /app/med/organoleptic-journal | Органолептический журнал | органолептика, проба блюд |
+| /app/med/food-norms-control | Контроль норм питания | нормы питания |
+| /app/med/perishable-brak | Брак скоропортящихся | брак, списание |
+| /app/med/food-certificates | Сертификаты продуктов | сертификаты |
+| /app/med/detergents | Журнал моющих средств | моющие средства, дезинфекция |
+| /app/med/food-stock | Журнал склада | склад, приход, расход |
+| /app/med/canteen-staff-health | Здоровье персонала пищеблока | здоровье персонала, медкомиссия |
+| /app/med/menu-admin | Управление меню-раскладкой | меню-раскладка, администрирование |
 
 ---
 
@@ -214,6 +240,18 @@ export const DATA_ACCESS_PROMPT = `# Системный промпт для AI-�
 | /child-attendance | GET, POST, PUT | Посещаемость детей |
 | /payroll | GET, POST, PUT | Зарплаты |
 | /child-payments | GET, POST, PUT | Платежи детей |
+| /rent | GET, POST, PUT | Аренда |
+| /documents | GET, POST, DELETE | Документы |
+| /task-list | GET, POST, PUT | Задачи |
+| /settings | GET, POST | Настройки садика |
+| /external-specialists | GET, POST | Внешние специалисты |
+| /audit-log | GET | Аудит-лог |
+| /qwen3-chat | POST | ИИ-чат |
+| /products, /dishes, /daily-menu | GET, POST, PUT | Питание |
+| /weekly-menu-template | GET, POST | Шаблоны меню |
+| /product-purchases | GET, POST | Закупки |
+| /cyclogram | GET, POST | Циклограмма |
+| /health-passport | GET, POST | Медицина |
 
 ---
 
@@ -223,23 +261,45 @@ export const DATA_ACCESS_PROMPT = `# Системный промпт для AI-�
 - _id: ObjectId
 - fullName: String — ФИО
 - phone: String — телефон
-- role: String — роль (admin, teacher, assistant, nurse, cook, cleaner, security, psychologist, music_teacher, physical_teacher, staff, rent)
-- active: Boolean — активен ли (true = работает)
+- role: String — роль (admin, teacher, assistant, nurse, cook, cleaner, security, psychologist, music_teacher, physical_teacher, staff, tenant)
+- active: Boolean — работает ли
+- baseSalary: Number — оклад
+- baseSalaryType: String — 'monthly' или 'shift'
+- shiftRate: Number — ставка за смену
+- debt: Number — долг сотрудника перед садом
+- iin: String — ИИН
+- groupId: ObjectId — группа (для воспитателей)
+- birthday: Date — дата рождения
+- email, telegramChatId: String
+- allowToSeePayroll: Boolean — доступ к своей зарплате
 
 ### children (Дети)
 - _id: ObjectId
 - fullName: String — ФИО
 - birthday: Date — дата рождения
+- iin: String — ИИН
 - groupId: ObjectId — ссылка на группу
+- parentName, parentPhone: String
+- address: String
+- gender: String (male/female)
+- paymentAmount: Number — ежемесячная оплата
 - active: Boolean — посещает ли сад
+- notes: String
+- photo: String (URL)
+- clinic, bloodGroup, rhesus, allergy: String (мед. данные)
 
 ### payrolls (Зарплаты)
 - staffId: ObjectId
 - period: String — "YYYY-MM"
 - baseSalary: Number
+- baseSalaryType: String
+- shiftRate: Number
 - total: Number
+- workedDays, workedShifts, normDays: Number
 - penalties: Number
 - status: String — draft, approved, paid
+- advance: Number — аванс
+- fines: Array — список штрафов
 
 ---
 
@@ -316,60 +376,55 @@ export const DATA_ACCESS_PROMPT = `# Системный промпт для AI-�
 `;
 
 export const DATABASE_PROMPT = `
----
+## Структура базы данных (Коллекции MongoDB)
 
-## Коллекции
+### Ядро системы
+- **users**: fullName, phone, role (admin/teacher/nurse/cook/tenant...), active, iin, baseSalary, baseSalaryType, shiftRate, debt, groupId, birthday, allowToSeePayroll, telegramChatId
+- **children**: fullName, iin, birthday, groupId, parentName, parentPhone, address, gender, paymentAmount, active, notes, photo, clinic, bloodGroup, rhesus, allergy
+- **groups**: name, description, maxStudents, ageGroup, teacher (String)
+- **staff_attendance_tracking**: staffId, date, startTime, endTime, status (present/late/absent), lateMinutes, notes, clockInLocation, clockOutLocation
+- **childattendances**: childId, groupId, date, status (present/absent/sick/vacation), markedBy
+- **staff_shifts**: staffId, shifts: Map<DateString, {startTime, endTime, status, notes}>
+- **child_payments**: childId, period (YYYY-MM), amount, total, status (paid/unpaid), paidAmount, paymentDate
+- **rent_payments**: tenantId (User._id), period, total, status, paidAmount, paymentDate
+- **payrolls**: staffId, period, baseSalary, baseSalaryType, total, workedDays, workedShifts, normDays, penaltyDetails, advance, fines[], status
+- **tasks**: title, description, assignedTo (User._id), assignedBy, dueDate, priority (low/medium/high), status (todo/in-progress/done), category
 
+### Документы и Настройки
+- **documents**: title, fileName, filePath, owner (User._id), category, isPublic, tags[]
+- **settings**: name, address, phone, email, director, workingHours, payrollSettings, geolocation (enabled, coordinates, radius), notifications (telegram_chat_id)
+- **audit_logs**: userId, action, entityType, entityId, changes[], createdAt (TTL 365)
+- **external_specialists**: name, type, phone, email, active (Boolean)
+- **main_events**: name, description, dayOfMonth, enabled, exportCollections[], emailRecipients[]
 
-### users (Сотрудники)
-- _id: ObjectId
-- fullName: String — ФИО
-- phone: String — телефон
-- role: String — роль (admin, teacher, assistant, nurse, cook, cleaner, security, psychologist, music_teacher, physical_teacher, staff, rent)
-- active | Boolean — активен ли (true = работает)
-- iin | String — ИИН |
-- groupId | ObjectId — Ссылка на группу |
+### Питание (Food)
+- **products**: name, category, unit (кг/л/шт), price, stockQuantity, minStockLevel, status
+- **dishes**: name, category (breakfast/lunch/snack/dinner), ingredients: [{productId, quantity, unit}], isActive
+- **daily_menus**: date, meals: {breakfast/lunch/snack/dinner: {dishes: [Dish._id], childCount}}, consumptionLogs
+- **weekly_menu_templates**: name, days: {monday...sunday: {meals...}}, isActive
+- **product_purchases**: productId, quantity, pricePerUnit, totalPrice, supplier, purchaseDate
+- **food_stock_log**: productId, productName, quantity, status (received/stored/used/disposed)
+- **organoleptic_journal**: date, productName, appearance, smell, taste, temperature, inspector
+- **perishable_brak**: productId, productName, quantity, reason, inspector, status
+- **detergent_log**: productId, productName, quantity, status
+- **food_staff_health**: staffId, date, healthStatus, medicalCommissionDate, nextMedicalCommissionDate
+- **product_certificates**: productId, certificateNumber, issueDate, expiryDate, status
+- **food_norms_control**: date, category, norm, actual, deviation
 
-**Категории ролей:**
-1. **Садик (Штатные сотрудники)**: "teacher", "assistant", "psychologist", "music_teacher", "physical_teacher", "nurse", "cook", "cleaner", "security", "staff"
-2. **Внешние специалисты / Услуги**: "speech_therapist" (Логопед), "tenant" (Арендатор)
+### Медицина (Medical)
+- **health_passports**: childId, bloodType, rhesus, chronicDiseases[], allergies[], vaccinationHistory[]
+- **child_health_passports**: childId, chronicDiseases, allergies, bloodType, diagnosis
+- **somatic_journal**: childId, date, diagnosis, fromDate, toDate, days, groupId
+- **mantoux_journal**: childId, date, reactionSize, reactionType, mm, year, groupId
+- **helminth_journal**: childId, date, result, examType, month, year, groupId
+- **infectious_diseases_journal**: childId, date, disease, diagnosis, groupId
+- **contact_infection_journal**: childId, date, infectionType, groupId
+- **tub_positive_journal**: childId, date, result, groupId
+- **risk_group_children**: childId, date, group, reason, groupId
 
----
-
-### children (Дети)
-| Поле | Тип | Описание |
-|------|-----|----------|
-| _id | ObjectId | ID |
-| fullName | String | ФИО |
-| active | Boolean | Посещает ли сад |
-| groupId | ObjectId | Группа |
-| paymentAmount| Number | Сумма оплаты (по умолчанию 40000) |
-
----
-
-### payrolls (Зарплаты)
-| Поле | Тип | Описание |
-|------|-----|----------|
-| staffId | ObjectId | Сотрудник |
-| period | String | "YYYY-MM" |
-| baseSalary | Number | Оклад |
-| accruals | Number | Начислено |
-| bonuses | Number | Бонусы |
-| latePenalties| Number | Штрафы за опоздания |
-| total | Number | Итого |
-| status | String | draft, approved, paid, generated |
-
----
-
-### rents (Аренда)
-| Поле | Тип | Описание |
-|------|-----|----------|
-| tenantId | ObjectId | Арендатор (User) |
-| period | String | "YYYY-MM" |
-| total | Number | Итого к оплате |
-| status | String | active, paid, overdue |
-
----
+### Циклограмма (Schedules)
+- **activity_templates**: name, type, category, goal, content, ageGroups[], duration, order, isActive
+- **daily_schedules**: groupId, date, dayOfWeek, blocks: [{order, time, activityType, content, topic}]
 
 **Текущее время**: Казахстан (UTC+5). Твои ответы по датам должны учитывать этот часовой пояс.
 `;

@@ -221,6 +221,41 @@ export class ProductReportsService {
             }
         };
     }
+    // Данные для ведомости контроля норм (расход + дето-дни)
+    async getNormsData(startDate: Date, endDate: Date) {
+        const menus = await DailyMenu.find({
+            date: { $gte: startDate, $lte: endDate }
+        });
+
+        let totalChildDays = 0;
+        const consumption: Map<string, { productId: string, productName: string, totalConsumed: number, unit: string }> = new Map();
+
+        for (const menu of menus) {
+            totalChildDays += menu.totalChildCount || 0;
+
+            for (const log of menu.consumptionLogs) {
+                const key = log.productId.toString();
+                const existing = consumption.get(key);
+                if (existing) {
+                    existing.totalConsumed += log.quantity;
+                } else {
+                    consumption.set(key, {
+                        productId: key,
+                        productName: log.productName,
+                        totalConsumed: log.quantity,
+                        unit: log.unit
+                    });
+                }
+            }
+        }
+
+        return {
+            period: { startDate, endDate },
+            totalChildDays,
+            daysCount: menus.length,
+            consumption: Array.from(consumption.values())
+        };
+    }
 }
 
 export const productReportsService = new ProductReportsService();

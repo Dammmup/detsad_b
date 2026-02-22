@@ -148,16 +148,22 @@ export class ProductsService {
         };
     }
 
-    async findByNameOrCreate(productData: { name: string, unit: string }): Promise<IProduct> {
+    async findByNameOrCreate(productData: { name: string, unit: string, weight?: number, weightUnit?: string }): Promise<IProduct> {
         const nameRegex = new RegExp(`^${productData.name.trim()}$`, 'i');
-        let product = await Product.findOne({ name: nameRegex });
+        let product = await Product.findOne({
+            name: nameRegex,
+            weight: productData.weight,
+            weightUnit: productData.weightUnit || 'г'
+        });
 
         if (product) {
             return product;
         } else {
             const newProduct = new Product({
                 name: productData.name.trim(),
-                unit: productData.unit || 'г', // Default unit
+                unit: productData.unit || 'г',
+                weight: productData.weight,
+                weightUnit: productData.weightUnit || 'г',
                 category: 'Бакалея', // Default category
                 price: 0,
                 stockQuantity: 0,

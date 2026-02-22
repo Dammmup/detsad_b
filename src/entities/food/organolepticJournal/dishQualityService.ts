@@ -114,7 +114,13 @@ export class DishQualityService {
         const startOfDay = new Date(dateObj.setHours(0, 0, 0, 0));
         const endOfDay = new Date(dateObj.setHours(23, 59, 59, 999));
 
-        let dishNames: string[] = [];
+        interface DishInfo {
+            name: string;
+            category?: string;
+            subcategory?: string;
+        }
+
+        let dishesInfo: DishInfo[] = [];
 
         // 1. Try to find DailyMenu first
         const dailyMenu = await DailyMenu.findOne({
@@ -129,12 +135,16 @@ export class DishQualityService {
                 ...dailyMenu.meals.snack.dishes,
                 ...dailyMenu.meals.dinner.dishes
             ];
-            dishNames = meals.map((d: any) => d.name).filter(Boolean);
-            console.log(`[OrganolepticJournal] Dishes from DailyMenu: ${dishNames.length}`);
+            dishesInfo = meals.map((d: any) => ({
+                name: d.name,
+                category: d.category,
+                subcategory: d.subcategory
+            })).filter(d => d.name);
+            console.log(`[OrganolepticJournal] Dishes from DailyMenu: ${dishesInfo.length}`);
         }
 
         // 2. If no DailyMenu, try WeeklyMenuTemplate
-        if (dishNames.length === 0) {
+        if (dishesInfo.length === 0) {
             const dayOfWeekIndex = (new Date(date).getDay() + 6) % 7; // 0 = Monday
             const weekday = WEEKDAYS[dayOfWeekIndex];
             console.log(`[OrganolepticJournal] Searching in WeeklyMenuTemplate for weekday: ${weekday}`);
@@ -154,8 +164,12 @@ export class DishQualityService {
 
                 if (allDishIds.length > 0) {
                     const dishes = await Dish.find({ _id: { $in: allDishIds } });
-                    dishNames = dishes.map(d => d.name);
-                    console.log(`[OrganolepticJournal] Dish names found: ${dishNames.length}`);
+                    dishesInfo = dishes.map(d => ({
+                        name: d.name,
+                        category: d.category,
+                        subcategory: d.subcategory
+                    }));
+                    console.log(`[OrganolepticJournal] Dish names found: ${dishesInfo.length}`);
                 }
             } else {
                 console.log(`[OrganolepticJournal] No active template found`);
@@ -163,7 +177,7 @@ export class DishQualityService {
         }
 
         // 3. Last fallback - MenuItems (original logic)
-        if (dishNames.length === 0) {
+        if (dishesInfo.length === 0) {
             console.log(`[OrganolepticJournal] Fallback to MenuItems`);
             const dayOfWeek = (new Date(date).getDay() + 6) % 7;
             const dayOfMonth = new Date(date).getDate();
@@ -175,11 +189,15 @@ export class DishQualityService {
                 isAvailable: true
             });
 
-            dishNames = menuItems.map(m => m.name);
-            console.log(`[OrganolepticJournal] Dishes from MenuItems: ${dishNames.length}`);
+            dishesInfo = menuItems.map(m => ({
+                name: m.name,
+                category: m.category,
+                subcategory: m.subcategory
+            }));
+            console.log(`[OrganolepticJournal] Dishes from MenuItems: ${dishesInfo.length}`);
         }
 
-        if (dishNames.length === 0) {
+        if (dishesInfo.length === 0) {
             console.log(`[OrganolepticJournal] No dishes found to generate`);
             return [];
         }
@@ -191,26 +209,34 @@ export class DishQualityService {
             ? ['Ясельная', 'Младшая', 'Средняя', 'Старшая', 'Подготовительная']
             : [group];
 
-        console.log(`[OrganolepticJournal] Creating records for ${dishNames.length} dishes in ${groups.length} groups`);
+        console.log(`[OrganolepticJournal] Creating records for ${dishesInfo.length} dishes in ${groups.length} groups`);
 
-        for (const name of dishNames) {
+        for (const info of dishesInfo) {
             for (const grp of groups) {
                 // Check if already exists
                 const existing = await Model.findOne({
                     date: { $gte: startOfDay, $lte: endOfDay },
-                    dish: name,
+                    dish: info.name,
                     group: grp
                 });
 
                 if (existing) {
-                    console.log(`[OrganolepticJournal] Skipping existing record: ${name} (${grp})`);
+                    console.log(`[OrganolepticJournal] Skipping existing record: ${info.name} (${grp})`);
+                    // Update category if it was missing
+                    if (!existing.category && info.category) {
+                        existing.category = info.category;
+                        existing.subcategory = info.subcategory;
+                        await existing.save();
+                    }
                     continue;
                 }
 
                 const record = new Model({
                     date: startOfDay,
-                    dish: name,
+                    dish: info.name,
                     group: grp,
+                    category: info.category,
+                    subcategory: info.subcategory,
                     appearance: '',
                     taste: '',
                     smell: '',
@@ -228,6 +254,7 @@ export class DishQualityService {
         console.log(`[OrganolepticJournal] Generated ${records.length} new records`);
         return records;
     }
+
 
     private async createRecordsFromMenuItems(menuItems: any[], date: Date, group: string, userId: string) {
         const Model = DishQualityAssessment;

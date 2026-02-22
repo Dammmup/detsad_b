@@ -19,4 +19,7 @@ router.get('/product/:productId', (req, res, next) => productReportsController.g
 // Сводный отчёт (дашборд)
 router.get('/summary', (req, res, next) => productReportsController.getSummaryReport(req, res, next));
 
+// Данные для ведомости норм
+router.get('/norms-data', (req, res, next) => productReportsController.getNormsData(req, res, next));
+
 export default router;

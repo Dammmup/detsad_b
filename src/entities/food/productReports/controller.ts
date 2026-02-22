@@ -72,6 +72,24 @@ export class ProductReportsController {
             next(error);
         }
     }
+
+    async getNormsData(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { startDate, endDate } = req.query;
+
+            if (!startDate || !endDate) {
+                return res.status(400).json({ message: 'startDate и endDate обязательны' });
+            }
+
+            const data = await productReportsService.getNormsData(
+                new Date(startDate as string),
+                new Date(endDate as string)
+            );
+            res.json(data);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const productReportsController = new ProductReportsController();

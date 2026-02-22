@@ -7,6 +7,8 @@ export interface IDishQualityAssessment extends Document {
     dish: string;
     group: string;
     appearance: string;
+    category?: string;
+    subcategory?: string;
     taste: string;
     smell: string;
     decision: string;
@@ -39,6 +41,16 @@ const DishQualityAssessmentSchema = new Schema<IDishQualityAssessment>({
         default: '',
         trim: true,
         maxlength: [200, 'Внешний вид не может превышать 200 символов']
+    },
+    category: {
+        type: String,
+        trim: true,
+        index: true
+    },
+    subcategory: {
+        type: String,
+        trim: true,
+        index: true
     },
     taste: {
         type: String,

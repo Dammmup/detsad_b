@@ -13,20 +13,52 @@ export class DailyMenuService {
         }
 
         return DailyMenu.find(query)
-            .populate('meals.breakfast.dishes', 'name category ingredients')
-            .populate('meals.lunch.dishes', 'name category ingredients')
-            .populate('meals.dinner.dishes', 'name category ingredients')
-            .populate('meals.snack.dishes', 'name category ingredients')
+            .populate({
+                path: 'meals.breakfast.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.lunch.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.dinner.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.snack.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
             .populate('createdBy', 'fullName')
             .sort({ date: -1 });
     }
 
     async getById(id: string) {
         const menu = await DailyMenu.findById(id)
-            .populate('meals.breakfast.dishes', 'name category ingredients')
-            .populate('meals.lunch.dishes', 'name category ingredients')
-            .populate('meals.dinner.dishes', 'name category ingredients')
-            .populate('meals.snack.dishes', 'name category ingredients')
+            .populate({
+                path: 'meals.breakfast.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.lunch.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.dinner.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.snack.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
             .populate('createdBy', 'fullName');
 
         if (!menu) {
@@ -45,10 +77,26 @@ export class DailyMenuService {
         const menu = await DailyMenu.findOne({
             date: { $gte: startOfDay, $lte: endOfDay }
         })
-            .populate('meals.breakfast.dishes', 'name category ingredients')
-            .populate('meals.lunch.dishes', 'name category ingredients')
-            .populate('meals.dinner.dishes', 'name category ingredients')
-            .populate('meals.snack.dishes', 'name category ingredients')
+            .populate({
+                path: 'meals.breakfast.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.lunch.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.dinner.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.snack.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
             .populate('createdBy', 'fullName');
 
         return menu;
@@ -85,10 +133,26 @@ export class DailyMenuService {
 
     async update(id: string, data: Partial<IDailyMenu>) {
         const menu = await DailyMenu.findByIdAndUpdate(id, data, { new: true })
-            .populate('meals.breakfast.dishes', 'name category ingredients')
-            .populate('meals.lunch.dishes', 'name category ingredients')
-            .populate('meals.dinner.dishes', 'name category ingredients')
-            .populate('meals.snack.dishes', 'name category ingredients')
+            .populate({
+                path: 'meals.breakfast.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.lunch.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.dinner.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
+            .populate({
+                path: 'meals.snack.dishes',
+                select: 'name category ingredients',
+                populate: { path: 'ingredients.productId', select: 'name' }
+            })
             .populate('createdBy', 'fullName');
 
         if (!menu) {

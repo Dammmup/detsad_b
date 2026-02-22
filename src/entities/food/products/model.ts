@@ -121,6 +121,9 @@ const ProductSchema = new Schema<IProduct>({
   timestamps: true
 });
 
+// Индекс для предотвращения дубликатов по имени и граммовке
+ProductSchema.index({ name: 1, weight: 1, weightUnit: 1 }, { unique: true });
+
 
 
 
