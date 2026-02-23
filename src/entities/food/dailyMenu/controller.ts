@@ -10,8 +10,8 @@ export const getAllDailyMenus = async (req: Request, res: Response) => {
         const { startDate, endDate } = req.query;
 
         const menus = await dailyMenuService.getAll({
-            startDate: startDate ? new Date(startDate as string) : undefined,
-            endDate: endDate ? new Date(endDate as string) : undefined
+            startDate: startDate ? new Date(startDate as string + 'T00:00:00') : undefined,
+            endDate: endDate ? new Date(endDate as string + 'T23:59:59') : undefined
         });
 
         res.json(menus);
@@ -42,7 +42,7 @@ export const getDailyMenuByDate = async (req: Request, res: Response) => {
         }
 
         const { date } = req.params;
-        const menu = await dailyMenuService.getByDate(new Date(date));
+        const menu = await dailyMenuService.getByDate(new Date(date + 'T00:00:00'));
 
         if (!menu) {
             return res.status(404).json({ error: 'Меню на эту дату не найдено' });
@@ -224,7 +224,7 @@ export const calculateDailyProductConsumption = async (req: Request, res: Respon
         }
 
         const result = await dailyMenuService.calculateDailyProductConsumption(
-            new Date(date),
+            new Date(date + 'T00:00:00'),
             childCount
         );
 

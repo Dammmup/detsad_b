@@ -97,7 +97,7 @@ export class WeeklyMenuTemplateController {
 
             const result = await weeklyMenuTemplateService.applyToWeek(
                 id,
-                new Date(startDate),
+                new Date(startDate + 'T00:00:00'),
                 childCount || 30,
                 (req as any).user?.id
             );
@@ -118,7 +118,7 @@ export class WeeklyMenuTemplateController {
 
             const result = await weeklyMenuTemplateService.applyToMonth(
                 id,
-                new Date(startDate),
+                new Date(startDate + 'T00:00:00'),
                 childCount || 30,
                 (req as any).user?.id
             );

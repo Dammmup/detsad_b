@@ -4,6 +4,7 @@ export interface IMenuItem extends Document {
   description?: string;
   category: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'dessert' | 'drink';
   dayOfWeek: number;
+  subcategory?: string;
   weekNumber: number;
   ingredients: string[];
   nutritionalInfo: {
