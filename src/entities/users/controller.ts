@@ -324,6 +324,10 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       }
 
       if (req.body.photo !== undefined) user.photo = req.body.photo;
+
+      if (req.body.accessControls !== undefined && req.user.role === 'admin') {
+        user.accessControls = req.body.accessControls;
+      }
     }
 
     const updatedUser = await userService.update(req.params.id, user);
@@ -341,7 +345,7 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
     const changes = computeChanges(
       {},
       req.body,
-      ['fullName', 'phone', 'role', 'active', 'groupId', 'iin', 'notes', 'photo']
+      ['fullName', 'phone', 'role', 'active', 'groupId', 'iin', 'notes', 'photo', 'accessControls']
     );
     logAction({
       userId: req.user!.id,

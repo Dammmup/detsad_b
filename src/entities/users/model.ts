@@ -31,6 +31,14 @@ export interface IUser extends Document {
   pushSubscriptions?: any[];
   fcmTokens?: string[];
   allowToSeePayroll?: boolean;
+
+  accessControls?: {
+    canSeeChildren?: boolean;
+    canSeeFood?: boolean;
+    canSeeRent?: boolean;
+    canSeeStaff?: boolean;
+    canSeeSettings?: boolean;
+  };
 }
 
 const UserSchema: Schema = new Schema({
@@ -142,6 +150,13 @@ const UserSchema: Schema = new Schema({
   allowToSeePayroll: {
     type: Boolean,
     default: false
+  },
+  accessControls: {
+    canSeeChildren: { type: Boolean, default: null },
+    canSeeFood: { type: Boolean, default: null },
+    canSeeRent: { type: Boolean, default: null },
+    canSeeStaff: { type: Boolean, default: null },
+    canSeeSettings: { type: Boolean, default: null }
   }
 }, {
   timestamps: true
