@@ -97,7 +97,12 @@ const getWorkingSaturdaysForYear = (year: number): string[] => {
  */
 export const isNonWorkingDay = (date: Date): boolean => {
     const year = date.getFullYear();
-    const dateString = date.toISOString().split('T')[0];
+    // Формируем строку YYYY-MM-DD используя локальные компоненты даты, а не toISOString()
+    const dateString = [
+        year,
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0')
+    ].join('-');
 
     const holidays = getHolidaysForYear(year);
     const workingSaturdays = getWorkingSaturdaysForYear(year);
@@ -129,13 +134,8 @@ export const getProductionWorkingDays = (year: number, month: number): number =>
     let workingDays = 0;
 
     for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month, day);
-        // Важно: создаем дату в локальном часовом поясе или UTC, 
-        // но здесь мы просто строим даты. 
-        // Осторожно с timezone, но для count working days обычно не критично, если часы 00:00
-        // Лучше использовать строку YYYY-MM-DD для надежности.
-        const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const checkDate = new Date(dateString);
+        // Создаем дату как полдень, чтобы избежать проблем с переходом на летнее время/смещением границ
+        const checkDate = new Date(year, month, day, 12, 0, 0);
 
         if (!isNonWorkingDay(checkDate)) {
             workingDays++;
