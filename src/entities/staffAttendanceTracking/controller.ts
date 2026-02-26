@@ -806,7 +806,7 @@ export const bulkUpdateStaffAttendanceRecords = async (req: Request, res: Respon
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { ids, actualStart, actualEnd, timeStart, timeEnd, notes } = req.body;
+    const { ids, actualStart, actualEnd, timeStart, timeEnd, notes, status } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'Необходимо указать массив ID записей' });
@@ -817,7 +817,8 @@ export const bulkUpdateStaffAttendanceRecords = async (req: Request, res: Respon
       actualEnd,
       timeStart,
       timeEnd,
-      notes
+      notes,
+      status
     });
 
     logAction({

@@ -556,7 +556,7 @@ export class StaffAttendanceTrackingService {
 
         // Обновляем actualStart — используем дату записи + переданное время
         if (data.timeStart !== undefined && data.timeStart) {
-          updateFields.actualStart = new Date(`${recordDate}T${data.timeStart}:00`);
+          updateFields.actualStart = new Date(`${recordDate}T${data.timeStart}:00+05:00`);
 
           // Пересчитываем lateMinutes
           const [curH, curM] = data.timeStart.split(':').map(Number);
@@ -576,7 +576,7 @@ export class StaffAttendanceTrackingService {
 
         // Обновляем actualEnd — используем дату записи + переданное время
         if (data.timeEnd !== undefined && data.timeEnd) {
-          updateFields.actualEnd = new Date(`${recordDate}T${data.timeEnd}:00`);
+          updateFields.actualEnd = new Date(`${recordDate}T${data.timeEnd}:00+05:00`);
 
           // Пересчитываем earlyLeaveMinutes
           const [curH, curM] = data.timeEnd.split(':').map(Number);
@@ -600,6 +600,13 @@ export class StaffAttendanceTrackingService {
 
         if (data.status !== undefined) {
           updateFields.status = data.status;
+          if (data.status === 'absent') {
+            updateFields.actualStart = null;
+            updateFields.actualEnd = null;
+            updateFields.lateMinutes = 0;
+            updateFields.earlyLeaveMinutes = 0;
+            updateFields.workDuration = 0;
+          }
         }
 
         // Пересчитываем workDuration

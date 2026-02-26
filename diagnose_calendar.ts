@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 
 async function diagnose() {
     const period = '2026-02';
-    const startDate = new Date(`${period}-01T00:00:00+05:00`);
+    const startDate = new Date(`${period}-01T12:00:00+05:00`);
 
     console.log(`startDate: ${startDate.toISOString()} (Local: ${startDate.toString()})`);
 

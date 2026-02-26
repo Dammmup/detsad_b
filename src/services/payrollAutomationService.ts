@@ -16,7 +16,7 @@ interface PayrollAutomationSettings {
 
 export const calculatePenalties = async (staffId: string, month: string, employee: IUser, rateOverride?: number) => {
 
-  const startDate = new Date(`${month}-01T00:00:00+05:00`);
+  const startDate = new Date(`${month}-01T12:00:00+05:00`);
   const year = startDate.getFullYear();
   const monthIdx = startDate.getMonth();
   const lastDay = new Date(year, monthIdx + 1, 0).getDate();
@@ -35,7 +35,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
       $gte: startDate,
       $lte: endDate
     }
-  });
+  }).lean();
 
   let totalPenalty = 0;
   let latePenalties = 0;
@@ -250,7 +250,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
     }> = [];
 
 
-    const startDate = new Date(`${month}-01T00:00:00+05:00`);
+    const startDate = new Date(`${month}-01T12:00:00+05:00`);
     const year = startDate.getFullYear();
     const monthIdx = startDate.getMonth();
     const lastDay = new Date(year, monthIdx + 1, 0).getDate();
