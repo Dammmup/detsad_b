@@ -62,7 +62,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   }
 
 
-  const workDaysInMonth = await getWeekdaysInMonth(startDate.getFullYear(), startDate.getMonth());
+  const workDaysInMonth = await getWorkingDaysInMonth(startDate);
   const baseSalary = (employee as any).baseSalary || 180000;
   const salaryType = (employee as any).baseSalaryType || 'month';
   const shiftRate = (employee as any).shiftRate || 0;
@@ -169,10 +169,10 @@ export const calculatePenalties = async (staffId: string, month: string, employe
   const absenceRecords = attendanceRecords.filter((record: any) => record.status === 'absent');
 
   if (absenceRecords.length > 0) {
-    const workDays = await getWeekdaysInMonth(startDate.getFullYear(), startDate.getMonth());
+    const workDays = await getWorkingDaysInMonth(startDate);
     const baseSalary = (employee as any).baseSalary || 180000;
     const dailyRate = workDays > 0 ? baseSalary / workDays : 0;
-    absencePenalties = absenceRecords.length * dailyRate;
+    absencePenalties = Math.round(absenceRecords.length * dailyRate);
     console.log(`Absence Penalty: ${absenceRecords.length} days * ${dailyRate} = ${absencePenalties}`);
   }
 
@@ -202,10 +202,10 @@ const calculateDailyRate = (
     case 'day':
       return baseSalary;
     case 'shift':
-      return shiftRate;
+      return Math.round(shiftRate);
     case 'month':
     default:
-      return workDaysInMonth > 0 ? baseSalary / workDaysInMonth : baseSalary / 22;
+      return workDaysInMonth > 0 ? Math.round(baseSalary / workDaysInMonth) : Math.round(baseSalary / 22);
   }
 };
 
@@ -438,8 +438,9 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       // 180k (23/23 days) + 7k (1 holiday) = 187k.
       accruals += holidayPay;
 
-      const rawTotal = accruals - totalPenalties - (existingPayroll?.advance || 0) + (existingPayroll?.bonuses || 0) - (existingPayroll?.deductions || 0);
-      const total = Math.max(0, rawTotal);
+      // ИТОГО расчет: (начисления + бонусы) - (штрафы + аванс + удержания)
+      const rawTotal = (accruals || 0) + (existingPayroll?.bonuses || 0) - (totalPenalties || 0) - (existingPayroll?.advance || 0) - (existingPayroll?.deductions || 0);
+      const total = Math.max(0, Math.round(rawTotal));
 
 
       if (existingPayroll) {

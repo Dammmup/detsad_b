@@ -151,7 +151,7 @@ export class PayrollService {
           if (salaryType === 'shift') {
             accruals = workedShifts * (shiftRate || baseSalary);
           } else {
-            accruals = workingDaysInPeriod > 0 ? (baseSalary / workingDaysInPeriod) * workedShifts : 0;
+            accruals = workingDaysInPeriod > 0 ? Math.round((baseSalary / workingDaysInPeriod) * workedShifts) : 0;
           }
 
 
@@ -199,7 +199,7 @@ export class PayrollService {
           }
         }
 
-        const calculatedTotal = accruals - penalties;
+        const calculatedTotal = Math.round(accruals - penalties);
 
         return {
           _id: null,
@@ -347,7 +347,7 @@ export class PayrollService {
       const userFines = data.userFines !== undefined ? data.userFines : payroll.userFines || 0;
       const carryOverDebt = payroll.carryOverDebt || 0; // Долг с прошлого месяца
 
-      data.total = accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt;
+      data.total = Math.round(accruals + bonuses - latePenalties - absencePenalties - userFines - advance - deductions - carryOverDebt);
     }
 
 
