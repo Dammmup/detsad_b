@@ -420,7 +420,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
       return res.status(403).json({ error: 'Доступ запрещен. Требуются права администратора.' });
     }
 
-    const { period, month } = req.body;
+    const { period, month, force } = req.body;
     const targetPeriod = period || month;
 
     if (!targetPeriod) {
@@ -434,7 +434,7 @@ export const generatePayrollSheets = async (req: AuthenticatedRequest, res: Resp
     }
 
 
-    await payrollService.ensurePayrollRecordsForPeriod(targetPeriod);
+    await payrollService.ensurePayrollRecordsForPeriod(targetPeriod, !!force);
 
     const results = await autoCalculatePayroll(targetPeriod, {
       autoCalculationDay: 0,

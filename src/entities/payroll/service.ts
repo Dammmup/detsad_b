@@ -526,7 +526,7 @@ export class PayrollService {
     return payroll.userFines || 0;
   }
 
-  async ensurePayrollForUser(staffId: string, period: string) {
+  async ensurePayrollForUser(staffId: string, period: string, force: boolean = false) {
     try {
       console.log(`Checking payroll for user: ${staffId}, period: ${period}`);
 
@@ -647,9 +647,11 @@ export class PayrollService {
       const total = accruals - totalPenalties;
 
       if (existing) {
+        // Если запись уже есть и статус draft/generated, обновляем её.
+        // Если передан force=true, обновляем её в любом случае, если статус позволяет (не paid)
+        const canUpdate = existing.status === 'draft' || existing.status === 'generated' || (force && existing.status !== 'paid');
 
-
-        if (existing.status === 'draft' || existing.status === 'generated') {
+        if (canUpdate) {
           existing.accruals = accruals;
           existing.penalties = totalPenalties;
 
@@ -708,7 +710,7 @@ export class PayrollService {
     }
   }
 
-  async ensurePayrollRecordsForPeriod(period: string) {
+  async ensurePayrollRecordsForPeriod(period: string, force: boolean = false) {
     try {
       console.log(`Проверка и формирование расчетных листов для периода: ${period}`);
 
@@ -725,7 +727,7 @@ export class PayrollService {
 
       for (const staff of allStaff) {
         try {
-          const result = await this.ensurePayrollForUser(staff._id.toString(), period);
+          const result = await this.ensurePayrollForUser(staff._id.toString(), period, force);
           if (result.created) created++;
           else updated++;
         } catch (err) {
