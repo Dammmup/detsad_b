@@ -89,12 +89,7 @@ export const calculatePenalties = async (staffId: string, month: string, employe
     }
 
 
-    const recordDate = new Date(record.date || record.actualStart);
-    const dateStr = [
-      recordDate.getFullYear(),
-      String(recordDate.getMonth() + 1).padStart(2, '0'),
-      String(recordDate.getDate()).padStart(2, '0')
-    ].join('-');
+    const dateStr = new Date(record.date || record.actualStart).toLocaleDateString('sv-SE', { timeZone: 'Asia/Almaty' });
 
     shift = shiftsMap.get(dateStr);
 
@@ -310,16 +305,8 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           const dailyRate = Math.round(baseSalary / workDaysInMonth);
           const holidayRecords = attendedRecords.filter((r: any) => {
             const d = new Date(r.actualStart);
-            // Check if it's a holiday
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            const dateStr = `${y}-${m}-${day}`;
+            const dateStr = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Almaty' });
 
-            // Simple check against production calendar holiday logic
-            // We need to import HOLIDAYS lists or use isNonWorkingDay but only for holidays
-            // isNonWorkingDay includes weekends. We want specifically official holidays.
-            // Let's rely on isNonWorkingDay(d) AND day not being Sat/Sun?
             const isWeekend = d.getDay() === 0 || d.getDay() === 6;
             return isNonWorkingDay(d) && !isWeekend;
           });
@@ -536,8 +523,8 @@ const clearAttendancePenalties = async (month: string) => {
     await StaffAttendanceTracking.updateMany(
       {
         date: {
-          $gte: new Date(`${month}-01`),
-          $lte: new Date(new Date(`${month}-01`).getFullYear(), new Date(`${month}-01`).getMonth() + 1, 0)
+          $gte: new Date(`${month}-01T12:00:00+05:00`),
+          $lte: new Date(new Date(`${month}-01T12:00:00+05:00`).getFullYear(), new Date(`${month}-01T12:00:00+05:00`).getMonth() + 1, 0, 23, 59, 59)
         }
       },
       {
