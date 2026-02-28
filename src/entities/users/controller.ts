@@ -65,7 +65,8 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
           parentPhone: filteredUser.parentPhone,
           email: filteredUser.email,
           staffId: filteredUser.staffId,
-          staffName: filteredUser.staffName
+          staffName: filteredUser.staffName,
+          allowToSeePayroll: filteredUser.allowToSeePayroll
         };
       });
 
@@ -129,7 +130,8 @@ export const getUserById = async (req: AuthenticatedRequest, res: Response) => {
           parentPhone: nonPasswordUser.parentPhone,
           email: nonPasswordUser.email,
           staffId: nonPasswordUser.staffId,
-          staffName: nonPasswordUser.staffName
+          staffName: nonPasswordUser.staffName,
+          allowToSeePayroll: nonPasswordUser.allowToSeePayroll
         });
       }
     } else {
@@ -303,6 +305,9 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
       if (req.body.active !== undefined && req.user.role === 'admin') user.active = req.body.active;
       if (req.body.iin !== undefined) user.iin = req.body.iin;
       if (req.body.groupId !== undefined) user.groupId = req.body.groupId;
+      if (req.body.allowToSeePayroll !== undefined && req.user.role === 'admin') {
+        user.allowToSeePayroll = req.body.allowToSeePayroll;
+      }
 
 
 
@@ -345,7 +350,7 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response) => {
     const changes = computeChanges(
       {},
       req.body,
-      ['fullName', 'phone', 'role', 'active', 'groupId', 'iin', 'notes', 'photo', 'accessControls']
+      ['fullName', 'phone', 'role', 'active', 'groupId', 'iin', 'notes', 'photo', 'accessControls', 'allowToSeePayroll']
     );
     logAction({
       userId: req.user!.id,
