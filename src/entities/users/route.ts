@@ -28,6 +28,12 @@ router.get('/', authMiddleware, getAllUsers);
 
 router.get('/roles', authMiddleware, getUserRoles);
 
+// Push Notifications (до /:id, иначе "push" перехватывается как id)
+router.post('/push/subscribe', authMiddleware, subscribe);
+router.post('/push/unsubscribe', authMiddleware, unsubscribe);
+router.post('/push/fcm/subscribe', authMiddleware, subscribeFCM);
+router.post('/push/fcm/unsubscribe', authMiddleware, unsubscribeFCM);
+
 
 router.get('/:id', authMiddleware, authorizeRole(['admin']), getUserById);
 
@@ -65,11 +71,5 @@ router.post('/:id/generate-telegram-code', authMiddleware, generateTelegramCode)
 router.post('/:id/change-password', authMiddleware, changePassword);
 
 router.put('/:id/allow-to-see-payroll', authMiddleware, authorizeRole(['admin']), updateAllowToSeePayroll);
-
-// Push Notifications
-router.post('/push/subscribe', authMiddleware, subscribe);
-router.post('/push/unsubscribe', authMiddleware, unsubscribe);
-router.post('/push/fcm/subscribe', authMiddleware, subscribeFCM);
-router.post('/push/fcm/unsubscribe', authMiddleware, unsubscribeFCM);
 
 export default router;
