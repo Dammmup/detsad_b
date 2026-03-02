@@ -425,9 +425,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
       // 180k (23/23 days) + 7k (1 holiday) = 187k.
       accruals += holidayPay;
 
-      // ИТОГО расчет: (начисления + бонусы) - (штрафы + аванс + удержания)
-      const rawTotal = (accruals || 0) + (existingPayroll?.bonuses || 0) - (totalPenalties || 0) - (existingPayroll?.advance || 0) - (existingPayroll?.deductions || 0);
-      const total = Math.max(0, Math.round(rawTotal));
+      // total рассчитается автоматически в pre-save хуке модели
 
 
       if (existingPayroll) {
@@ -439,7 +437,7 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
         existingPayroll.latePenalties = attendancePenalties.latePenalties;
         existingPayroll.absencePenalties = attendancePenalties.absencePenalties;
 
-        existingPayroll.total = total;
+        // total рассчитает pre-save хук
 
 
         existingPayroll.baseSalary = baseSalary;
@@ -464,18 +462,21 @@ export const autoCalculatePayroll = async (month: string, settings: PayrollAutom
           shiftRate: shiftRate,
           workedDays: workedDays,
           workedShifts: workedShifts,
-          total: total,
-          status: 'approved'
+          // total рассчитает pre-save хук
+          status: 'draft'
         });
         await newPayroll.save();
       }
+
+      // Читаем total из сохранённого документа (рассчитан pre-save хуком)
+      const savedPayroll = await Payroll.findOne({ staffId: (employee as any)._id, period: month });
 
       results.push({
         staffId: (employee._id as any).toString(),
         staffName: employee.fullName,
         baseSalary,
         penalties: totalPenalties,
-        total
+        total: savedPayroll?.total || 0
       });
     }
 

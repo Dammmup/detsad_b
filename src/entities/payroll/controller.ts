@@ -242,15 +242,18 @@ export const createPayroll = async (req: AuthenticatedRequest, res: Response) =>
     }
 
 
-    const { baseSalary, bonuses, deductions, advance } = req.body;
-    if (baseSalary < 0 || bonuses < 0 || deductions < 0 || (advance !== undefined && advance < 0)) {
+    const { baseSalary, bonuses, deductions, advance, staffId: bodyStaffId } = req.body;
+    if ((baseSalary !== undefined && baseSalary < 0) ||
+      (bonuses !== undefined && bonuses < 0) ||
+      (deductions !== undefined && deductions < 0) ||
+      (advance !== undefined && advance < 0)) {
       return res.status(400).json({ error: 'Значения не могут быть отрицательными' });
     }
 
 
     const payrollData = {
       ...req.body,
-      staffId: req.user.id
+      staffId: bodyStaffId || req.user.id
     };
 
     const payroll = await payrollService.create(payrollData);

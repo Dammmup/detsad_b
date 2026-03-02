@@ -280,11 +280,10 @@ export class PayrollService {
 
   async create(payrollData: Partial<IPayroll>) {
 
-    const total = (payrollData.baseSalary || 0) +
+    const total = (payrollData.accruals || 0) +
       (payrollData.bonuses || 0) -
       (payrollData.penalties || 0) -
-      (payrollData.advance || 0) +
-      (payrollData.accruals || 0);
+      (payrollData.advance || 0);
 
     const newPayrollData = {
       ...payrollData,
@@ -644,17 +643,14 @@ export class PayrollService {
 
       // Учитываем долг из user.debt
       const userDebt = staff.debt || 0;
-      const total = accruals - totalPenalties;
 
       if (existing) {
-        // Если запись уже есть и статус draft/generated, обновляем её.
+        // Если запись уже есть и статус draft, обновляем её.
         // Если передан force=true, обновляем её в любом случае, если статус позволяет (не paid)
-        const canUpdate = existing.status === 'draft' || existing.status === 'generated' || (force && existing.status !== 'paid');
+        const canUpdate = existing.status === 'draft' || (force && existing.status !== 'paid');
 
         if (canUpdate) {
           existing.accruals = accruals;
-          existing.penalties = totalPenalties;
-
 
           const existingManualFines = existing.fines?.filter(f => f.type === 'manual') || [];
           existing.fines = [...existingManualFines, ...newFines];
@@ -665,7 +661,7 @@ export class PayrollService {
           existing.workedShifts = workedShifts;
           existing.shiftDetails = shiftDetails;
           existing.carryOverDebt = userDebt; // Долг из user.debt
-          existing.total = total - userDebt; // Учитываем долг
+          // НЕ присваиваем total — pre-save хук модели рассчитает его автоматически
 
           existing.baseSalary = baseSalary;
           existing.baseSalaryType = baseSalaryType as any;
@@ -694,7 +690,7 @@ export class PayrollService {
         workedShifts: workedShifts,
         shiftDetails: shiftDetails,
         carryOverDebt: userDebt, // Долг из user.debt
-        total: total - userDebt, // Учитываем долг
+        // total рассчитается автоматически в pre-save хуке модели
         status: 'draft',
         createdAt: new Date(),
         updatedAt: new Date()

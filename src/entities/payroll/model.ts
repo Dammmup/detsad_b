@@ -7,7 +7,7 @@ export interface IPayroll extends Document {
   bonuses: number;
   deductions: number;
   total: number;
-  status: 'draft' | 'approved' | 'paid' | 'active' | 'overdue' | 'paid_rent' | 'generated';
+  status: 'draft' | 'approved' | 'paid';
   paymentDate?: Date;
   advance?: number;
   advanceDate?: Date;
@@ -94,7 +94,7 @@ const PayrollSchema = new Schema<IPayroll>({
   },
   status: {
     type: String,
-    enum: ['draft', 'approved', 'paid', 'active', 'overdue', 'paid_rent', 'generated'],
+    enum: ['draft', 'approved', 'paid'],
     default: 'draft'
   },
   accruals: {
