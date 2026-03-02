@@ -16,7 +16,7 @@ import {
   changePassword,
   updateAllowToSeePayroll
 } from './controller';
-import { subscribe, unsubscribe, subscribeFCM, unsubscribeFCM } from './pushController';
+import { subscribe, unsubscribe, subscribeFCM, unsubscribeFCM, testPush } from './pushController';
 import { authorizeRole } from '../../middlewares/authRole';
 import { authMiddleware } from '../../middlewares/authMiddleware';
 
@@ -33,6 +33,7 @@ router.post('/push/subscribe', authMiddleware, subscribe);
 router.post('/push/unsubscribe', authMiddleware, unsubscribe);
 router.post('/push/fcm/subscribe', authMiddleware, subscribeFCM);
 router.post('/push/fcm/unsubscribe', authMiddleware, unsubscribeFCM);
+router.post('/push/test', authMiddleware, testPush);
 
 
 router.get('/:id', authMiddleware, authorizeRole(['admin']), getUserById);

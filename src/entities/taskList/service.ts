@@ -108,9 +108,9 @@ export class TaskListService {
 
       const PushNotificationServiceModule = await import('../../services/pushNotificationService');
       const PushNotificationService = PushNotificationServiceModule.PushNotificationService;
-      const title = 'Новая задача';
-      const body = `Создана новая задача: "${task.title}"`;
-      const url = `/tasks`; // URL страницы задач
+      const title = 'Новое уведомление!';
+      const body = 'Нажми что бы посмотреть.';
+      const url = `/app/dashboard`; // URL страницы уведомлений на главной
 
       console.log('Отправляем уведомление всем активным пользователям...');
       // Отправляем уведомление всем активным пользователям
