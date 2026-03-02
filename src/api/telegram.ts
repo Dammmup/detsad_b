@@ -75,7 +75,7 @@ router.post('/delete-webhook', async (req, res) => {
  * Запуск запланированных задач (для Vercel Crons)
  * Query params: 
  * - key: секретный ключ (из env.CRON_SECRET)
- * - task: имя задачи (morning, evening, summary, payroll, childpay, archive, events)
+ * - task: имя задачи (morning, evening, summary, payroll, childpay, archive, events, push-morning, push-children, push-evening)
  */
 router.get('/run-tasks', async (req, res) => {
   const { key, task } = req.query;
@@ -113,6 +113,15 @@ router.get('/run-tasks', async (req, res) => {
         break;
       case 'events':
         await scheduler.runMainEventsCheck();
+        break;
+      case 'push-morning':
+        await scheduler.sendPushMorningReminder();
+        break;
+      case 'push-children':
+        await scheduler.sendPushChildrenReminder();
+        break;
+      case 'push-evening':
+        await scheduler.sendPushEveningReminder();
         break;
       default:
         return res.status(400).json({ error: `Unknown task: ${task}` });

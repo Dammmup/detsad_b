@@ -32,6 +32,26 @@
         {
             "path": "/telegram/run-tasks?task=events&key=local-debug-key",
             "schedule": "0 19 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=archive&key=local-debug-key",
+            "schedule": "0 22 1 * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=childpay&key=local-debug-key",
+            "schedule": "0 21 1 * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=push-morning&key=local-debug-key",
+            "schedule": "50 2 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=push-children&key=local-debug-key",
+            "schedule": "0 6 * * *"
+        },
+        {
+            "path": "/telegram/run-tasks?task=push-evening&key=local-debug-key",
+            "schedule": "30 12 * * *"
         }
     ]
 }

@@ -12,7 +12,7 @@ const emailService = new EmailService();
 const settingsService = new SettingsService();
 
 /**
- * Возвращает дату 3 месяца назад от сегодня
+ * Возвращает дату 3 месяца назад от сегодня (для детей: оплаты + посещаемость)
  */
 export const getArchiveDate = (): Date => {
     const date = new Date();
@@ -22,10 +22,30 @@ export const getArchiveDate = (): Date => {
 };
 
 /**
- * Получает период 3 месяца назад в формате YYYY-MM
+ * Возвращает дату 2 месяца назад от сегодня (для сотрудников: смены, зарплаты, посещаемость)
+ */
+export const getStaffArchiveDate = (): Date => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 2);
+    date.setHours(0, 0, 0, 0);
+    return date;
+};
+
+/**
+ * Получает период 3 месяца назад в формате YYYY-MM (для детей)
  */
 export const getArchivePeriod = (): string => {
     const date = getArchiveDate();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+};
+
+/**
+ * Получает период 2 месяца назад в формате YYYY-MM (для сотрудников)
+ */
+export const getStaffArchivePeriod = (): string => {
+    const date = getStaffArchiveDate();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     return `${year}-${month}`;
@@ -45,7 +65,7 @@ async function exportChildAttendance(): Promise<CollectionExportResult> {
     const archiveDate = getArchiveDate();
     const archiveDateStr = archiveDate.toISOString().split('T')[0];
 
-    const childAttendanceDocs = await ChildAttendance.find({}).populate('childId', 'fullName').populate('groupId', 'name');
+    const childAttendanceDocs = await ChildAttendance.find({}).populate('childId', 'fullName');
     const records: any[] = [];
 
     childAttendanceDocs.forEach(doc => {
@@ -142,10 +162,10 @@ async function exportChildPayments(): Promise<CollectionExportResult> {
 }
 
 /**
- * Экспортирует учёт посещаемости сотрудников старше 3 месяцев
+ * Экспортирует учёт посещаемости сотрудников старше 2 месяцев
  */
 async function exportStaffAttendanceTracking(): Promise<CollectionExportResult> {
-    const archiveDate = getArchiveDate();
+    const archiveDate = getStaffArchiveDate();
 
     const records = await StaffAttendanceTracking.find({
         date: { $lt: archiveDate }
@@ -188,10 +208,10 @@ async function exportStaffAttendanceTracking(): Promise<CollectionExportResult> 
 }
 
 /**
- * Экспортирует смены сотрудников старше 3 месяцев
+ * Экспортирует смены сотрудников старше 2 месяцев
  */
 async function exportStaffShifts(): Promise<CollectionExportResult> {
-    const archiveDate = getArchiveDate();
+    const archiveDate = getStaffArchiveDate();
     const archiveDateStr = archiveDate.toISOString().split('T')[0];
 
     const staffShiftsDocs = await StaffShift.find({}).populate('staffId', 'fullName');
@@ -247,10 +267,10 @@ async function exportStaffShifts(): Promise<CollectionExportResult> {
 }
 
 /**
- * Экспортирует зарплаты старше 3 месяцев
+ * Экспортирует зарплаты старше 2 месяцев
  */
 async function exportPayrolls(): Promise<CollectionExportResult> {
-    const archivePeriod = getArchivePeriod();
+    const archivePeriod = getStaffArchivePeriod();
 
     const records = await Payroll.find({
         period: { $lt: archivePeriod }
@@ -300,19 +320,21 @@ async function exportPayrolls(): Promise<CollectionExportResult> {
  * Удаляет экспортированные записи из коллекций
  */
 async function deleteArchivedRecords(): Promise<void> {
-    const archiveDate = getArchiveDate();
-    const archivePeriod = getArchivePeriod();
-    const archiveDateStr = archiveDate.toISOString().split('T')[0];
+    const childArchiveDate = getArchiveDate();
+    const staffArchiveDate = getStaffArchiveDate();
+    const staffArchivePeriod = getStaffArchivePeriod();
+    const childArchiveDateStr = childArchiveDate.toISOString().split('T')[0];
+    const staffArchiveDateStr = staffArchiveDate.toISOString().split('T')[0];
 
-    console.log(`🗑️ Удаление записей старше ${archiveDate.toLocaleDateString('ru-RU')}...`);
+    console.log(`🗑️ Удаление записей сотрудников старше ${staffArchiveDate.toLocaleDateString('ru-RU')}, детей старше ${childArchiveDate.toLocaleDateString('ru-RU')}...`);
 
-    // Удаляем посещаемость детей
+    // Удаляем посещаемость детей (старше 3 месяцев)
     const childAttendanceDocs = await ChildAttendance.find({});
     let deletedChildAttendanceCount = 0;
     for (const doc of childAttendanceDocs) {
         let modified = false;
         doc.attendance.forEach((_, date) => {
-            if (date < archiveDateStr) {
+            if (date < childArchiveDateStr) {
                 doc.attendance.delete(date);
                 modified = true;
                 deletedChildAttendanceCount++;
@@ -322,25 +344,25 @@ async function deleteArchivedRecords(): Promise<void> {
     }
     console.log(`  - childAttendance: удалено ${deletedChildAttendanceCount} записей`);
 
-    // Удаляем оплаты детей
+    // Удаляем оплаты детей (старше 3 месяцев)
     const childPaymentResult = await ChildPayment.deleteMany({
-        createdAt: { $lt: archiveDate }
+        createdAt: { $lt: childArchiveDate }
     });
     console.log(`  - childPayments: удалено ${childPaymentResult.deletedCount} записей`);
 
-    // Удаляём учёт посещаемости сотрудников
+    // Удаляём учёт посещаемости сотрудников (старше 2 месяцев)
     const staffAttendanceResult = await StaffAttendanceTracking.deleteMany({
-        date: { $lt: archiveDate }
+        date: { $lt: staffArchiveDate }
     });
     console.log(`  - staffAttendanceTracking: удалено ${staffAttendanceResult.deletedCount} записей`);
 
-    // Удаляем смены сотрудников
+    // Удаляем смены сотрудников (старше 2 месяцев)
     const staffShiftsDocs = await StaffShift.find({});
     let deletedShiftsCount = 0;
     for (const doc of staffShiftsDocs) {
         let modified = false;
         doc.shifts.forEach((_, date) => {
-            if (date < archiveDateStr) {
+            if (date < staffArchiveDateStr) {
                 doc.shifts.delete(date);
                 modified = true;
                 deletedShiftsCount++;
@@ -350,9 +372,9 @@ async function deleteArchivedRecords(): Promise<void> {
     }
     console.log(`  - staffShifts: удалено ${deletedShiftsCount} записей`);
 
-    // Удаляём зарплаты
+    // Удаляём зарплаты (старше 2 месяцев)
     const payrollResult = await Payroll.deleteMany({
-        period: { $lt: archivePeriod }
+        period: { $lt: staffArchivePeriod }
     });
     console.log(`  - payrolls: удалено ${payrollResult.deletedCount} записей`);
 }
@@ -362,10 +384,10 @@ async function deleteArchivedRecords(): Promise<void> {
  */
 export async function archiveAndDeleteRecords(): Promise<void> {
     console.log('📦 Начало автоматического архивирования данных...');
-    console.log(`📅 Архивируем записи старше 3 месяцев (до ${getArchiveDate().toLocaleDateString('ru-RU')})`);
+    console.log(`📅 Архивируем: сотрудники старше 2 мес (до ${getStaffArchiveDate().toLocaleDateString('ru-RU')}), дети старше 3 мес (до ${getArchiveDate().toLocaleDateString('ru-RU')})`);
 
     // Уведомление о начале архивирования
-    await sendLogToTelegram(`📦 <b>Начало автоматического архивирования</b>\n\nАрхивируем записи старше ${getArchiveDate().toLocaleDateString('ru-RU')}`);
+    await sendLogToTelegram(`📦 <b>Начало автоматического архивирования</b>\n\nСотрудники: записи старше ${getStaffArchiveDate().toLocaleDateString('ru-RU')}\nДети: записи старше ${getArchiveDate().toLocaleDateString('ru-RU')}`);
 
     try {
         // Получаем email из настроек детского сада
