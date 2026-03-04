@@ -5,6 +5,8 @@ import User from '../../entities/users/model';
 import { SettingsService } from '../settings/service';
 import Payroll from '../payroll/model';
 import { enrichDeviceMetadata } from '../../shared/utils/deviceDetector';
+import { escapeHTML } from '../../utils/telegramLogger';
+import { sendTelegramNotificationToRoles } from '../../utils/telegramNotifications';
 
 const settingsService = new SettingsService();
 
@@ -65,9 +67,9 @@ export class ShiftsService {
         .populate('staffId', 'fullName role')
         .populate('shifts.$*.createdBy', 'fullName')
         .populate('shifts.$*.alternativeStaffId', 'fullName');
-      
+
       const settings = await settingsService.getKindergartenSettings();
-      
+
       const defaultStart = settings?.workingHours?.start || '08:00';
       const defaultEnd = settings?.workingHours?.end || '18:00';
 
@@ -319,6 +321,20 @@ export class ShiftsService {
         await record.save();
         results.push(currentStaffId);
       }
+    }
+
+    try {
+      if (results.length > 0) {
+        const author = await User.findById(userId);
+        const escapedAuthorName = author?.fullName ? escapeHTML(author.fullName) : 'Администратор';
+
+        const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+        const message = `👥 Массовая корректировка статусов сотрудников\nОбновлено: <b>${results.length}</b> чел.\nСтатус: <b>${status === 'completed' ? 'Завершено' : status === 'absent' ? 'Отсутствует' : status}</b>\n👤 Автор: <b>${escapedAuthorName}</b>\n🕒 Время: ${almatyTimeStr}`;
+
+        await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
+      }
+    } catch (e) {
+      console.error('Telegram notify error (bulkUpdateStatus):', e);
     }
 
     return { success: true, updatedStaffCount: results.length };

@@ -819,7 +819,7 @@ export const bulkUpdateStaffAttendanceRecords = async (req: Request, res: Respon
       timeEnd,
       notes,
       status
-    });
+    }, req.user.id as string);
 
     logAction({
       userId: req.user!.id,

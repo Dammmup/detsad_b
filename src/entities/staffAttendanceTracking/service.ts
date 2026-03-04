@@ -6,7 +6,7 @@ import Group from '../groups/model';
 import Shift from '../staffShifts/model';
 import Payroll from '../payroll/model';
 import { SettingsService } from '../settings/service';
-import { sendLogToTelegram } from '../../utils/telegramLogger';
+import { sendLogToTelegram, escapeHTML } from '../../utils/telegramLogger';
 import { sendTelegramNotificationToRoles } from '../../utils/telegramNotifications';
 
 
@@ -523,7 +523,7 @@ export class StaffAttendanceTrackingService {
    * @param ids массив ID записей для обновления
    * @param data данные для обновления (timeStart, timeEnd как строки HH:mm, notes)
    */
-  async bulkUpdate(ids: string[], data: { timeStart?: string; timeEnd?: string; actualStart?: Date | string; actualEnd?: Date | string; notes?: string; status?: string }) {
+  async bulkUpdate(ids: string[], data: { timeStart?: string; timeEnd?: string; actualStart?: Date | string; actualEnd?: Date | string; notes?: string; status?: string }, authorId?: string) {
     if (!ids || ids.length === 0) {
       throw new Error('Нужно выбрать хотя бы одну запись');
     }
@@ -651,6 +651,24 @@ export class StaffAttendanceTrackingService {
       }
     } catch (payrollError) {
       console.error('[BULK-UPDATE] Error recalculating payroll:', payrollError);
+    }
+    try {
+      if (results.length > 0) {
+        let escapedAuthorName = 'Администратор';
+        if (authorId) {
+          const author = await User.findById(authorId);
+          if (author?.fullName) {
+            escapedAuthorName = escapeHTML(author.fullName);
+          }
+        }
+
+        const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
+        const message = `👥 Массовое обновление посещаемости сотрудников\nОбновлено записей: <b>${results.length}</b>\n👤 Автор: <b>${escapedAuthorName}</b>\n🕒 Время: ${almatyTimeStr}`;
+
+        await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
+      }
+    } catch (e) {
+      console.error('[BULK-UPDATE] Telegram notify error:', e);
     }
 
     return {

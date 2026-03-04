@@ -28,7 +28,7 @@ export const getAllRents = async (req: AuthenticatedRequest, res: Response) => {
     res.json(rents);
   } catch (err) {
     console.error('Error fetching rents:', err);
-    res.status(50).json({ error: 'Ошибка получения аренды' });
+    res.status(500).json({ error: 'Ошибка получения аренды' });
   }
 };
 
@@ -210,18 +210,21 @@ export const generateRentSheets = async (req: AuthenticatedRequest, res: Respons
     }
 
     for (const tenant of tenants) {
-      // Создаем или обновляем запись аренды для этого специалиста
+      // Ищем баланс за предыдущий период через приватный метод (но так как в контроллере нет доступа,
+      // лучше добавить публичный метод в сервис или переиспользовать логику здесь)
+      // В данном случае, так как мы водим изменения в Сервис, контроллер должен просто вызывать generateRentSheets сервиса
+      // или следовать той же логике.
 
-      const total = 0; // Логику расчета можно уточнить, пока 0
+      // Чтобы не дублировать код, я просто упрощу контроллер, так как сервис уже умеет это делать 
+      // (но текущий контроллер делает это циклом).
 
-      await rentService.createOrUpdateForTenant((tenant as any)._id.toString(), period, {
-        amount: 0,
-        total: total,
-        status: 'active'
-      });
+      // ПРАВИЛЬНЫЙ ПОДХОД: Вынести логику расчета в сервис и вызвать её для каждого тенанта.
+      // Но так как у нас уже есть цикл, добавим вызов метода сервиса для баланса.
     }
 
-    res.status(200).json({ message: `Арендные листы успешно сгенерированы для периода: ${period}`, count: tenants.length });
+    // На самом деле, в контроллере уже есть цикл. Давайте вызовем сервисную логику целиком.
+    const result = await rentService.generateRentSheets(period);
+    res.status(200).json(result);
   } catch (err: any) {
     console.error('Error generating rent sheets:', err);
     res.status(500).json({ error: err.message || 'Ошибка генерации арендных листов' });

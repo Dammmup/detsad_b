@@ -57,5 +57,22 @@ const RentSchema = new Schema<IRent>({
   timestamps: true
 });
 
+RentSchema.pre('save', function (next) {
+  const paid = this.paidAmount || 0;
+  // total уже содержит сумму к выплате с учётом прошлых периодов (устанавливается в сервисе)
+  const balance = (this.total || 0) - paid;
+
+  if (balance > 0) {
+    this.debt = Math.round(balance);
+    this.overpayment = 0;
+  } else if (balance < 0) {
+    this.debt = 0;
+    this.overpayment = Math.round(Math.abs(balance));
+  } else {
+    this.debt = 0;
+    this.overpayment = 0;
+  }
+  next();
+});
 
 export default mongoose.model<IRent>('Rent', RentSchema, 'rents');

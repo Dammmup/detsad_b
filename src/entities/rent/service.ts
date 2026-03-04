@@ -47,17 +47,17 @@ export class RentService {
 
 
   async update(id: string, updateData: Partial<IRent>) {
-    const rent = await Rent.findByIdAndUpdate(
-      id,
-      { ...updateData, updatedAt: new Date() },
-      { new: true, runValidators: true }
-    ).populate('tenantId', 'name type');
+    const rent = await Rent.findById(id);
 
     if (!rent) {
       throw new Error('Аренда не найдена');
     }
 
-    return rent;
+    Object.assign(rent, updateData);
+    rent.updatedAt = new Date();
+    await rent.save();
+
+    return await rent.populate('tenantId', 'name type');
   }
 
 
@@ -134,11 +134,16 @@ export class RentService {
       const tenants = await ExternalSpecialist.find({ active: true });
 
       for (const tenant of tenants) {
+        // Получаем баланс за предыдущий период
+        const carryOver = await this.getPreviousPeriodBalance((tenant as any)._id.toString(), period);
+
         await this.createOrUpdateForTenant((tenant as any)._id.toString(), period, {
           tenantId: (tenant as any)._id,
           period: period,
           amount: 0,
-          total: 0,
+          total: carryOver.balance, // Итого к оплате = текущее начисление (0) + долг - переплата
+          debt: carryOver.debt,
+          overpayment: carryOver.overpayment,
           status: 'active'
         });
       }
@@ -148,5 +153,42 @@ export class RentService {
       console.error('Error generating rent sheets:', err);
       throw new Error(err.message || 'Error generating rent sheets');
     }
+  }
+
+  /**
+   * Получить баланс (сальдо) за предыдущий период
+   */
+  private async getPreviousPeriodBalance(tenantId: string, currentPeriod: string) {
+    const [year, month] = currentPeriod.split('-').map(Number);
+    const prevDate = new Date(year, month - 1 - 1, 1);
+    const prevPeriod = prevDate.toISOString().slice(0, 7);
+
+    const prevRent = await Rent.findOne({ tenantId: new Types.ObjectId(tenantId), period: prevPeriod });
+
+    if (!prevRent) {
+      return { debt: 0, overpayment: 0, balance: 0 };
+    }
+
+    // Если в прошлом месяце был долг, он переносится
+    // Если была переплата, она тоже переносится
+    // Сумма к оплате в новом месяце увеличивается на долг и уменьшается на переплату
+    const amount = prevRent.amount || 0;
+    const paid = prevRent.paidAmount || 0;
+    const diff = amount - paid;
+
+    let debt = 0;
+    let overpayment = 0;
+
+    if (diff > 0) {
+      debt = diff;
+    } else if (diff < 0) {
+      overpayment = Math.abs(diff);
+    }
+
+    return {
+      debt,
+      overpayment,
+      balance: debt - overpayment
+    };
   }
 }

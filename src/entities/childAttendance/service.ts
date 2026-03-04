@@ -190,8 +190,11 @@ export class ChildAttendanceService {
         const group = await Group.findById(groupId);
         const escapedGroupName = group?.name ? escapeHTML(group.name) : 'группа';
 
+        const author = await User.findById(userId);
+        const escapedAuthorName = author?.fullName ? escapeHTML(author.fullName) : 'Администратор';
+
         const almatyTimeStr = new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty', hour: '2-digit', minute: '2-digit' });
-        const message = `👥 Массовое обновление посещаемости\nГруппа: <b>${escapedGroupName}</b>\nОбновлено записей: <b>${results.length}</b>\n🕒 Время: ${almatyTimeStr}`;
+        const message = `👥 Массовое обновление посещаемости\nГруппа: <b>${escapedGroupName}</b>\nОбновлено записей: <b>${results.length}</b>\n👤 Автор: <b>${escapedAuthorName}</b>\n🕒 Время: ${almatyTimeStr}`;
         await sendTelegramNotificationToRoles(message, ['admin', 'manager', 'director']);
       }
     } catch (e) {

@@ -5,7 +5,7 @@ import { authorizeRole } from '../../middlewares/authRole';
 
 const router = express.Router();
 
-router.use(authMiddleware, authorizeRole(['admin', 'manager']));
+router.use(authMiddleware, authorizeRole(['admin', 'manager', 'director']));
 
 router.get('/', getAll);
 router.get('/entity/:entityType', getByEntityType);
