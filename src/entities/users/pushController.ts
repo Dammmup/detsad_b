@@ -5,7 +5,7 @@ import PushNotificationService from '../../services/pushNotificationService';
 export const subscribe: RequestHandler = async (req, res) => {
     try {
         const { subscription } = req.body;
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id || (req as any).user?._id;
 
         if (!userId) {
             res.status(401).json({ message: 'Пользователь не авторизован' });
@@ -45,7 +45,7 @@ export const subscribe: RequestHandler = async (req, res) => {
 export const unsubscribe: RequestHandler = async (req, res) => {
     try {
         const { endpoint } = req.body;
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id || (req as any).user?._id;
 
         if (!userId) {
             res.status(401).json({ message: 'Пользователь не авторизован' });
@@ -73,7 +73,7 @@ export const unsubscribe: RequestHandler = async (req, res) => {
 export const subscribeFCM: RequestHandler = async (req, res) => {
     try {
         const { token } = req.body;
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id || (req as any).user?._id;
 
         if (!userId) {
             res.status(401).json({ message: 'Пользователь не авторизован' });
@@ -137,7 +137,7 @@ export const unsubscribeFCM: RequestHandler = async (req, res) => {
 
 export const testPush: RequestHandler = async (req, res) => {
     try {
-        const userId = (req as any).user?._id;
+        const userId = (req as any).user?.id || (req as any).user?._id;
         if (!userId) {
             res.status(401).json({ message: 'Пользователь не авторизован' });
             return;
