@@ -69,10 +69,14 @@ export class StaffAttendanceTrackingService {
     return R * c;
   }
 
-  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }) {
+  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }, clientIp?: string) {
     const settingsService = new SettingsService();
     const geoSettings = await settingsService.getGeolocationSettings();
     if (geoSettings && geoSettings.enabled) {
+      if (clientIp && geoSettings.trustedIPs?.includes(clientIp)) {
+        console.log(`[GEOFENCING] Проверка пропущена: IP ${clientIp} в списке доверенных.`);
+        return;
+      }
       const distance = this.calculateDistance(
         locationData.latitude,
         locationData.longitude,
@@ -95,7 +99,7 @@ export class StaffAttendanceTrackingService {
     }
   }
 
-  async clockIn(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, notes?: string) {
+  async clockIn(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, notes?: string, clientIp?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
@@ -114,7 +118,7 @@ export class StaffAttendanceTrackingService {
     console.log(`[CLOCK-IN] User: ${userId}, AlmatyDay: ${almatyDay.toISOString()}, Now (UTC): ${now.toISOString()}, Location: ${locationData.latitude}, ${locationData.longitude}`);
 
     // Проверка геозоны
-    await this.verifyGeofencing(locationData);
+    await this.verifyGeofencing(locationData, clientIp);
 
     const existingEntry = await StaffAttendanceTracking.findOne({
       staffId: new mongoose.Types.ObjectId(userId),
@@ -198,7 +202,7 @@ export class StaffAttendanceTrackingService {
     };
   }
 
-  async clockOut(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, photo?: string, notes?: string) {
+  async clockOut(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, photo?: string, notes?: string, clientIp?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
@@ -209,7 +213,7 @@ export class StaffAttendanceTrackingService {
     }
 
     // Проверка геозоны перед уходом
-    await this.verifyGeofencing(locationData);
+    await this.verifyGeofencing(locationData, clientIp);
 
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });

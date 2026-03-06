@@ -27,9 +27,13 @@ export class ShiftsService {
     return R * c;
   }
 
-  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }) {
+  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }, clientIp?: string) {
     const geoSettings = await settingsService.getGeolocationSettings();
     if (geoSettings && geoSettings.enabled) {
+      if (clientIp && geoSettings.trustedIPs?.includes(clientIp)) {
+        console.log(`[GEOFENCING] Проверка пропущена: IP ${clientIp} в списке доверенных.`);
+        return;
+      }
       const distance = this.calculateDistance(
         locationData.latitude,
         locationData.longitude,
@@ -356,7 +360,7 @@ export class ShiftsService {
     return shift.status as 'scheduled' | 'in_progress' | 'completed' | 'late';
   }
 
-  async checkIn(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata) {
+  async checkIn(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata, clientIp?: string) {
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
     const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
@@ -379,8 +383,8 @@ export class ShiftsService {
     const shift = record.shifts.get(date)!;
 
     // Проверка геолокации
-    if (locationData) {
-      await this.verifyGeofencing(locationData);
+    if (locationData || clientIp) {
+      await this.verifyGeofencing(locationData || { latitude: 0, longitude: 0 }, clientIp);
     }
 
     const settings = await settingsService.getKindergartenSettings();
@@ -426,7 +430,7 @@ export class ShiftsService {
     };
   }
 
-  async checkOut(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata) {
+  async checkOut(id: string, userId: string, role: string, locationData?: { latitude: number, longitude: number }, deviceMetadata?: IDeviceMetadata, clientIp?: string) {
     const now = new Date();
     const almatyDateStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Almaty' });
     const almatyDay = new Date(`${almatyDateStr}T00:00:00+05:00`);
@@ -449,8 +453,8 @@ export class ShiftsService {
     const shift = record.shifts.get(date)!;
 
     // Проверка геолокации
-    if (locationData) {
-      await this.verifyGeofencing(locationData);
+    if (locationData || clientIp) {
+      await this.verifyGeofencing(locationData || { latitude: 0, longitude: 0 }, clientIp);
     }
     shift.status = 'completed';
     record.shifts.set(date, shift);

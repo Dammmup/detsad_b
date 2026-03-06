@@ -62,6 +62,7 @@ export interface IGeolocationSettings extends Document {
   yandexApiKey?: string;
   strictMode: boolean;
   allowedDevices: string[];
+  trustedIPs: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -123,7 +124,8 @@ const GeolocationSettingsSchema = new Schema<IGeolocationSettings>({
   radius: { type: Number, required: true, default: 100 },
   yandexApiKey: { type: String },
   strictMode: { type: Boolean, default: false },
-  allowedDevices: [{ type: String, default: [] }]
+  allowedDevices: [{ type: String, default: [] }],
+  trustedIPs: [{ type: String, default: [] }]
 }, {
   timestamps: true
 });

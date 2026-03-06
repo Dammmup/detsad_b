@@ -274,7 +274,7 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
 
     console.log('📱 checkInSimple - enrichedDeviceMetadata:', JSON.stringify(enrichedDeviceMetadata, null, 2));
 
-    const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata)) as any;
+    const result = (await shiftsService.checkIn(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata, clientIp)) as any;
 
     // Telegram notification
     try {
@@ -327,7 +327,7 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
       ipAddress: clientIp,
     } : undefined;
 
-    const result = (await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata)) as any;
+    const result = (await shiftsService.checkOut(shiftId, req.user.id as string, req.user.role as string, locationData, enrichedDeviceMetadata, clientIp)) as any;
 
     // Telegram notification
     try {

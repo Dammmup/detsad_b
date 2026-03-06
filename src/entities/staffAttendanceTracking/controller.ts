@@ -11,11 +11,13 @@ export const clockIn = async (req: Request, res: Response) => {
     }
     const userId = req.user.id as string;
     const { latitude, longitude, photo, notes } = req.body;
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 
     const result = await staffAttendanceTrackingService.clockIn(
       userId,
       { latitude, longitude },
-      notes
+      notes,
+      clientIp
     );
 
     logAction({
@@ -48,12 +50,14 @@ export const clockOut = async (req: Request, res: Response) => {
     }
     const userId = req.user.id as string;
     const { latitude, longitude, photo, notes } = req.body;
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
 
     const result = await staffAttendanceTrackingService.clockOut(
       userId,
       { latitude, longitude },
       photo,
-      notes
+      notes,
+      clientIp
     );
 
     logAction({
