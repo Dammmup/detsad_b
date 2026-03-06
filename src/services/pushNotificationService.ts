@@ -33,24 +33,26 @@ export class PushNotificationService {
                 console.log(`Отправляем Web-Push уведомления для пользователя ${userId}, количество подписок: ${user.pushSubscriptions.length}`);
                 const payload = JSON.stringify({ title, body, url });
                 const subscriptions = [...user.pushSubscriptions];
-                const validSubscriptions = [];
 
-                for (const subscription of subscriptions) {
+                const results = await Promise.all(subscriptions.map(async (subscription) => {
                     try {
                         console.log(`Отправляем Web-Push уведомление для подписки ${subscription.endpoint.substring(0, 50)}...`);
                         await webpush.sendNotification(subscription, payload);
                         console.log(`Web-Push уведомление успешно отправлено для подписки ${subscription.endpoint.substring(0, 50)}...`);
-                        validSubscriptions.push(subscription);
+                        return { subscription, ok: true };
                     } catch (error: any) {
                         console.log(`Ошибка при отправке Web-Push уведомления:`, error);
                         if (error.statusCode === 410 || error.statusCode === 404) {
                             console.log(`Web-push subscription for user ${userId} expired.`);
+                            return { subscription, ok: false };
                         } else {
                             console.error(`Error sending Web-push to user ${userId}:`, error);
-                            validSubscriptions.push(subscription);
+                            return { subscription, ok: true };
                         }
                     }
-                }
+                }));
+
+                const validSubscriptions = results.filter(r => r.ok).map(r => r.subscription);
 
                 if (validSubscriptions.length !== subscriptions.length) {
                     user.pushSubscriptions = validSubscriptions;
@@ -64,9 +66,8 @@ export class PushNotificationService {
             if (messaging && user.fcmTokens && user.fcmTokens.length > 0) {
                 console.log(`Отправляем FCM уведомления для пользователя ${userId}, количество токенов: ${user.fcmTokens.length}`);
                 const tokens = [...user.fcmTokens];
-                const validTokens = [];
 
-                for (const token of tokens) {
+                const results = await Promise.all(tokens.map(async (token) => {
                     try {
                         console.log(`Отправляем FCM уведомление для токена ${token.substring(0, 30)}...`);
                         await messaging.send({
@@ -77,18 +78,21 @@ export class PushNotificationService {
                             apns: { payload: { aps: { sound: 'default' } } }
                         });
                         console.log(`FCM уведомление успешно отправлено для токена ${token.substring(0, 30)}...`);
-                        validTokens.push(token);
+                        return { token, ok: true };
                     } catch (error: any) {
                         console.log(`Ошибка при отправке FCM уведомления:`, error);
                         if (error.code === 'messaging/registration-token-not-registered' ||
                             error.code === 'messaging/invalid-registration-token') {
                             console.log(`FCM token for user ${userId} expired or invalid.`);
+                            return { token, ok: false };
                         } else {
                             console.error(`Error sending FCM to user ${userId}:`, error);
-                            validTokens.push(token);
+                            return { token, ok: true };
                         }
                     }
-                }
+                }));
+
+                const validTokens = results.filter(r => r.ok).map(r => r.token);
 
                 if (validTokens.length !== tokens.length) {
                     user.fcmTokens = validTokens;
@@ -113,19 +117,20 @@ export class PushNotificationService {
             const users = await User.find(query);
             console.log(`Найдено пользователей для уведомлений: ${users.length}`);
 
-            let notifiedCount = 0;
-            for (const user of users) {
+            const notificationPromises = users.map(async (user) => {
                 const hasWebSub = user.pushSubscriptions && user.pushSubscriptions.length > 0;
                 const hasFcmSub = user.fcmTokens && user.fcmTokens.length > 0;
-
-                console.log(`Проверяем пользователя ${user._id}. Web подписка: ${!!hasWebSub}, FCM токен: ${!!hasFcmSub}`);
 
                 if (hasWebSub || (messaging && hasFcmSub)) {
                     console.log(`Отправляем уведомление пользователю ${user._id}`);
                     await this.sendNotification(user._id as string, title, body, url);
-                    notifiedCount++;
+                    return true;
                 }
-            }
+                return false;
+            });
+
+            const results = await Promise.all(notificationPromises);
+            const notifiedCount = results.filter(Boolean).length;
             console.log(`Уведомления отправлены ${notifiedCount} пользователям из ${users.length}`);
         } catch (error) {
             console.error('Broadcast push error:', error);

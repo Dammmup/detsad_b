@@ -16,7 +16,7 @@ const router = express.Router();
 // Маршрут генерации платежей должен быть ДО маршрута /:id
 router.post('/generate-payments', authMiddleware, generateMissingPayments);
 
-router.get('/', authMiddleware, checkAssistantChildrenAccess, getAllChildren);
+router.get('/', authMiddleware, getAllChildren);
 
 
 router.get('/:id', authMiddleware, checkAssistantChildrenAccess, getChildById);

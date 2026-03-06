@@ -93,7 +93,7 @@ router.get('/summary', [
 
 
 
-router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse', 'teacher', 'substitute']), getAllStaffAttendanceRecords);
+router.get('/', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse', 'teacher', 'substitute', 'assistant']), getAllStaffAttendanceRecords);
 
 
 router.get('/:id', authMiddleware, authorizeRole(['admin', 'manager', 'doctor', 'nurse']), getStaffAttendanceRecordById);
