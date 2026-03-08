@@ -153,7 +153,7 @@ export const testPush: RequestHandler = async (req, res) => {
         }
 
         await PushNotificationService.sendNotification(
-            userId,
+            user,
             'Тестовое уведомление 🔔',
             `Проверка работы Push-уведомлений. Время: ${new Date().toLocaleTimeString('ru-RU', { timeZone: 'Asia/Almaty' })}`,
             '/'

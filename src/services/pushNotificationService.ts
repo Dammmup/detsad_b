@@ -17,15 +17,22 @@ webpush.setVapidDetails(
 );
 
 export class PushNotificationService {
-    static async sendNotification(userId: string, title: string, body: string, url: string = '/') {
+    static async sendNotification(userOrId: string | any, title: string, body: string, url: string = '/') {
         try {
-            console.log(`Отправка уведомления пользователю ID: ${userId}, Заголовок: ${title}, Тело: ${body}`);
-            const user = await User.findById(userId);
-            if (!user) {
-                console.log(`Пользователь с ID ${userId} не найден`);
-                return;
+            let user: any;
+            if (typeof userOrId === 'string') {
+                console.log(`Отправка уведомления пользователю ID: ${userOrId}, Заголовок: ${title}, Тело: ${body}`);
+                user = await User.findById(userOrId);
+                if (!user) {
+                    console.log(`Пользователь с ID ${userOrId} не найден`);
+                    return;
+                }
+            } else {
+                user = userOrId;
+                console.log(`Отправка уведомления пользователю: ${user.fullName}, Заголовок: ${title}, Тело: ${body}`);
             }
 
+            const userId = user._id.toString();
             console.log(`Найден пользователь: ${user.fullName}, Подписок: ${user.pushSubscriptions?.length || 0}, FCM токенов: ${user.fcmTokens?.length || 0}`);
 
             // 1. Web-Push Notifications
@@ -34,7 +41,7 @@ export class PushNotificationService {
                 const payload = JSON.stringify({ title, body, url });
                 const subscriptions = [...user.pushSubscriptions];
 
-                const results = await Promise.all(subscriptions.map(async (subscription) => {
+                const results = await Promise.all(subscriptions.map(async (subscription: any) => {
                     try {
                         console.log(`Отправляем Web-Push уведомление для подписки ${subscription.endpoint.substring(0, 50)}...`);
                         await webpush.sendNotification(subscription, payload);
@@ -67,7 +74,7 @@ export class PushNotificationService {
                 console.log(`Отправляем FCM уведомления для пользователя ${userId}, количество токенов: ${user.fcmTokens.length}`);
                 const tokens = [...user.fcmTokens];
 
-                const results = await Promise.all(tokens.map(async (token) => {
+                const results = await Promise.all(tokens.map(async (token: string) => {
                     try {
                         console.log(`Отправляем FCM уведомление для токена ${token.substring(0, 30)}...`);
                         await messaging.send({
@@ -109,7 +116,13 @@ export class PushNotificationService {
     static async broadcastNotification(role: string | null, title: string, body: string, url: string = '/') {
         try {
             console.log(`Начинаем рассылку уведомлений. Роль: ${role}, Заголовок: ${title}, Тело: ${body}`);
-            const query: any = { active: true };
+            const query: any = {
+                active: true,
+                $or: [
+                    { pushSubscriptions: { $exists: true, $not: { $size: 0 } } },
+                    { fcmTokens: { $exists: true, $not: { $size: 0 } } }
+                ]
+            };
             if (role) {
                 query.role = role;
             }
@@ -117,21 +130,25 @@ export class PushNotificationService {
             const users = await User.find(query);
             console.log(`Найдено пользователей для уведомлений: ${users.length}`);
 
-            const notificationPromises = users.map(async (user) => {
-                const hasWebSub = user.pushSubscriptions && user.pushSubscriptions.length > 0;
-                const hasFcmSub = user.fcmTokens && user.fcmTokens.length > 0;
+            const batchSize = 25;
+            for (let i = 0; i < users.length; i += batchSize) {
+                const batch = users.slice(i, i + batchSize);
+                console.log(`Обработка пакета уведомлений: ${i / batchSize + 1} (пользователи ${i + 1}-${Math.min(i + batchSize, users.length)})`);
 
-                if (hasWebSub || (messaging && hasFcmSub)) {
-                    console.log(`Отправляем уведомление пользователю ${user._id}`);
-                    await this.sendNotification(user._id as string, title, body, url);
-                    return true;
-                }
-                return false;
-            });
+                const notificationPromises = batch.map(async (user) => {
+                    const hasWebSub = user.pushSubscriptions && user.pushSubscriptions.length > 0;
+                    const hasFcmSub = user.fcmTokens && user.fcmTokens.length > 0;
 
-            const results = await Promise.all(notificationPromises);
-            const notifiedCount = results.filter(Boolean).length;
-            console.log(`Уведомления отправлены ${notifiedCount} пользователям из ${users.length}`);
+                    if (hasWebSub || (messaging && hasFcmSub)) {
+                        await this.sendNotification(user, title, body, url);
+                        return true;
+                    }
+                    return false;
+                });
+
+                await Promise.all(notificationPromises);
+            }
+            console.log(`Рассылка уведомлений завершена для ${users.length} пользователей`);
         } catch (error) {
             console.error('Broadcast push error:', error);
         }
