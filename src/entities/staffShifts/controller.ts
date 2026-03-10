@@ -304,8 +304,15 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     });
 
     res.json(result);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error checking in:', err);
+    if (err.message && (
+      err.message.includes('вне геозоны') ||
+      err.message.includes('Координаты не переданы') ||
+      err.message.includes('Смена не найдена')
+    )) {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: 'Ошибка отметки прихода' });
   }
 };
@@ -357,8 +364,15 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
     });
 
     res.json(result);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error checking out:', err);
+    if (err.message && (
+      err.message.includes('вне геозоны') ||
+      err.message.includes('Координаты не переданы') ||
+      err.message.includes('Смена не найдена')
+    )) {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: 'Ошибка отметки ухода' });
   }
 };

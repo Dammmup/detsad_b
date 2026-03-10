@@ -34,6 +34,10 @@ export class ShiftsService {
         console.log(`[GEOFENCING] Проверка пропущена: IP ${clientIp} в списке доверенных.`);
         return;
       }
+
+      if (locationData.latitude == null || locationData.longitude == null || locationData.latitude === 0 || locationData.longitude === 0) {
+        throw new Error('Координаты не переданы, но проверка геозоны включена. Пожалуйста, разрешите доступ к геолокации в вашем браузере/устройстве.');
+      }
       const distance = this.calculateDistance(
         locationData.latitude,
         locationData.longitude,
