@@ -27,7 +27,7 @@ export class ShiftsService {
     return R * c;
   }
 
-  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }, clientIp?: string) {
+  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number } | undefined, clientIp?: string) {
     const geoSettings = await settingsService.getGeolocationSettings();
     if (geoSettings && geoSettings.enabled) {
       if (clientIp && geoSettings.trustedIPs?.includes(clientIp)) {
@@ -35,7 +35,7 @@ export class ShiftsService {
         return;
       }
 
-      if (locationData.latitude == null || locationData.longitude == null || locationData.latitude === 0 || locationData.longitude === 0) {
+      if (!locationData || locationData.latitude == null || locationData.longitude == null || locationData.latitude === 0 || locationData.longitude === 0) {
         throw new Error('Координаты не переданы, но проверка геозоны включена. Пожалуйста, разрешите доступ к геолокации в вашем браузере/устройстве.');
       }
       const distance = this.calculateDistance(

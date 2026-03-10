@@ -69,7 +69,7 @@ export class StaffAttendanceTrackingService {
     return R * c;
   }
 
-  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number }, clientIp?: string) {
+  private async verifyGeofencing(locationData: { latitude: number, longitude: number, accuracy?: number } | undefined, clientIp?: string) {
     const settingsService = new SettingsService();
     const geoSettings = await settingsService.getGeolocationSettings();
     if (geoSettings && geoSettings.enabled) {
@@ -78,7 +78,7 @@ export class StaffAttendanceTrackingService {
         return;
       }
 
-      if (locationData.latitude == null || locationData.longitude == null) {
+      if (!locationData || locationData.latitude == null || locationData.longitude == null || locationData.latitude === 0 || locationData.longitude === 0) {
         throw new Error('Координаты не переданы, но проверка геозоны включена. Пожалуйста, разрешите доступ к геолокации в вашем браузере/устройстве.');
       }
 
@@ -104,7 +104,7 @@ export class StaffAttendanceTrackingService {
     }
   }
 
-  async clockIn(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, notes?: string, clientIp?: string) {
+  async clockIn(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number } | undefined, notes?: string, clientIp?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
@@ -209,7 +209,7 @@ export class StaffAttendanceTrackingService {
     };
   }
 
-  async clockOut(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number }, photo?: string, notes?: string, clientIp?: string) {
+  async clockOut(userId: string, locationData: { latitude: number, longitude: number, accuracy?: number } | undefined, photo?: string, notes?: string, clientIp?: string) {
     try {
       const user = await User.findById(userId);
       if (user) {
