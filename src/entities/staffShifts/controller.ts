@@ -263,7 +263,7 @@ export const checkInSimple = async (req: AuthenticatedRequest, res: Response) =>
     console.log('📱 checkInSimple - req.body:', JSON.stringify(req.body, null, 2));
     console.log('📱 checkInSimple - deviceMetadata received:', JSON.stringify(deviceMetadata, null, 2));
 
-    const locationData = latitude && longitude ? { latitude, longitude } : undefined;
+    const locationData = (latitude != null && longitude != null) ? { latitude, longitude } : undefined;
 
     // Добавляем IP-адрес клиента к метаданным устройства
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
@@ -325,7 +325,7 @@ export const checkOutSimple = async (req: AuthenticatedRequest, res: Response) =
 
     const { shiftId } = req.params;
     const { latitude, longitude, deviceMetadata } = req.body;
-    const locationData = latitude && longitude ? { latitude, longitude } : undefined;
+    const locationData = (latitude != null && longitude != null) ? { latitude, longitude } : undefined;
 
     // Добавляем IP-адрес клиента к метаданным устройства
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
