@@ -34,7 +34,7 @@ export const create = async (req: AuthenticatedRequest, res: Response) => {
             action: 'create',
             entityType: 'externalSpecialist',
             entityId: item._id.toString(),
-            entityName: item.fullName || item.name || ''
+            entityName: item.name || ''
         });
 
         res.status(201).json(item);
@@ -58,7 +58,7 @@ export const update = async (req: AuthenticatedRequest, res: Response) => {
             action: 'update',
             entityType: 'externalSpecialist',
             entityId: req.params.id,
-            entityName: item?.fullName || item?.name || ''
+            entityName: item?.name || ''
         });
 
         res.json(item);
