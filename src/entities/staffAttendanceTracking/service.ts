@@ -77,6 +77,11 @@ export class StaffAttendanceTrackingService {
         console.log(`[GEOFENCING] Проверка пропущена: IP ${clientIp} в списке доверенных.`);
         return;
       }
+
+      if (locationData.latitude == null || locationData.longitude == null) {
+        throw new Error('Координаты не переданы, но проверка геозоны включена. Пожалуйста, разрешите доступ к геолокации в вашем браузере/устройстве.');
+      }
+
       const distance = this.calculateDistance(
         locationData.latitude,
         locationData.longitude,
@@ -157,7 +162,9 @@ export class StaffAttendanceTrackingService {
     const scheduledShift = staffShifts?.shifts.get(dateStr);
 
     if (scheduledShift) {
-      attendanceRecord.shiftId = `${userId}_${dateStr}` as any;
+      if (staffShifts && staffShifts._id) {
+        attendanceRecord.shiftId = staffShifts._id as any;
+      }
 
       const now = new Date();
       // Calculate minutes late based on Asia/Almaty (UTC+5)

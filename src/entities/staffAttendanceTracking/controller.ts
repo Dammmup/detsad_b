@@ -34,12 +34,25 @@ export const clockIn = async (req: Request, res: Response) => {
     res.status(201).json(result);
   } catch (error) {
     console.error('Error clocking in:', error);
-    if (error instanceof Error && error.message.includes('Clock-in not allowed')) {
-      const errorObj = JSON.parse(error.message);
-      res.status(400).json(errorObj);
-    } else {
-      res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
+    if (error instanceof Error) {
+      if (error.message.includes('Clock-in not allowed')) {
+        try {
+          const errorObj = JSON.parse(error.message);
+          return res.status(400).json(errorObj);
+        } catch (e) {
+          return res.status(400).json({ error: error.message });
+        }
+      }
+      if (
+        error.message.includes('вне геозоны') ||
+        error.message.includes('Координаты не переданы') ||
+        error.message.includes('You already have an active time entry') ||
+        error.message.includes('User not found')
+      ) {
+        return res.status(400).json({ error: error.message });
+      }
     }
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
 
@@ -74,6 +87,13 @@ export const clockOut = async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     console.error('Error clocking out:', error);
+    if (error instanceof Error && (
+      error.message.includes('вне геозоны') ||
+      error.message.includes('Координаты не переданы') ||
+      error.message.includes('No active time entry found')
+    )) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: error instanceof Error ? error.message : 'Internal server error' });
   }
 };
