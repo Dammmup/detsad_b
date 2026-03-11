@@ -44,7 +44,12 @@ export class PushNotificationService {
                 const results = await Promise.all(subscriptions.map(async (subscription: any) => {
                     try {
                         console.log(`Отправляем Web-Push уведомление для подписки ${subscription.endpoint.substring(0, 50)}...`);
-                        await webpush.sendNotification(subscription, payload);
+                        await webpush.sendNotification(subscription, payload, {
+                            headers: {
+                                'Urgency': 'high'
+                            },
+                            TTL: 86400
+                        });
                         console.log(`Web-Push уведомление успешно отправлено для подписки ${subscription.endpoint.substring(0, 50)}...`);
                         return { subscription, ok: true };
                     } catch (error: any) {
