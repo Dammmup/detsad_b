@@ -43,15 +43,15 @@
         },
         {
             "path": "/telegram/run-tasks?task=push-morning&key=local-debug-key",
-            "schedule": "50 2 * * *"
+            "schedule": "50 1 * * *"
         },
         {
             "path": "/telegram/run-tasks?task=push-children&key=local-debug-key",
-            "schedule": "0 6 * * *"
+            "schedule": "0 5 * * *"
         },
         {
             "path": "/telegram/run-tasks?task=push-evening&key=local-debug-key",
-            "schedule": "30 12 * * *"
+            "schedule": "30 11 * * *"
         }
     ]
 }
