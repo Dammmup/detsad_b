@@ -1092,15 +1092,39 @@ async function sendAuditLogs(chatId: number | string, actionType: string, period
             if (log.action === 'update') { actionText = 'Изменение'; emoji = '🟡'; }
             if (log.action === 'delete') { actionText = 'Удаление'; emoji = '🔴'; }
             if (log.action === 'status_change') { actionText = 'Статус'; emoji = '🔄'; }
-
-            const entityName = log.entityName ? `«${log.entityName}»` : `ID:${log.entityId.substring(0, 6)}...`;
+            if (log.action === 'bulk_update') { actionText = 'Обновление (Множественно)'; emoji = '📦'; }
 
             text += `${emoji} <b>${dateStr}</b>\n`;
             text += `👤 <b>${log.userFullName}</b> (${actionText})\n`;
-            text += `📝 Сущность: ${entityName} [<i>${log.entityType}</i>]\n`;
+
+            if (log.entityName) {
+                text += `📝 Сущность: «${log.entityName}»\n`;
+            } else if (log.entityType !== 'childAttendance') {
+                text += `📝 Сущность: ID:${log.entityId.substring(0, 6)}...\n`;
+            }
+
             if (log.details) {
                 text += `ℹ️ <i>${log.details}</i>\n`;
             }
+
+            if (log.changes && log.changes.length > 0) {
+                text += `🔄 Изменения:\n`;
+                for (const change of log.changes) {
+                    let fieldName = change.field;
+                    // Русификация частых полей
+                    if (fieldName === 'status') fieldName = 'Статус';
+                    if (fieldName === 'amount') fieldName = 'Сумма';
+                    if (fieldName === 'comments' || fieldName === 'notes') fieldName = 'Заметки';
+                    if (fieldName === 'total') fieldName = 'Итого';
+                    if (fieldName === 'discount') fieldName = 'Скидка';
+
+                    const oldVal = change.oldValue !== undefined && change.oldValue !== null && change.oldValue !== '' ? change.oldValue : 'пусто';
+                    const newVal = change.newValue !== undefined && change.newValue !== null && change.newValue !== '' ? change.newValue : 'пусто';
+
+                    text += `  • ${fieldName}: ${oldVal} ➡️ ${newVal}\n`;
+                }
+            }
+
             text += '\n';
         }
 
