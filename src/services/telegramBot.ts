@@ -266,11 +266,20 @@ async function getShiftStatusForUser(userId: string): Promise<'scheduled' | 'in_
 }
 
 /**
- * Отправляет кнопку посещаемости в зависимости от статуса (Reply Keyboard)
+ * Отправляет кнопки меню (Reply Keyboard) в зависимости от роли и статуса
  */
-async function sendAttendanceButton(chatId: number, userId: string, role: string): Promise<void> {
-    // Не показываем кнопку для админов
-    if (role === 'admin') return;
+async function sendMainMenuButtons(chatId: number, userId: string, role: string): Promise<void> {
+    const isAdmin = ['admin', 'manager', 'director'].includes(role);
+
+    // Для админов показываем кнопку Аудита (и возможно посещаемость, если они отмечаются)
+    if (isAdmin) {
+        await sendMessageWithReplyKeyboard(
+            chatId,
+            'Главное меню',
+            [['🛠 Аудит', '📍 Отметить приход'], ['📍 Отметить уход']]
+        );
+        return;
+    }
 
     const status = await getShiftStatusForUser(userId);
 
@@ -287,7 +296,6 @@ async function sendAttendanceButton(chatId: number, userId: string, role: string
             [['📍 Отметить уход']]
         );
     }
-    // Для completed ничего не показываем
 }
 
 /**
@@ -677,12 +685,12 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
     if (text.startsWith('/start') || text === '/help') {
         await handleStartCommand(chatId, username);
         if (user) {
-            await sendAttendanceButton(chatId, user._id.toString(), user.role);
+            await sendMainMenuButtons(chatId, user._id.toString(), user.role);
         }
         return;
     }
 
-    if (text === '/audit') {
+    if (text === '/audit' || text === '🛠 Аудит') {
         if (!user || !['admin', 'manager', 'director'].includes(user.role)) {
             await sendMessage(chatId, '❌ Эта команда доступна только администраторам.');
             return;
@@ -729,8 +737,8 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
     // Обрабатываем текстовое сообщение через AI
     await handleTextMessage(chatId, text, user);
 
-    // Показываем кнопку посещаемости после ответа AI
-    await sendAttendanceButton(chatId, user._id.toString(), user.role);
+    // Показываем кнопки после ответа AI
+    await sendMainMenuButtons(chatId, user._id.toString(), user.role);
 }
 
 /**
@@ -895,9 +903,61 @@ async function sendAuditSubMenu(chatId: number | string, category: string, messa
 }
 
 /**
+ * Отправляет меню выбора периода для логов
+ */
+async function sendAuditPeriodMenu(chatId: number | string, actionType: string, messageIdToEdit: number): Promise<void> {
+    const text = '📅 <b>Выберите период для просмотра:</b>';
+    const inlineKeyboard = [
+        [
+            { text: 'Сегодня', callback_data: `${actionType}_today` },
+            { text: 'За 3 дня', callback_data: `${actionType}_3days` }
+        ],
+        [
+            { text: 'За неделю', callback_data: `${actionType}_week` },
+            { text: 'За месяц', callback_data: `${actionType}_month` }
+        ],
+        [
+            { text: 'За все время (до 50)', callback_data: `${actionType}_all` }
+        ],
+        [
+            { text: '🔙 Вернуться к выбору', callback_data: getCategoryParent(actionType) }
+        ]
+    ];
+    await sendInlineKeyboard(chatId, text, inlineKeyboard, messageIdToEdit);
+}
+
+/**
+ * Получает родительскую категорию для возврата назад
+ */
+function getCategoryParent(actionType: string): string {
+    switch (actionType) {
+        case 'audit_logs_children':
+        case 'audit_logs_child_attendance':
+        case 'audit_logs_child_payments':
+            return 'audit_cat_children';
+        case 'audit_logs_users':
+        case 'audit_logs_staff_attendance':
+        case 'audit_logs_payrolls':
+            return 'audit_cat_staff';
+        case 'audit_logs_food_base':
+        case 'audit_logs_food_daily':
+        case 'audit_logs_food_journals':
+            return 'audit_cat_food';
+        case 'audit_logs_med_passports':
+        case 'audit_logs_med_journals':
+            return 'audit_cat_med';
+        case 'audit_logs_settings':
+        case 'audit_logs_docs':
+            return 'audit_cat_other';
+        default:
+            return 'audit_main';
+    }
+}
+
+/**
  * Получает и отправляет последние логи по заданным сущностям
  */
-async function sendAuditLogs(chatId: number | string, actionType: string, messageIdToEdit: number): Promise<void> {
+async function sendAuditLogs(chatId: number | string, actionType: string, period: string, messageIdToEdit: number): Promise<void> {
     let entityTypes: string[] = [];
     let title = '';
 
@@ -905,63 +965,63 @@ async function sendAuditLogs(chatId: number | string, actionType: string, messag
     switch (actionType) {
         // Дети
         case 'audit_logs_children':
-            entityTypes = ['Child', 'Group'];
+            entityTypes = ['child', 'group'];
             title = '👶 Профили детей и группы';
             break;
         case 'audit_logs_child_attendance':
-            entityTypes = ['ChildAttendance'];
+            entityTypes = ['childAttendance'];
             title = '👶 Посещаемость детей';
             break;
         case 'audit_logs_child_payments':
-            entityTypes = ['ChildPayment'];
+            entityTypes = ['childPayment'];
             title = '💰 Оплаты детей';
             break;
 
         // Сотрудники
         case 'audit_logs_users':
-            entityTypes = ['User'];
+            entityTypes = ['staff'];
             title = '👥 Профили сотрудников';
             break;
         case 'audit_logs_staff_attendance':
-            entityTypes = ['StaffAttendanceTracking', 'StaffShifts'];
+            entityTypes = ['staffAttendance', 'staffShift'];
             title = '👥 Смены и посещаемость';
             break;
         case 'audit_logs_payrolls':
-            entityTypes = ['Payroll'];
+            entityTypes = ['payroll'];
             title = '💵 Зарплаты сотрудников';
             break;
 
         // Питание
         case 'audit_logs_food_base':
-            entityTypes = ['Product', 'Dish', 'ProductPurchase'];
+            entityTypes = ['product', 'dish', 'productPurchase'];
             title = '🍎 Продукты и Закупки';
             break;
         case 'audit_logs_food_daily':
-            entityTypes = ['DailyMenu', 'WeeklyMenuTemplate', 'FoodStockLog'];
+            entityTypes = ['dailyMenu', 'weeklyMenuTemplate', 'foodStockLog'];
             title = '🍲 Меню и Склад продуктов';
             break;
         case 'audit_logs_food_journals':
-            entityTypes = ['PerishableBrak', 'DetergentLog', 'FoodStaffHealth', 'OrganolepticJournal', 'ProductCertificate', 'FoodNormsControl'];
+            entityTypes = ['perishableBrak', 'detergentLog', 'foodStaffHealth', 'organolepticJournal', 'productCertificate', 'foodNormsControl'];
             title = '📋 Пищевые журналы';
             break;
 
         // Медицина
         case 'audit_logs_med_passports':
-            entityTypes = ['HealthPassport', 'ChildHealthPassport'];
+            entityTypes = ['healthPassport', 'childHealthPassport'];
             title = '⚕️ Паспорта здоровья';
             break;
         case 'audit_logs_med_journals':
-            entityTypes = ['SomaticJournal', 'MantouxJournal', 'HelminthJournal', 'InfectiousDiseasesJournal', 'ContactInfectionJournal', 'TubPositiveJournal', 'RiskGroupChild'];
+            entityTypes = ['somaticJournal', 'mantouxJournal', 'helminthJournal', 'infectiousDiseasesJournal', 'contactInfectionJournal', 'tubPositiveJournal', 'riskGroupChild'];
             title = '🏥 Медицинские журналы';
             break;
 
         // Остальное
         case 'audit_logs_settings':
-            entityTypes = ['Settings', 'MainEvent', 'RentPayment', 'ExternalSpecialist'];
+            entityTypes = ['settings', 'mainEvent', 'rent', 'externalSpecialist'];
             title = '🏢 Настройки и Аренда';
             break;
         case 'audit_logs_docs':
-            entityTypes = ['Document', 'Task', 'ActivityTemplate'];
+            entityTypes = ['document', 'task', 'dailySchedule'];
             title = '📁 Документы, Задачи, Циклограмма';
             break;
     }
@@ -972,18 +1032,52 @@ async function sendAuditLogs(chatId: number | string, actionType: string, messag
     }
 
     try {
-        const logs = await AuditLog.find({ entityType: { $in: entityTypes } })
+        let dateFilter: any = {};
+        const now = new Date();
+        let periodStr = '';
+
+        if (period === 'today') {
+            const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+            dateFilter = { $gte: startOfDay };
+            periodStr = 'за сегодня';
+        } else if (period === '3days') {
+            const d = new Date(); d.setDate(d.getDate() - 3);
+            dateFilter = { $gte: d };
+            periodStr = 'за 3 дня';
+        } else if (period === 'week') {
+            const d = new Date(); d.setDate(d.getDate() - 7);
+            dateFilter = { $gte: d };
+            periodStr = 'за неделю';
+        } else if (period === 'month') {
+            const d = new Date(); d.setMonth(d.getMonth() - 1);
+            dateFilter = { $gte: d };
+            periodStr = 'за месяц';
+        } else {
+            periodStr = 'за всё время';
+        }
+
+        let query: any = { entityType: { $in: entityTypes } };
+        if (period !== 'all') {
+            query.createdAt = dateFilter;
+        }
+
+        const limitCount = period === 'all' ? 50 : 30;
+
+        const logs = await AuditLog.find(query)
             .sort({ createdAt: -1 })
-            .limit(10)
+            .limit(limitCount)
             .lean();
 
         if (logs.length === 0) {
-            const text = `📋 <b>Аудит: ${title}</b>\n\nНет недавних действий.`;
-            await sendInlineKeyboard(chatId, text, [[{ text: '🔙 Назад', callback_data: 'audit_main' }]], messageIdToEdit);
+            const text = `📋 <b>Аудит: ${title}</b> (${periodStr})\n\nНет недавних действий.`;
+            await sendInlineKeyboard(chatId, text, [
+                [{ text: '📅 Изменить период', callback_data: actionType }],
+                [{ text: '🔙 Назад к меню', callback_data: 'audit_main' }]
+            ], messageIdToEdit);
             return;
         }
 
-        let text = `📋 <b>Аудит: ${title}</b>\n<i>Последние 10 действий</i>\n\n`;
+        let text = `📋 <b>Аудит: ${title}</b>\n<i>Последние действия (${periodStr}, до ${limitCount})</i>\n\n`;
 
         for (const log of logs) {
             const dateStr = new Date(log.createdAt).toLocaleString('ru-RU', {
@@ -1011,7 +1105,8 @@ async function sendAuditLogs(chatId: number | string, actionType: string, messag
         }
 
         const inlineKeyboard = [
-            [{ text: '🔄 Обновить', callback_data: actionType }],
+            [{ text: '🔄 Обновить', callback_data: `${actionType}_${period}` }],
+            [{ text: '📅 Изменить период', callback_data: actionType }],
             [{ text: '🔙 Назад к меню', callback_data: 'audit_main' }]
         ];
 
@@ -1072,7 +1167,17 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery): Promis
             await sendAuditSubMenu(chatId, data, messageId);
         }
         else if (data.startsWith('audit_logs_')) {
-            await sendAuditLogs(chatId, data, messageId);
+            // Обработка данных с периодом
+            const parts = data.split('_');
+            const lastPart = parts[parts.length - 1];
+            if (['today', '3days', 'week', 'month', 'all'].includes(lastPart)) {
+                const period = lastPart;
+                const actionType = parts.slice(0, -1).join('_');
+                await sendAuditLogs(chatId, actionType, period, messageId);
+            } else {
+                // Если периода нет — показываем меню периодов
+                await sendAuditPeriodMenu(chatId, data, messageId);
+            }
         }
 
     } catch (error) {
