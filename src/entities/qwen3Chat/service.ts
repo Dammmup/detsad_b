@@ -1,18 +1,23 @@
 import axios from 'axios';
-import { Qwen3Request } from './model';
+import { Qwen3Request, PendingAction } from './model';
 import { executeQuery, QueryRequest } from './queryExecutor';
 import { ASSISTANT_PROMPT, DATA_ACCESS_PROMPT, DATABASE_PROMPT } from './prompts';
 import { productsService } from '../food/products/service';
 import { dishesService } from '../food/dishes/service';
+import crypto from 'crypto';
 
 const QWEN3_API_URL = process.env.QWEN3_API_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
 const QWEN3_API_KEY = process.env.QWEN3_API_KEY || 'sk-5aeb0fdc7fa446c391b6d51363102e79';
 
-// Локальный интерфейс для ответа (чтобы избежать проблем с кэшем ts-node-dev)
+// Операции записи, которые требуют подтверждения пользователя
+const WRITE_OPERATIONS = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
+
+// Локальный интерфейс для ответа
 interface ServiceResponse {
   content: string;
-  action?: 'query' | 'navigate' | 'text' | 'create_dish_from_name';
+  action?: 'query' | 'navigate' | 'text' | 'create_dish_from_name' | 'confirm_action';
   navigateTo?: string;
+  pendingAction?: PendingAction;
 }
 
 interface AIAction {
@@ -26,7 +31,7 @@ interface AIAction {
   responseTemplate?: string;
   dishName?: string;
   ingredients?: { productName: string, quantity: number, unit: string }[];
-  category?: 'breakfast' | 'lunch' | 'dinner' | 'snack'; // Add this line
+  category?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
 }
 
 
@@ -42,7 +47,6 @@ export class Qwen3ChatService {
         let jsonStr = jsonMatch[0];
 
         // Очистка: заменяем физические переносы строк внутри кавычек на \n
-        // Это часто ломает JSON.parse, когда AI вставляет длинные тексты
         jsonStr = jsonStr.replace(/"([^"]*)"/g, (match, p1) => {
           return '"' + p1.replace(/\n/g, '\\n').replace(/\r/g, '\\r') + '"';
         });
@@ -51,8 +55,7 @@ export class Qwen3ChatService {
       }
       return null;
     } catch (error) {
-      console.error('Ошибка парсинга JSON ответа AI:', error, 'Содержимое, которое не удалось распарсить:', content);
-      // Если не получилось распарсить после очистки, пробуем исходный вариант
+      console.error('Ошибка парсинга JSON ответа AI:', error, 'Содержимое:', content);
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) return JSON.parse(jsonMatch[0]);
@@ -62,34 +65,81 @@ export class Qwen3ChatService {
   }
 
   /**
+   * Санитизирует текст ответа: убирает сырой JSON, ${...}, undefined и прочий мусор
+   */
+  private static sanitizeResponseText(text: string): string {
+    if (!text || typeof text !== 'string') return 'Не удалось сформировать ответ.';
+
+    let result = text;
+
+    // 1. Убираем ${...} паттерны (нераскрытые шаблонные переменные)
+    result = result.replace(/\$\{[^}]*\}/g, '');
+
+    // 2. Убираем слово "undefined" как самостоятельное значение
+    result = result.replace(/:\s*undefined/gi, ': —');
+    result = result.replace(/\bundefined\b/gi, '—');
+
+    // 3. Убираем слово "null" как самостоятельное значение
+    result = result.replace(/:\s*null/gi, ': —');
+    result = result.replace(/\bnull\b/gi, '—');
+
+    // 4. Убираем сырой JSON из ответа (блоки {...} с ключами MongoDB вроде _id, $oid, ObjectId)
+    result = result.replace(/\{[^{}]*"\$oid"[^{}]*\}/g, '');
+    result = result.replace(/\{[^{}]*"_id"[^{}]*"createdAt"[^{}]*\}/g, '');
+
+    // 5. Убираем JSON-массивы в ответе (если это не форматированный список)
+    result = result.replace(/\[\s*\{[^[\]]*"_id"[^[\]]*\}\s*\]/g, '');
+
+    // 6. Убираем скрытые метаданные markdown-комментарии (ids)
+    // НЕ убираем — они полезны для контекста
+
+    // 7. Убираем множественные пустые строки
+    result = result.replace(/\n{3,}/g, '\n\n');
+
+    // 8. Убираем лишние пробелы
+    result = result.trim();
+
+    // 9. Если после санитизации текст пуст — дефолтное сообщение
+    if (!result || result === '—') {
+      return 'Не удалось сформировать ответ. Попробуйте переформулировать вопрос.';
+    }
+
+    return result;
+  }
+
+  /**
    * Форматирует результат запроса для пользователя
    */
   private static formatQueryResult(data: any, template?: string, message?: string): string {
     // Если есть сообщение от CRUD операции, возвращаем его с шаблоном
     if (message && template) {
-      return template;
+      return this.sanitizeResponseText(template);
     }
     if (message) {
-      return message;
+      return this.sanitizeResponseText(message);
     }
 
     if (template) {
       let resultText = template;
 
-      // Функция для красивого форматирования значений (числа с пробелами)
+      // Функция для красивого форматирования значений
       const formatValue = (val: any): string => {
         if (val === undefined || val === null || val === '') return '—';
         if (typeof val === 'number') {
           return val.toLocaleString('ru-RU');
         }
+        if (typeof val === 'object') {
+          // Не возвращаем сырой JSON пользователю
+          if (val._id) return val.fullName || val.name || val.title || String(val._id);
+          return '—';
+        }
         return String(val);
       };
 
-      // Функция для получения значения из объекта по пути (поддерживает вложенность, например "penaltyDetails.amount")
+      // Функция для получения значения из объекта по пути
       const getValueByPath = (obj: any, path: string): string => {
         if (!obj || !path) return '—';
 
-        // Поддержка вложенных путей через точку
         const parts = path.split('.');
         let current = obj;
 
@@ -108,65 +158,53 @@ export class Qwen3ChatService {
         return formatValue(current);
       };
 
-      // 1. Замена {count} — правильно обрабатываем результаты CRUD операций
+      // 1. Замена {count}
       let count: number;
       if (Array.isArray(data)) {
         count = data.length;
       } else if (typeof data === 'number') {
         count = data;
       } else if (data && typeof data === 'object') {
-        // Для updateMany/updateOne берём modifiedCount, для deleteMany/deleteOne — deletedCount
         count = data.modifiedCount ?? data.deletedCount ?? data.matchedCount ?? (data._id ? 1 : 0);
       } else {
         count = data ? 1 : 0;
       }
       resultText = resultText.replace(/{count}/g, count.toString());
 
-      // ПРОФИЛАКТИКА: Если данных нет (пустой массив), а шаблон требует {result...}, 
-      // то шаблон возвращать нельзя (будут прочерки). Возвращаем сообщение о ненахождении.
+      // Если данных нет, а шаблон ожидает {result...}
       if (Array.isArray(data) && data.length === 0 && (resultText.includes('{result') || resultText.includes('{list}'))) {
-        return "К сожалению, по вашему запросу ничего не найдено.";
+        return 'К сожалению, по вашему запросу ничего не найдено.';
       }
 
-      // 2. Универсальная замена {result} и {result.path}
-      // Поддерживает вложенность: {result.field.subfield}
+      // 2. Замена {result} и {result.path}
       resultText = resultText.replace(/{result(\.[a-zA-Z0-9_\.]+)?}/g, (match, path) => {
         if (!path) {
-          // Если просто {result}, форматируем весь объект или список
           if (Array.isArray(data)) {
             if (data.length === 0) return 'Список пуст';
             return data.map((item: any, index: number) => {
-              if (item.fullName) {
-                const role = item.role ? ` (${Qwen3ChatService.translateRole(item.role)})` : '';
-                const phone = item.phone ? `, тел: ${item.phone}` : '';
-                return `${index + 1}. ${item.fullName}${role}${phone}`;
-              }
-              return `${index + 1}. ${JSON.stringify(item)}`;
+              return this.formatSingleItem(item, index);
             }).join('\n');
           }
           if (data && typeof data === 'object') {
-            return data.fullName
-              ? `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`
-              : JSON.stringify(data);
+            return this.formatSingleItem(data, -1);
           }
           return formatValue(data);
         } else {
-          // Если {result.field.sub}, берем конкретное поле
-          const fieldPath = path.substring(1); // убираем начальную точку
+          const fieldPath = path.substring(1);
           const targetObj = Array.isArray(data) ? (data.length > 0 ? data[0] : null) : data;
           return getValueByPath(targetObj, fieldPath);
         }
       });
 
-      // 3. Замена {list} для обратной совместимости
+      // 3. Замена {list}
       if (resultText.includes('{list}')) {
         const listStr = Array.isArray(data)
-          ? data.map((item: any, index: number) => item.fullName ? `${index + 1}. ${item.fullName}` : JSON.stringify(item)).join('\n')
+          ? data.map((item: any, index: number) => this.formatSingleItem(item, index)).join('\n')
           : String(data);
         resultText = resultText.replace(/{list}/g, listStr);
       }
 
-      // 4. Добавление скрытых ID для контекста ИИ (невидимо для пользователя)
+      // 4. Добавление скрытых ID для контекста ИИ
       let hiddenMetadata = '';
       if (Array.isArray(data) && data.length > 0) {
         const ids = data.slice(0, 10).map((item: any) => item._id).filter(id => !!id);
@@ -177,7 +215,7 @@ export class Qwen3ChatService {
         hiddenMetadata = `\n\n[//]: # (ids: ${JSON.stringify([data._id])})`;
       }
 
-      return resultText + hiddenMetadata;
+      return this.sanitizeResponseText(resultText) + hiddenMetadata;
     }
 
     // Дефолтное форматирование
@@ -191,15 +229,7 @@ export class Qwen3ChatService {
       }
 
       const formatted = data.slice(0, 10).map((item: any, index: number) => {
-        if (item.fullName) {
-          const role = item.role ? ` (${Qwen3ChatService.translateRole(item.role)})` : '';
-          const phone = item.phone ? `, тел: ${item.phone}` : '';
-          return `${index + 1}. ${item.fullName}${role}${phone}`;
-        }
-        if (item.name) {
-          return `${index + 1}. ${item.name}`;
-        }
-        return `${index + 1}. ${JSON.stringify(item)}`;
+        return this.formatSingleItem(item, index);
       }).join('\n');
 
       const suffix = data.length > 10 ? `\n... и ещё ${data.length - 10}` : '';
@@ -207,13 +237,81 @@ export class Qwen3ChatService {
     }
 
     if (data && typeof data === 'object') {
-      if (data.fullName) {
-        return `${data.fullName}${data.role ? ` (${Qwen3ChatService.translateRole(data.role)})` : ''}${data.phone ? `, тел: ${data.phone}` : ''}`;
-      }
-      return JSON.stringify(data, null, 2);
+      return this.formatSingleItem(data, -1);
     }
 
     return String(data);
+  }
+
+  /**
+   * Форматирует один элемент данных для вывода пользователю (без сырого JSON)
+   */
+  private static formatSingleItem(item: any, index: number): string {
+    if (!item || typeof item !== 'object') return formatValueSafe(item);
+
+    const prefix = index >= 0 ? `${index + 1}. ` : '';
+
+    // Сотрудник / пользователь
+    if (item.fullName) {
+      const role = item.role ? ` (${this.translateRole(item.role)})` : '';
+      const phone = item.phone ? `, тел: ${item.phone}` : '';
+      const salary = item.baseSalary ? `, оклад: ${Number(item.baseSalary).toLocaleString('ru-RU')} тг` : '';
+      return `${prefix}${item.fullName}${role}${phone}${salary}`;
+    }
+
+    // Ребёнок
+    if (item.parentName) {
+      const group = item.groupId ? `, группа: ${item.groupId}` : '';
+      return `${prefix}${item.name || item.fullName || '—'}${group}, родитель: ${item.parentName}`;
+    }
+
+    // Блюдо
+    if (item.ingredients && item.category) {
+      return `${prefix}${item.name || '—'} (${this.translateCategory(item.category)}), ${item.ingredients.length} ингредиентов`;
+    }
+
+    // Задача
+    if (item.title && item.status) {
+      const priority = item.priority ? ` [${item.priority}]` : '';
+      return `${prefix}${item.title} — ${this.translateStatus(item.status)}${priority}`;
+    }
+
+    // Группа
+    if (item.name && item.maxStudents !== undefined) {
+      return `${prefix}${item.name}, макс. ${item.maxStudents} детей`;
+    }
+
+    // Зарплата
+    if (item.period && item.total !== undefined) {
+      const staffName = item.fullName || item.staffName || '';
+      return `${prefix}${staffName ? staffName + ', ' : ''}период: ${item.period}, итого: ${Number(item.total).toLocaleString('ru-RU')} тг`;
+    }
+
+    // Платёж
+    if (item.amount !== undefined && item.status) {
+      return `${prefix}сумма: ${Number(item.amount).toLocaleString('ru-RU')} тг, статус: ${this.translateStatus(item.status)}`;
+    }
+
+    // Объект с именем
+    if (item.name) {
+      return `${prefix}${item.name}`;
+    }
+
+    // Объект с заголовком
+    if (item.title) {
+      return `${prefix}${item.title}`;
+    }
+
+    // Fallback: выводим ключевые поля без _id и системных полей
+    const keys = Object.keys(item).filter(k => !['_id', '__v', 'createdAt', 'updatedAt', 'passwordHash'].includes(k));
+    const summary = keys.slice(0, 5).map(k => {
+      const val = item[k];
+      if (val === undefined || val === null) return null;
+      if (typeof val === 'object') return null;
+      return `${k}: ${val}`;
+    }).filter(Boolean).join(', ');
+
+    return `${prefix}${summary || 'Запись'}`;
   }
 
   /**
@@ -248,29 +346,189 @@ export class Qwen3ChatService {
   }
 
   /**
+   * Переводит категорию блюда на русский
+   */
+  private static translateCategory(category: string): string {
+    const categories: Record<string, string> = {
+      'breakfast': 'Завтрак',
+      'lunch': 'Обед',
+      'snack': 'Полдник',
+      'dinner': 'Ужин'
+    };
+    return categories[category] || category;
+  }
+
+  /**
+   * Переводит статус на русский
+   */
+  private static translateStatus(status: string): string {
+    const statuses: Record<string, string> = {
+      'todo': 'К выполнению',
+      'in-progress': 'В работе',
+      'done': 'Выполнено',
+      'paid': 'Оплачено',
+      'unpaid': 'Не оплачено',
+      'draft': 'Черновик',
+      'approved': 'Утверждено',
+      'present': 'Присутствует',
+      'absent': 'Отсутствует',
+      'sick': 'Болеет',
+      'vacation': 'Отпуск',
+      'late': 'Опоздание',
+      'active': 'Активен',
+      'inactive': 'Неактивен',
+      'pending': 'Ожидает',
+      'cancelled': 'Отменено',
+      'completed': 'Завершено'
+    };
+    return statuses[status] || status;
+  }
+
+  /**
+   * Генерирует человеко-понятное описание CRUD операции для подтверждения
+   */
+  private static describeCrudAction(query: QueryRequest, responseTemplate?: string): string {
+    const collectionNames: Record<string, string> = {
+      'users': 'Сотрудники',
+      'children': 'Дети',
+      'groups': 'Группы',
+      'payrolls': 'Зарплаты',
+      'staff_shifts': 'Смены сотрудников',
+      'staff_attendance_tracking': 'Посещаемость сотрудников',
+      'childattendances': 'Посещаемость детей',
+      'child_payments': 'Платежи за детей',
+      'rent_payments': 'Платежи за аренду',
+      'tasks': 'Задачи',
+      'documents': 'Документы',
+      'settings': 'Настройки',
+      'products': 'Продукты',
+      'dishes': 'Блюда',
+      'daily_menus': 'Дневное меню',
+      'weekly_menu_templates': 'Шаблоны меню',
+      'product_purchases': 'Закупки',
+      'health_passports': 'Паспорта здоровья',
+      'mantoux_journal': 'Журнал Манту',
+      'somatic_journal': 'Соматический журнал',
+      'helminth_journal': 'Журнал гельминтов',
+      'infectious_diseases_journal': 'Журнал инфекций',
+      'contact_infection_journal': 'Контактные инфекции',
+      'tub_positive_journal': 'Туб-положительные',
+      'risk_group_children': 'Дети группы риска',
+      'food_stock_log': 'Склад продуктов',
+      'organoleptic_journal': 'Органолептический журнал',
+      'perishable_brak': 'Брак скоропортящихся',
+      'detergent_log': 'Журнал моющих средств',
+      'food_staff_health': 'Здоровье персонала пищеблока',
+      'product_certificates': 'Сертификаты продуктов',
+      'external_specialists': 'Внешние специалисты',
+      'main_events': 'События',
+      'menu_items': 'Элементы меню',
+      'food_norms_control': 'Контроль норм питания'
+    };
+
+    const collName = collectionNames[query.collection] || query.collection;
+    const operation = query.operation;
+
+    let description = '';
+
+    switch (operation) {
+      case 'insertOne': {
+        description = `Создание записи в "${collName}"`;
+        if (query.document) {
+          const docKeys = Object.keys(query.document).filter(k => !['createdAt', 'updatedAt'].includes(k));
+          const preview = docKeys.slice(0, 4).map(k => {
+            const val = query.document![k];
+            if (typeof val === 'object') return `${k}: [...]`;
+            return `${k}: ${val}`;
+          }).join(', ');
+          description += `\nДанные: ${preview}`;
+        }
+        break;
+      }
+      case 'updateOne':
+      case 'updateMany': {
+        const many = operation === 'updateMany' ? ' (массовое)' : '';
+        description = `Обновление записи в "${collName}"${many}`;
+        if (query.filter) {
+          const filterStr = this.describeFilter(query.filter);
+          description += `\nУсловие: ${filterStr}`;
+        }
+        if (query.update && query.update.$set) {
+          const setKeys = Object.keys(query.update.$set).filter(k => k !== 'updatedAt');
+          const preview = setKeys.slice(0, 4).map(k => {
+            const val = query.update!.$set[k];
+            if (typeof val === 'object') return `${k}: [...]`;
+            return `${k}: ${val}`;
+          }).join(', ');
+          description += `\nИзменения: ${preview}`;
+        }
+        break;
+      }
+      case 'deleteOne':
+      case 'deleteMany': {
+        const many = operation === 'deleteMany' ? ' (массовое)' : '';
+        description = `Удаление записи из "${collName}"${many}`;
+        if (query.filter) {
+          const filterStr = this.describeFilter(query.filter);
+          description += `\nУсловие: ${filterStr}`;
+        }
+        break;
+      }
+      default:
+        description = `Операция ${operation} в "${collName}"`;
+    }
+
+    return description;
+  }
+
+  /**
+   * Описывает фильтр в человеко-понятном виде
+   */
+  private static describeFilter(filter: Record<string, any>): string {
+    const parts: string[] = [];
+    for (const key of Object.keys(filter)) {
+      const val = filter[key];
+      if (val && typeof val === 'object') {
+        if (val.$regex) {
+          parts.push(`${key} содержит "${val.$regex}"`);
+        } else if (val.$oid) {
+          parts.push(`${key} = ${val.$oid}`);
+        } else if (val.$ne !== undefined) {
+          parts.push(`${key} не равно "${val.$ne}"`);
+        } else if (val.$gte || val.$lte) {
+          if (val.$gte) parts.push(`${key} от ${val.$gte}`);
+          if (val.$lte) parts.push(`${key} до ${val.$lte}`);
+        } else {
+          parts.push(`${key}: ${JSON.stringify(val)}`);
+        }
+      } else {
+        parts.push(`${key} = ${val}`);
+      }
+    }
+    return parts.join(', ') || 'без условий';
+  }
+
+  /**
    * Получает текущую дату/время для контекста
    */
   private static getCurrentDateContext(): string {
     const now = new Date();
-    // Казахстан UTC+5
     const KZ_OFFSET_MS = 5 * 60 * 60 * 1000;
-
-    // Псевдо-локальное время (как будто UTC - это локальное время в Алматы)
     const kzPseudoTime = new Date(now.getTime() + KZ_OFFSET_MS);
-
     const dateStr = kzPseudoTime.toISOString().split('T')[0];
     const timeStr = kzPseudoTime.toISOString().split('T')[1].substring(0, 5);
-
     return `Текущая дата: ${dateStr}, время: ${timeStr} (Казахстан, UTC+5)`;
   }
 
+  /**
+   * Основной метод отправки сообщения в ИИ
+   */
   static async sendMessage(request: Qwen3Request): Promise<ServiceResponse> {
     if (!QWEN3_API_KEY) {
       throw new Error('API ключ для Qwen3 не установлен на сервере');
     }
 
     try {
-      // Используем константы промптов (для работы на Vercel Serverless)
       const systemPrompt = ASSISTANT_PROMPT;
       const dataAccessPrompt = DATA_ACCESS_PROMPT;
       const databasePrompt = DATABASE_PROMPT;
@@ -307,13 +565,10 @@ export class Qwen3ChatService {
         }
       }));
 
-
       messages.unshift({ role: 'system', content: enhancedSystemPrompt });
 
-      // Первый запрос к AI для получения действия
-      console.log('📤 [AI] Отправка запроса. Пользователь:', request.messages[request.messages.length - 1].text);
+      console.log('[AI] Отправка запроса. Пользователь:', request.messages[request.messages.length - 1].text);
 
-      // Валидируем сообщения перед отправкой
       if (!messages || messages.length === 0) {
         throw new Error('Нет сообщений для отправки в AI');
       }
@@ -323,48 +578,79 @@ export class Qwen3ChatService {
         {
           model: request.model || (request.image ? 'qwen-vl-max' : 'qwen-plus'),
           messages: messages,
-          temperature: 0.7, // Добавляем температуру для более предсказуемого поведения
-          max_tokens: 2048, // Ограничиваем максимальное количество токенов
+          temperature: 0.7,
+          max_tokens: 2048,
         },
         {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${QWEN3_API_KEY}`,
-            'User-Agent': 'Detsad-Bot/1.0' // Добавляем User-Agent для идентификации
+            'User-Agent': 'Detsad-Bot/1.0'
           },
-          timeout: 60000 // 60 секунд таймаут
+          timeout: 60000
         }
       );
-      // >>> ДОБАВЛЯЕМ ЛОГИРОВАНИЕ ПОЛНОГО ОТВЕТА API ЗДЕСЬ <<<
-      console.log('📥 [AI] Полный объект данных от Qwen3 API:', JSON.stringify(response.data, null, 2));
+
+      console.log('[AI] Ответ получен от API');
 
       const aiResponseText = response.data.choices[0].message.content;
-      console.log('📥 [AI] Сырой текст содержимого сообщения:', aiResponseText);
+      console.log('[AI] Сырой текст:', aiResponseText);
 
-      // Парсим JSON из ответа AI с помощью внутреннего метода
+      // Парсим JSON из ответа AI
       let aiAction = this.parseAIResponse(aiResponseText);
 
       if (!aiAction) {
-        // Если не удалось распарсить JSON, считаем, что AI вернул просто текстовое сообщение
+        // Если не удалось распарсить JSON, считаем текстовым сообщением
         aiAction = { action: 'text', text: aiResponseText };
-        console.log('🧩 [AI] Распознанное действие: text (дефолтное, из-за отсутствия JSON)');
+        console.log('[AI] Действие: text (дефолтное)');
       } else {
-        console.log('🧩 [AI] Распознанное действие:', aiAction.action);
+        console.log('[AI] Действие:', aiAction.action);
       }
 
       // Обрабатываем действие
       switch (aiAction.action) {
         case 'navigate':
           return {
-            content: aiAction.navigate?.description || 'Перехожу на страницу...',
+            content: this.sanitizeResponseText(aiAction.navigate?.description || 'Перехожу на страницу...'),
             action: 'navigate',
             navigateTo: aiAction.navigate?.route
           };
 
         case 'query':
           if (aiAction.query) {
-            console.log('Executing query:', JSON.stringify(aiAction.query));
-            // Передаем контекст безопасности из запроса в исполнитель
+            // --- СИСТЕМА ПОДТВЕРЖДЕНИЯ ---
+            // Если это write-операция, запрашиваем подтверждение
+            if (WRITE_OPERATIONS.includes(aiAction.query.operation)) {
+              const pendingId = crypto.randomUUID();
+              const description = this.describeCrudAction(aiAction.query, aiAction.responseTemplate);
+
+              const pendingAction: PendingAction = {
+                id: pendingId,
+                type: 'crud_query',
+                description: description,
+                query: aiAction.query,
+                responseTemplate: aiAction.responseTemplate
+              };
+
+              const operationLabels: Record<string, string> = {
+                'insertOne': 'создание',
+                'updateOne': 'обновление',
+                'updateMany': 'массовое обновление',
+                'deleteOne': 'удаление',
+                'deleteMany': 'массовое удаление'
+              };
+
+              const opLabel = operationLabels[aiAction.query.operation] || aiAction.query.operation;
+
+              return {
+                content: `Для выполнения операции "${opLabel}" требуется ваше подтверждение:\n\n${description}\n\nПодтвердите или отмените действие.`,
+                action: 'confirm_action',
+                pendingAction
+              };
+            }
+
+            // Обычные read-операции — выполняем сразу
+            console.log('Executing read query:', JSON.stringify(aiAction.query));
             const queryWithAuth: QueryRequest = {
               ...aiAction.query,
               authContext: request.authContext
@@ -375,12 +661,12 @@ export class Qwen3ChatService {
 
               if (!queryResult.success) {
                 return {
-                  content: `Ошибка выполнения запроса: ${queryResult.error || 'Неизвестная ошибка'}`,
+                  content: `Не удалось выполнить запрос: ${queryResult.error || 'Неизвестная ошибка'}`,
                   action: 'text'
                 };
               }
 
-              console.log('📊 [DB] Результат получен. Элементов:', Array.isArray(queryResult.data) ? queryResult.data.length : (queryResult.data || queryResult.count ? 1 : 0));
+              console.log('[DB] Результат получен. Элементов:', Array.isArray(queryResult.data) ? queryResult.data.length : (queryResult.data || queryResult.count ? 1 : 0));
 
               const formattedResult = this.formatQueryResult(
                 queryResult.data ?? queryResult.count,
@@ -389,36 +675,34 @@ export class Qwen3ChatService {
               );
 
               return {
-                content: formattedResult,
+                content: this.sanitizeResponseText(formattedResult),
                 action: 'text'
               };
             } catch (error: any) {
-              console.error('Ошибка при выполнении запроса к базе данных:', error);
+              console.error('Ошибка при выполнении запроса:', error);
               return {
-                content: `Ошибка при работе с базой данных: ${error.message}`,
+                content: `Не удалось выполнить запрос к базе данных. Попробуйте переформулировать вопрос.`,
                 action: 'text'
               };
             }
           }
           return {
-            content: 'Ошибка: запрос не указан',
+            content: 'Не удалось сформировать запрос. Попробуйте переформулировать.',
             action: 'text'
           };
 
         case 'check_dish_exists':
           if (!aiAction.dishName) {
             return {
-              content: 'Ошибка: Не указано название блюда для проверки.',
+              content: 'Не указано название блюда для проверки.',
               action: 'text'
             };
           }
-
           try {
             const existingDish = await dishesService.findByName(aiAction.dishName);
-
             if (existingDish) {
               return {
-                content: `Блюдо "${existingDish.name}" уже существует в базе данных. Категория: ${existingDish.category}.`,
+                content: `Блюдо "${existingDish.name}" уже существует в базе данных. Категория: ${this.translateCategory(existingDish.category)}.`,
                 action: 'text'
               };
             } else {
@@ -428,9 +712,9 @@ export class Qwen3ChatService {
               };
             }
           } catch (error: any) {
-            console.error('Ошибка при проверке существования блюда:', error);
+            console.error('Ошибка при проверке блюда:', error);
             return {
-              content: `Ошибка при проверке существования блюда: ${error.message}`,
+              content: 'Не удалось проверить наличие блюда. Попробуйте позже.',
               action: 'text'
             };
           }
@@ -438,73 +722,163 @@ export class Qwen3ChatService {
         case 'create_dish_from_name':
           if (!aiAction.dishName || !aiAction.ingredients) {
             return {
-              content: 'Ошибка: AI не вернул название блюда или ингредиенты.',
+              content: 'Не удалось определить название блюда или ингредиенты.',
               action: 'text'
             };
           }
 
-          try {
-            // Check if dish already exists before creating
-            const existingDish = await dishesService.findByName(aiAction.dishName);
+          // Запрашиваем подтверждение на создание блюда
+          {
+            const pendingId = crypto.randomUUID();
+            const ingredientsList = aiAction.ingredients.map(
+              (ing, i) => `  ${i + 1}. ${ing.productName} — ${ing.quantity} ${ing.unit}`
+            ).join('\n');
 
-            if (existingDish) {
-              return {
-                content: `Блюдо "${existingDish.name}" уже существует в базе данных. Категория: ${existingDish.category}.`,
-                action: 'text'
-              };
-            }
+            const description = `Создание блюда "${aiAction.dishName}"\nКатегория: ${this.translateCategory(aiAction.category || 'breakfast')}\nИнгредиенты:\n${ingredientsList}`;
 
-            const ingredients = [];
-            for (const ing of aiAction.ingredients) {
-              const product = await productsService.findByNameOrCreate({ name: ing.productName, unit: ing.unit });
-              ingredients.push({
-                productId: product._id,
-                quantity: ing.quantity,
-                unit: ing.unit
-              });
-            }
-
-            const newDish = await dishesService.create({
-              name: aiAction.dishName,
-              ingredients,
-              category: aiAction.category || 'breakfast', // use category from AI or default to breakfast
-              createdBy: request.authContext?.userId as any
-            });
-
-            return {
-              content: `Блюдо "${newDish.name}" успешно создано с ${newDish.ingredients.length} ингредиентами. Категория: ${newDish.category}.`,
-              action: 'text'
+            const pendingAction: PendingAction = {
+              id: pendingId,
+              type: 'create_dish',
+              description,
+              dishData: {
+                dishName: aiAction.dishName,
+                category: aiAction.category || 'breakfast',
+                ingredients: aiAction.ingredients
+              }
             };
-          } catch (error: any) {
-            console.error('Ошибка при создании блюда:', error);
+
             return {
-              content: `Ошибка при создании блюда: ${error.message}`,
-              action: 'text'
+              content: `Для создания блюда требуется ваше подтверждение:\n\n${description}\n\nПодтвердите или отмените действие.`,
+              action: 'confirm_action',
+              pendingAction
             };
           }
 
         case 'text':
         default:
           return {
-            content: aiAction.text || aiResponseText,
+            content: this.sanitizeResponseText(aiAction.text || aiResponseText),
             action: 'text'
           };
       }
 
     } catch (error: any) {
-      console.error('❌ Ошибка при вызове Qwen3 API:', error);
-      // Возвращаем более информативную ошибку в зависимости от типа ошибки
+      console.error('Ошибка при вызове Qwen3 API:', error);
       if (error.response) {
-        // Ошибка от API
-        throw new Error(`Ошибка API Qwen3: ${error.response.status} - ${error.response.statusText || 'Unknown error'}`);
+        throw new Error(`Ошибка API: ${error.response.status} - ${error.response.statusText || 'Неизвестная ошибка'}`);
       } else if (error.request) {
-        // Ошибка запроса (нет соединения и т.д.)
-        throw new Error('Не удалось подключиться к API Qwen3. Проверьте соединение с интернетом.');
+        throw new Error('Не удалось подключиться к AI. Проверьте соединение с интернетом.');
       } else {
-        // Ошибка при настройке запроса
-        throw new Error(`Ошибка при подготовке запроса к Qwen3: ${error.message}`);
+        throw new Error(`Ошибка: ${error.message}`);
       }
+    }
+  }
+
+  /**
+   * Выполняет подтверждённое пользователем действие
+   */
+  static async executeConfirmedAction(pendingAction: PendingAction, authContext?: { userId: string; role: string; groupId?: string }): Promise<ServiceResponse> {
+    console.log('[AI] Выполнение подтверждённого действия:', pendingAction.id, pendingAction.type);
+
+    switch (pendingAction.type) {
+      case 'crud_query': {
+        if (!pendingAction.query) {
+          return { content: 'Ошибка: данные операции не найдены.', action: 'text' };
+        }
+
+        const queryWithAuth: QueryRequest = {
+          ...pendingAction.query,
+          authContext
+        };
+
+        try {
+          const queryResult = await executeQuery(queryWithAuth);
+
+          if (!queryResult.success) {
+            return {
+              content: `Не удалось выполнить операцию: ${queryResult.error || 'Неизвестная ошибка'}`,
+              action: 'text'
+            };
+          }
+
+          const formattedResult = this.formatQueryResult(
+            queryResult.data ?? queryResult.count,
+            pendingAction.responseTemplate,
+            queryResult.message
+          );
+
+          return {
+            content: this.sanitizeResponseText(formattedResult),
+            action: 'text'
+          };
+        } catch (error: any) {
+          console.error('Ошибка при выполнении подтверждённого запроса:', error);
+          return {
+            content: 'Не удалось выполнить операцию. Попробуйте позже.',
+            action: 'text'
+          };
+        }
+      }
+
+      case 'create_dish': {
+        if (!pendingAction.dishData) {
+          return { content: 'Ошибка: данные блюда не найдены.', action: 'text' };
+        }
+
+        const { dishName, category, ingredients: rawIngredients } = pendingAction.dishData;
+
+        try {
+          // Проверяем существование
+          const existingDish = await dishesService.findByName(dishName);
+          if (existingDish) {
+            return {
+              content: `Блюдо "${existingDish.name}" уже существует. Категория: ${this.translateCategory(existingDish.category)}.`,
+              action: 'text'
+            };
+          }
+
+          const ingredients = [];
+          for (const ing of rawIngredients) {
+            const product = await productsService.findByNameOrCreate({ name: ing.productName, unit: ing.unit });
+            ingredients.push({
+              productId: product._id,
+              quantity: ing.quantity,
+              unit: ing.unit
+            });
+          }
+
+          const newDish = await dishesService.create({
+            name: dishName,
+            ingredients,
+            category: category as any || 'breakfast',
+            createdBy: authContext?.userId as any
+          });
+
+          return {
+            content: `Блюдо "${newDish.name}" успешно создано с ${newDish.ingredients.length} ингредиентами. Категория: ${this.translateCategory(newDish.category)}.`,
+            action: 'text'
+          };
+        } catch (error: any) {
+          console.error('Ошибка при создании блюда:', error);
+          return {
+            content: `Не удалось создать блюдо: ${error.message}`,
+            action: 'text'
+          };
+        }
+      }
+
+      default:
+        return { content: 'Неизвестный тип действия.', action: 'text' };
     }
   }
 }
 
+/**
+ * Безопасное форматирование значения (вспомогательная функция)
+ */
+function formatValueSafe(val: any): string {
+  if (val === undefined || val === null || val === '') return '—';
+  if (typeof val === 'number') return val.toLocaleString('ru-RU');
+  if (typeof val === 'object') return '—';
+  return String(val);
+}

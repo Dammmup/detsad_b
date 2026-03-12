@@ -21,6 +21,24 @@ export interface Qwen3Request {
 
 export interface Qwen3Response {
   content: string;
-  action?: 'query' | 'navigate' | 'text';
+  action?: 'query' | 'navigate' | 'text' | 'confirm_action';
   navigateTo?: string;
+  pendingAction?: PendingAction;
+}
+
+/**
+ * Действие, ожидающее подтверждения пользователя.
+ * Фронтенд хранит это и отправляет обратно при подтверждении.
+ */
+export interface PendingAction {
+  id: string;
+  type: 'crud_query' | 'create_dish';
+  description: string;
+  query?: any;
+  dishData?: {
+    dishName: string;
+    category: string;
+    ingredients: { productName: string; quantity: number; unit: string }[];
+  };
+  responseTemplate?: string;
 }

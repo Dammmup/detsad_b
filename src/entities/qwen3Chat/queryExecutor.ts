@@ -3,11 +3,12 @@ import { ObjectId } from 'mongodb';
 
 // Разрешённые коллекции для операций
 const ALLOWED_COLLECTIONS = [
+    // Ядро
     'users',
     'children',
     'groups',
     'staff_attendance_tracking',
-    'attendance', // Алиас для staff_attendance_tracking (для AI-запросов)
+    'attendance', // Алиас для staff_attendance_tracking
     'childattendances',
     'payrolls',
     'staff_shifts',
@@ -15,7 +16,14 @@ const ALLOWED_COLLECTIONS = [
     'documents',
     'reports',
     'settings',
+    'child_payments',
+    'rent_payments',
+    'main_events',
+    'audit_logs',
+    'external_specialists',
+    // Медицина
     'health_passports',
+    'child_health_passports',
     'mantoux_journal',
     'somatic_journal',
     'helminth_journal',
@@ -23,22 +31,24 @@ const ALLOWED_COLLECTIONS = [
     'infectious_diseases_journal',
     'contact_infection_journal',
     'risk_group_children',
+    // Питание
     'menu_items',
-    'food_stock_log',
-    'food_staff_health',
-    'food_norms_control',
-    'detergent_log',
-    'product_certificates',
-    'organoleptic_journal',
-    'perishable_brak',
     'products',
     'dishes',
     'daily_menus',
     'weekly_menu_templates',
     'product_purchases',
-    'child_payments',
-    'rent_payments',
-    'main_events'
+    'food_stock_log',
+    'food_staff_health',
+    'food_staff_daily_log',
+    'food_norms_control',
+    'detergent_log',
+    'product_certificates',
+    'organoleptic_journal',
+    'perishable_brak',
+    // Циклограмма
+    'activity_templates',
+    'daily_schedules',
 ];
 
 // Разрешённые операции (чтение и запись)
@@ -49,8 +59,8 @@ const ALLOWED_OPERATIONS = [
     'insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'
 ];
 
-// Операции записи (требуют особой осторожности)
-const WRITE_OPERATIONS = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
+// Операции записи (требуют подтверждения пользователя)
+export const WRITE_OPERATIONS = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
 
 // Запрещённые операторы (потенциально опасные)
 const FORBIDDEN_OPERATORS = ['$where', '$function', '$accumulator'];

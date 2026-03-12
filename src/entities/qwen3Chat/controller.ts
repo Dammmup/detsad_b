@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Qwen3ChatService } from './service';
-import { Qwen3Request } from './model';
+import { Qwen3Request, PendingAction } from './model';
 import multer from 'multer';
 
 const upload = multer({
@@ -82,12 +82,50 @@ export const sendMessage = async (req: Request, res: Response) => {
     } catch (error: any) {
       console.error('Error in Qwen3 chat controller:', error);
       res.status(500).json({
-        content: error.message || 'Ошибка при обращении к AI',
+        content: error.message || 'Произошла ошибка при обращении к AI. Попробуйте позже.',
         action: 'text',
         error: true
       });
     }
   });
+};
+
+/**
+ * Эндпоинт для выполнения подтверждённых пользователем действий (CRUD)
+ * POST /qwen3-chat/confirm
+ */
+export const confirmAction = async (req: Request, res: Response) => {
+  try {
+    const { pendingAction } = req.body;
+
+    if (!pendingAction || !pendingAction.id || !pendingAction.type) {
+      return res.status(400).json({
+        content: 'Некорректные данные для подтверждения действия.',
+        action: 'text',
+        error: true
+      });
+    }
+
+    const authContext = (req as any).user ? {
+      userId: (req as any).user.id,
+      role: (req as any).user.role,
+      groupId: (req as any).user.groupId
+    } : undefined;
+
+    const result = await Qwen3ChatService.executeConfirmedAction(
+      pendingAction as PendingAction,
+      authContext
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error in confirmAction controller:', error);
+    res.status(500).json({
+      content: error.message || 'Ошибка при выполнении подтверждённого действия.',
+      action: 'text',
+      error: true
+    });
+  }
 };
 
 export const createDish = async (req: Request, res: Response) => {
@@ -100,8 +138,8 @@ export const createDish = async (req: Request, res: Response) => {
 
         const qwen3Request: Qwen3Request = {
             messages: [{
-                id: 1, // Add a dummy ID
-                timestamp: new Date(), // Add current timestamp
+                id: 1,
+                timestamp: new Date(),
                 sender: 'user',
                 text: `Добавь блюдо "${dishName}" в категорию "${category || 'без категории'}"`,
             }],

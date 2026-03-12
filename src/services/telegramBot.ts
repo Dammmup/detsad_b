@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Qwen3ChatService } from '../entities/qwen3Chat/service';
 import User from '../entities/users/model';
+import AuditLog from '../entities/auditLog/model';
 import { ShiftsService } from '../entities/staffShifts/service';
 
 const shiftsService = new ShiftsService();
@@ -146,6 +147,38 @@ async function sendTypingAction(chatId: number | string): Promise<void> {
         });
     } catch (error) {
         // Игнорируем ошибки
+    }
+}
+
+/**
+ * Отправляет сообщение с Inline Keyboard (кнопки под сообщением)
+ */
+async function sendInlineKeyboard(
+    chatId: number | string,
+    text: string,
+    inlineKeyboard: { text: string; callback_data: string }[][],
+    messageIdToEdit?: number
+): Promise<void> {
+    if (!TELEGRAM_BOT_TOKEN) return;
+
+    try {
+        const payload: any = {
+            chat_id: chatId,
+            text,
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: inlineKeyboard
+            }
+        };
+
+        if (messageIdToEdit) {
+            payload.message_id = messageIdToEdit;
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, payload);
+        } else {
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, payload);
+        }
+    } catch (error: any) {
+        console.error('Ошибка отправки сообщения с inline keyboard:', error.response?.data || error.message);
     }
 }
 
@@ -600,6 +633,12 @@ async function handleTextMessage(chatId: number, text: string, user: any): Promi
  * Главный обработчик webhook от Telegram
  */
 export async function handleTelegramWebhook(update: TelegramUpdate): Promise<void> {
+    // Обработка inline кнопок (callback_query)
+    if (update.callback_query) {
+        await handleCallbackQuery(update.callback_query);
+        return;
+    }
+
     const message = update.message || update.edited_message;
 
     if (!message) {
@@ -632,7 +671,7 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
         return;
     }
 
-    // Проверяем авторизацию для команд /start, /help и основного потока
+    // Проверяем авторизацию для команд /start, /help, /audit и основного потока
     const user = await findUserByTelegramChatId(chatId);
 
     if (text.startsWith('/start') || text === '/help') {
@@ -640,6 +679,15 @@ export async function handleTelegramWebhook(update: TelegramUpdate): Promise<voi
         if (user) {
             await sendAttendanceButton(chatId, user._id.toString(), user.role);
         }
+        return;
+    }
+
+    if (text === '/audit') {
+        if (!user || !['admin', 'manager', 'director'].includes(user.role)) {
+            await sendMessage(chatId, '❌ Эта команда доступна только администраторам.');
+            return;
+        }
+        await sendAuditMainMenu(chatId);
         return;
     }
 
@@ -743,5 +791,291 @@ export async function getWebhookInfo(): Promise<any> {
         return response.data.result;
     } catch (error: any) {
         return { error: error.response?.data?.description || error.message };
+    }
+}
+
+// ==========================================
+// ИНТЕРАКТИВНОЕ МЕНЮ АУДИТА (Inline Keyboard)
+// ==========================================
+
+/**
+ * Отправляет главное меню аудита
+ */
+async function sendAuditMainMenu(chatId: number | string, messageIdToEdit?: number): Promise<void> {
+    const text = '🛠 <b>Меню Аудита</b>\n\nВыберите категорию для просмотра последних действий:';
+
+    const inlineKeyboard = [
+        [
+            { text: '👶 Дети', callback_data: 'audit_cat_children' },
+            { text: '👥 Сотрудники', callback_data: 'audit_cat_staff' }
+        ],
+        [
+            { text: '🍎 Питание', callback_data: 'audit_cat_food' },
+            { text: '⚕️ Медицина', callback_data: 'audit_cat_med' }
+        ],
+        [
+            { text: '🏢 Настройки / Прочее', callback_data: 'audit_cat_other' }
+        ]
+    ];
+
+    await sendInlineKeyboard(chatId, text, inlineKeyboard, messageIdToEdit);
+}
+
+/**
+ * Отправляет подменю аудита для выбранной категории
+ */
+async function sendAuditSubMenu(chatId: number | string, category: string, messageIdToEdit: number): Promise<void> {
+    let text = 'Выберите раздел:';
+    let inlineKeyboard: { text: string; callback_data: string }[][] = [];
+
+    switch (category) {
+        case 'audit_cat_children':
+            text = '👶 <b>Аудит: Дети</b>\n\nВыберите подкатегорию:';
+            inlineKeyboard = [
+                [
+                    { text: 'Профили и Группы', callback_data: 'audit_logs_children' },
+                    { text: 'Посещаемость', callback_data: 'audit_logs_child_attendance' }
+                ],
+                [
+                    { text: 'Оплаты', callback_data: 'audit_logs_child_payments' }
+                ]
+            ];
+            break;
+        case 'audit_cat_staff':
+            text = '👥 <b>Аудит: Сотрудники</b>\n\nВыберите подкатегорию:';
+            inlineKeyboard = [
+                [
+                    { text: 'Профили', callback_data: 'audit_logs_users' },
+                    { text: 'Смены и Посещаемость', callback_data: 'audit_logs_staff_attendance' }
+                ],
+                [
+                    { text: 'Зарплаты', callback_data: 'audit_logs_payrolls' }
+                ]
+            ];
+            break;
+        case 'audit_cat_food':
+            text = '🍎 <b>Аудит: Питание</b>\n\nВыберите подкатегорию:';
+            inlineKeyboard = [
+                [
+                    { text: 'Продукты и Блюда', callback_data: 'audit_logs_food_base' },
+                    { text: 'Меню и Склад', callback_data: 'audit_logs_food_daily' }
+                ],
+                [
+                    { text: 'Журналы (Брак, Моющие)', callback_data: 'audit_logs_food_journals' }
+                ]
+            ];
+            break;
+        case 'audit_cat_med':
+            text = '⚕️ <b>Аудит: Медицина</b>\n\nВыберите подкатегорию:';
+            inlineKeyboard = [
+                [
+                    { text: 'Паспорта здоровья', callback_data: 'audit_logs_med_passports' },
+                    { text: 'Журналы заболеваний', callback_data: 'audit_logs_med_journals' }
+                ]
+            ];
+            break;
+        case 'audit_cat_other':
+            text = '🏢 <b>Аудит: Остальное</b>\n\nВыберите подкатегорию:';
+            inlineKeyboard = [
+                [
+                    { text: 'Настройки', callback_data: 'audit_logs_settings' },
+                    { text: 'Документы и Задачи', callback_data: 'audit_logs_docs' }
+                ]
+            ];
+            break;
+        default:
+            await sendAuditMainMenu(chatId, messageIdToEdit);
+            return;
+    }
+
+    // Добавляем кнопку "Назад"
+    inlineKeyboard.push([{ text: '🔙 Назад к категориям', callback_data: 'audit_main' }]);
+
+    await sendInlineKeyboard(chatId, text, inlineKeyboard, messageIdToEdit);
+}
+
+/**
+ * Получает и отправляет последние логи по заданным сущностям
+ */
+async function sendAuditLogs(chatId: number | string, actionType: string, messageIdToEdit: number): Promise<void> {
+    let entityTypes: string[] = [];
+    let title = '';
+
+    // Мапинг действий к типами сущностей
+    switch (actionType) {
+        // Дети
+        case 'audit_logs_children':
+            entityTypes = ['Child', 'Group'];
+            title = '👶 Профили детей и группы';
+            break;
+        case 'audit_logs_child_attendance':
+            entityTypes = ['ChildAttendance'];
+            title = '👶 Посещаемость детей';
+            break;
+        case 'audit_logs_child_payments':
+            entityTypes = ['ChildPayment'];
+            title = '💰 Оплаты детей';
+            break;
+
+        // Сотрудники
+        case 'audit_logs_users':
+            entityTypes = ['User'];
+            title = '👥 Профили сотрудников';
+            break;
+        case 'audit_logs_staff_attendance':
+            entityTypes = ['StaffAttendanceTracking', 'StaffShifts'];
+            title = '👥 Смены и посещаемость';
+            break;
+        case 'audit_logs_payrolls':
+            entityTypes = ['Payroll'];
+            title = '💵 Зарплаты сотрудников';
+            break;
+
+        // Питание
+        case 'audit_logs_food_base':
+            entityTypes = ['Product', 'Dish', 'ProductPurchase'];
+            title = '🍎 Продукты и Закупки';
+            break;
+        case 'audit_logs_food_daily':
+            entityTypes = ['DailyMenu', 'WeeklyMenuTemplate', 'FoodStockLog'];
+            title = '🍲 Меню и Склад продуктов';
+            break;
+        case 'audit_logs_food_journals':
+            entityTypes = ['PerishableBrak', 'DetergentLog', 'FoodStaffHealth', 'OrganolepticJournal', 'ProductCertificate', 'FoodNormsControl'];
+            title = '📋 Пищевые журналы';
+            break;
+
+        // Медицина
+        case 'audit_logs_med_passports':
+            entityTypes = ['HealthPassport', 'ChildHealthPassport'];
+            title = '⚕️ Паспорта здоровья';
+            break;
+        case 'audit_logs_med_journals':
+            entityTypes = ['SomaticJournal', 'MantouxJournal', 'HelminthJournal', 'InfectiousDiseasesJournal', 'ContactInfectionJournal', 'TubPositiveJournal', 'RiskGroupChild'];
+            title = '🏥 Медицинские журналы';
+            break;
+
+        // Остальное
+        case 'audit_logs_settings':
+            entityTypes = ['Settings', 'MainEvent', 'RentPayment', 'ExternalSpecialist'];
+            title = '🏢 Настройки и Аренда';
+            break;
+        case 'audit_logs_docs':
+            entityTypes = ['Document', 'Task', 'ActivityTemplate'];
+            title = '📁 Документы, Задачи, Циклограмма';
+            break;
+    }
+
+    if (entityTypes.length === 0) {
+        await answerCallbackQuery('unknown_action', 'Неизвестная категория');
+        return;
+    }
+
+    try {
+        const logs = await AuditLog.find({ entityType: { $in: entityTypes } })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
+
+        if (logs.length === 0) {
+            const text = `📋 <b>Аудит: ${title}</b>\n\nНет недавних действий.`;
+            await sendInlineKeyboard(chatId, text, [[{ text: '🔙 Назад', callback_data: 'audit_main' }]], messageIdToEdit);
+            return;
+        }
+
+        let text = `📋 <b>Аудит: ${title}</b>\n<i>Последние 10 действий</i>\n\n`;
+
+        for (const log of logs) {
+            const dateStr = new Date(log.createdAt).toLocaleString('ru-RU', {
+                timeZone: 'Asia/Almaty',
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+
+            let actionText: string = log.action;
+            let emoji = '🔹';
+
+            if (log.action === 'create') { actionText = 'Создание'; emoji = '🟢'; }
+            if (log.action === 'update') { actionText = 'Изменение'; emoji = '🟡'; }
+            if (log.action === 'delete') { actionText = 'Удаление'; emoji = '🔴'; }
+            if (log.action === 'status_change') { actionText = 'Статус'; emoji = '🔄'; }
+
+            const entityName = log.entityName ? `«${log.entityName}»` : `ID:${log.entityId.substring(0, 6)}...`;
+
+            text += `${emoji} <b>${dateStr}</b>\n`;
+            text += `👤 <b>${log.userFullName}</b> (${actionText})\n`;
+            text += `📝 Сущность: ${entityName} [<i>${log.entityType}</i>]\n`;
+            if (log.details) {
+                text += `ℹ️ <i>${log.details}</i>\n`;
+            }
+            text += '\n';
+        }
+
+        const inlineKeyboard = [
+            [{ text: '🔄 Обновить', callback_data: actionType }],
+            [{ text: '🔙 Назад к меню', callback_data: 'audit_main' }]
+        ];
+
+        // Так как текст логов может быть большим, если он превышает лимит, обрезаем
+        if (text.length > 4000) {
+            text = text.substring(0, 4000) + '...';
+        }
+
+        await sendInlineKeyboard(chatId, text, inlineKeyboard, messageIdToEdit);
+
+    } catch (error) {
+        console.error('Ошибка получения логов аудита для Telegram:', error);
+        await sendInlineKeyboard(
+            chatId,
+            '❌ Ошибка при получении данных базы. Попробуйте позже.',
+            [[{ text: '🔙 Вернуться', callback_data: 'audit_main' }]],
+            messageIdToEdit
+        );
+    }
+}
+
+/**
+ * Обрабатывает нажатия на Inline кнопки (callback_query)
+ */
+async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery): Promise<void> {
+    const data = callbackQuery.data;
+    const message = callbackQuery.message;
+
+    if (!data || !message) {
+        await answerCallbackQuery(callbackQuery.id);
+        return;
+    }
+
+    const chatId = message.chat.id;
+    const messageId = message.message_id;
+
+    // Сразу отвечаем Telegram серверу, чтобы скрыть часики на кнопке
+    await answerCallbackQuery(callbackQuery.id);
+
+    try {
+        // Проверка авторизации: только админы могут смотреть аудит
+        const user = await findUserByTelegramChatId(chatId);
+        if (!user || !['admin', 'manager', 'director'].includes(user.role)) {
+            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+                chat_id: chatId,
+                message_id: messageId,
+                text: '❌ <b>Доступ запрещен.</b> У вас нет прав для просмотра аудита.',
+                parse_mode: 'HTML'
+            });
+            return;
+        }
+
+        // Маршрутизация в зависимости от callback_data
+        if (data === 'audit_main') {
+            await sendAuditMainMenu(chatId, messageId);
+        }
+        else if (data.startsWith('audit_cat_')) {
+            await sendAuditSubMenu(chatId, data, messageId);
+        }
+        else if (data.startsWith('audit_logs_')) {
+            await sendAuditLogs(chatId, data, messageId);
+        }
+
+    } catch (error) {
+        console.error('Ошибка обработки callback query:', error);
     }
 }
