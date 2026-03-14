@@ -126,24 +126,32 @@ export class RentService {
     }
   }
 
-  async generateRentSheets(period: string) {
+  async generateRentSheets(period: string, tenantIds?: string[]) {
     try {
       // Lazy import to avoid circular dependency
       const { default: ExternalSpecialist } = await import('../externalSpecialists/model');
 
-      const tenants = await ExternalSpecialist.find({ active: true });
+      const query: any = { active: true };
+      if (tenantIds && tenantIds.length > 0) {
+        query._id = { $in: tenantIds.map(id => new Types.ObjectId(id)) };
+      }
+
+      const tenants = await ExternalSpecialist.find(query);
 
       for (const tenant of tenants) {
-        // Получаем баланс за предыдущий период
+        // Получаем баланс за предыдущий период и предыдущую сумму аренды
         const carryOver = await this.getPreviousPeriodBalance((tenant as any)._id.toString(), period);
+        
+        const currentAmount = carryOver.prevAmount;
+        const totalToPay = currentAmount + carryOver.balance;
 
         await this.createOrUpdateForTenant((tenant as any)._id.toString(), period, {
           tenantId: (tenant as any)._id,
           period: period,
-          amount: 0,
-          total: carryOver.balance, // Итого к оплате = текущее начисление (0) + долг - переплата
-          debt: carryOver.debt,
-          overpayment: carryOver.overpayment,
+          amount: currentAmount,
+          total: totalToPay,
+          debt: Math.max(0, carryOver.balance),
+          overpayment: Math.max(0, -carryOver.balance),
           status: 'active'
         });
       }
@@ -166,15 +174,18 @@ export class RentService {
     const prevRent = await Rent.findOne({ tenantId: new Types.ObjectId(tenantId), period: prevPeriod });
 
     if (!prevRent) {
-      return { debt: 0, overpayment: 0, balance: 0 };
+      return { debt: 0, overpayment: 0, balance: 0, prevAmount: 0 };
     }
 
     // Если в прошлом месяце был долг, он переносится
     // Если была переплата, она тоже переносится
     // Сумма к оплате в новом месяце увеличивается на долг и уменьшается на переплату
     const amount = prevRent.amount || 0;
+    const total = prevRent.total || 0;
     const paid = prevRent.paidAmount || 0;
-    const diff = amount - paid;
+    
+    // Баланс (сальдо) - это то, что осталось невыплаченным из общей суммы за прошлый месяц
+    const diff = total - paid;
 
     let debt = 0;
     let overpayment = 0;
@@ -188,7 +199,8 @@ export class RentService {
     return {
       debt,
       overpayment,
-      balance: debt - overpayment
+      balance: debt - overpayment,
+      prevAmount: amount
     };
   }
 }
