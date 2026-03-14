@@ -6,6 +6,11 @@
             "use": "@vercel/node"
         }
     ],
+    "functions": {
+        "src/api/vercel.ts": {
+            "regions": ["fra1"]
+        }
+    },
     "routes": [
         {
             "src": "/(.*)",

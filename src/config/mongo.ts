@@ -52,26 +52,16 @@ async function createMongoClient(): Promise<MongoClient> {
         throw error;
     }
 }
-
 /**
  * Gets the singleton MongoDB client instance
- * In production, creates a new client each time
- * In development, reuses the same client via global cache to prevent connection leaks
+ * Reuses the same client via global cache to prevent connection leaks and reduce latency in serverless environments
  * @returns Promise<MongoClient>
  */
 export async function getMongoClient(): Promise<MongoClient> {
-    if (process.env.NODE_ENV === 'production') {
-        // In production, create a new client instance each time
-        // Connection pooling handles efficiency
-        return await createMongoClient();
-    } else {
-        // In development, use the global cache to prevent multiple connections
-        // due to hot reloading
-        if (!global._mongoClientPromise) {
-            global._mongoClientPromise = createMongoClient();
-        }
-        return await global._mongoClientPromise;
+    if (!global._mongoClientPromise) {
+        global._mongoClientPromise = createMongoClient();
     }
+    return await global._mongoClientPromise;
 }
 
 /**

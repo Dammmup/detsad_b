@@ -1,33 +1,49 @@
 import mongoose from 'mongoose';
 import { MONGODB_URI } from './mongo';
 
-let isConnected = false;
+declare global {
+  var mongoose: any;
+}
+
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 /**
  * Подключение к MongoDB через Mongoose
  * Использует тот же URI что и нативный клиент для согласованности
  */
 export const connectDB = async (): Promise<void> => {
-  if (isConnected) {
+  if (cached.conn) {
     console.log('⚡ Using existing database connection');
     return;
   }
 
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 15000, // 15 секунд на выбор сервера
-      socketTimeoutMS: 45000,          // 45 секунд таймаут сокета
-      maxPoolSize: 10,                 // максимальный размер пула соединений
-      minPoolSize: 2,                  // минимальный размер пула соединений
-      maxIdleTimeMS: 30000,            // время жизни неактивного соединения
-      bufferCommands: false,           // отключить буферизацию команд
-      // bufferMaxEntries опция больше не поддерживается в новых версиях Mongoose
+  if (!cached.promise) {
+    const opts = {
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      maxIdleTimeMS: 30000,
+      bufferCommands: false,
+    };
+
+    console.log('🔄 Creating new Mongoose connection...');
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      console.log('✅ Connected to MongoDB via Mongoose');
+      return mongoose;
     });
-    isConnected = true;
-    console.log('✅ Connected to MongoDB via Mongoose');
-  } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
-    throw error;
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error('❌ MongoDB connection error:', e);
+    throw e;
   }
 };
 
@@ -35,7 +51,7 @@ export const connectDB = async (): Promise<void> => {
  * Get Mongoose connection ensuring it's established
  */
 export const getMongooseConnection = async () => {
-  if (!isConnected) {
+  if (!cached.conn) {
     await connectDB();
   }
   return mongoose.connection;
@@ -45,9 +61,10 @@ export const getMongooseConnection = async () => {
  * Закрытие соединения с базой данных
  */
 export const disconnectDB = async (): Promise<void> => {
-  if (isConnected) {
+  if (cached.conn) {
     await mongoose.disconnect();
-    isConnected = false;
+    cached.conn = null;
+    cached.promise = null;
     console.log('🔌 Disconnected from MongoDB');
   }
 };
