@@ -1,4 +1,5 @@
 import Product, { IProduct } from './model';
+import { escapeRegex } from '../../../utils/sanitize';
 
 export class ProductsService {
     async getAll(filters: {
@@ -149,7 +150,7 @@ export class ProductsService {
     }
 
     async findByNameOrCreate(productData: { name: string, unit: string, weight?: number, weightUnit?: string }): Promise<IProduct> {
-        const nameRegex = new RegExp(`^${productData.name.trim()}$`, 'i');
+        const nameRegex = new RegExp(`^${escapeRegex(productData.name.trim())}$`, 'i');
         let product = await Product.findOne({
             name: nameRegex,
             weight: productData.weight,

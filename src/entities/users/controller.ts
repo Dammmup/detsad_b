@@ -190,18 +190,16 @@ export const createUser = async (req: Request, res: Response) => {
 
 
     if (!userData.passwordHash) {
-
-      const plainPassword = "password123";
-      console.log(`🔄 Установлен стандартный пароль для нового сотрудника ${userData.fullName}: ${plainPassword}`);
-
+      // Генерируем случайный пароль вместо захардкоженного
+      const crypto = require('crypto');
+      const plainPassword = crypto.randomBytes(6).toString('base64url');
+      console.log(`🔄 Сгенерирован пароль для нового сотрудника ${userData.fullName}`);
 
       userData.password = plainPassword;
       userData.passwordHash = await hashPassword(plainPassword);
 
       userData.initialPassword = plainPassword;
     }
-
-    console.log('userData перед сохранением:', userData);
 
     const user = await userService.create(userData);
 

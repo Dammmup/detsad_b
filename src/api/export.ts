@@ -10,6 +10,7 @@ import { staffAttendanceTrackingService } from '../entities/staffAttendanceTrack
 import { ShiftsService } from '../entities/staffShifts/service';
 
 import { createExcelBuffer } from '../utils/excelUtils';
+import { escapeRegex } from '../utils/sanitize';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.post('/children', authMiddleware, authorizeRole(['admin', 'manager', 'tea
 
     const query: any = {};
     if (filters?.name) {
-      query.fullName = { $regex: filters.name, $options: 'i' };
+      query.fullName = { $regex: escapeRegex(filters.name), $options: 'i' };
     }
     if (filters?.group) {
       query.groupId = filters.group;
@@ -180,7 +181,7 @@ router.post('/staff', authMiddleware, authorizeRole(['admin', 'manager']), async
 
     const query: any = {};
     if (filters?.name) {
-      query.fullName = { $regex: filters.name, $options: 'i' };
+      query.fullName = { $regex: escapeRegex(filters.name), $options: 'i' };
     }
     if (filters?.role) {
 

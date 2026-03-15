@@ -1,5 +1,6 @@
 import Dish, { IDish } from './model';
 import { productsService } from '../products/service';
+import { escapeRegex } from '../../../utils/sanitize';
 
 export class DishesService {
     async getAll(filters: { category?: string; subcategory?: string; isActive?: boolean; createdBy?: string }): Promise<IDish[]> {
@@ -140,7 +141,7 @@ export class DishesService {
     // Find dish by name (for duplicate checking)
     async findByName(name: string) {
         return Dish.findOne({
-            name: { $regex: new RegExp(name, 'i') }
+            name: { $regex: new RegExp(escapeRegex(name), 'i') }
         }).populate('ingredients.productId', 'name unit price stockQuantity')
             .populate('createdBy', 'fullName');
     }

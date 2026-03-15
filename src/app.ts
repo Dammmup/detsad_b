@@ -8,6 +8,10 @@ import childHealthPassportRoutes from './entities/medician/childHealthPassport/r
 import rentRoutes from './entities/rent/route';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
+import hpp from 'hpp';
 
 import organolepticJournalRoutes from './entities/food/organolepticJournal/route';
 import perishableBrakRoutes from './entities/food/perishableBrak/route';
@@ -55,11 +59,53 @@ import commonRoutes from './api/commonRoutes';
 
 const app = express();
 
+// ===== SECURITY MIDDLEWARE =====
 
+// Helmet: защита HTTP-заголовков (XSS, clickjacking, MIME sniffing и т.д.)
+app.use(helmet());
 
+// CORS: ограничение допустимых источников
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',').map(s => s.trim());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Разрешаем запросы без origin (мобильные приложения, Postman, серверные запросы)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
 
+// Rate limiting: общий лимит на все запросы (защита от DDoS)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 300, // максимум 300 запросов с одного IP за 15 минут
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов, попробуйте позже' },
+});
+app.use(generalLimiter);
 
-app.use(cors());
+// Rate limiting: жёсткий лимит на авторизацию (защита от brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 10, // максимум 10 попыток входа с одного IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много попыток входа. Попробуйте через 15 минут' },
+});
+app.use('/auth/login', authLimiter);
+app.use('/api/auth/login', authLimiter);
+
+// NoSQL Injection: экранирование MongoDB-операторов ($gt, $ne и т.д.) из тела/query/params
+app.use(mongoSanitize());
+
+// HPP: защита от HTTP Parameter Pollution
+app.use(hpp());
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -164,13 +210,14 @@ app.get('/sentry-test', (req, res) => {
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
 
-
   const Sentry = require('./sentry').default;
   Sentry.captureException(err);
 
+  // Не раскрываем внутренние детали ошибок клиенту
+  const isProduction = process.env.NODE_ENV === 'production';
   res.status(500).json({
     error: 'Internal server error',
-    message: err.message
+    ...(isProduction ? {} : { message: err.message })
   });
 });
 

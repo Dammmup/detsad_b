@@ -1,5 +1,7 @@
 import express from 'express';
 import { handleTelegramWebhook, setTelegramWebhook, deleteTelegramWebhook, getWebhookInfo } from '../services/telegramBot';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { authorizeRole } from '../middlewares/authRole';
 
 const router = express.Router();
 
@@ -28,7 +30,7 @@ router.post('/webhook', async (req, res) => {
  * GET /telegram/webhook-info
  * Получение информации о текущем webhook
  */
-router.get('/webhook-info', async (req, res) => {
+router.get('/webhook-info', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const info = await getWebhookInfo();
     res.json(info);
@@ -42,7 +44,7 @@ router.get('/webhook-info', async (req, res) => {
  * Установка webhook URL
  * Body: { url: string }
  */
-router.post('/set-webhook', async (req, res) => {
+router.post('/set-webhook', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const { url } = req.body;
 
@@ -61,7 +63,7 @@ router.post('/set-webhook', async (req, res) => {
  * POST /telegram/delete-webhook
  * Удаление webhook
  */
-router.post('/delete-webhook', async (req, res) => {
+router.post('/delete-webhook', authMiddleware, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const result = await deleteTelegramWebhook();
     res.json(result);
@@ -80,10 +82,9 @@ router.post('/delete-webhook', async (req, res) => {
 router.get('/run-tasks', async (req, res) => {
   const { key, task } = req.query;
 
-  // Простейшая проверка безопасности
-  const CRON_SECRET = process.env.CRON_SECRET || 'local-debug-key';
-  if (key !== CRON_SECRET) {
-    console.warn(`[CRON] Попытка несанкционированного доступа к задачам. Ключ: ${key}`);
+  const CRON_SECRET = process.env.CRON_SECRET;
+  if (!CRON_SECRET || key !== CRON_SECRET) {
+    console.warn('[CRON] Попытка несанкционированного доступа к задачам');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

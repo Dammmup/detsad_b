@@ -3,6 +3,7 @@ import User from '../users/model';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { hashPassword, comparePassword } from '../../utils/hash';
+import { escapeRegex } from '../../utils/sanitize';
 
 export class AuthService {
   private get userModel() {
@@ -43,7 +44,7 @@ export class AuthService {
       // Ищем пользователей, у которых номер похож (содержит те же цифры в конце)
       const partialPhone = normalizedPhone.slice(-10);
       const candidates = await this.userModel.find({
-        phone: { $regex: partialPhone }
+        phone: { $regex: escapeRegex(partialPhone) }
       }).select('+initialPassword +passwordHash').maxTimeMS(5000);
 
       user = candidates.find(u => (u.phone || '').replace(/[^\d+]/g, '') === normalizedPhone) || null;
@@ -103,7 +104,11 @@ export class AuthService {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+      const secret = process.env.JWT_SECRET;
+      if (!secret) {
+        throw new Error('JWT_SECRET не настроен');
+      }
+      const decoded = jwt.verify(token, secret) as any;
       const user = await this.userModel.findById(decoded.id).maxTimeMS(5000);
 
       if (!user || !user.active) {

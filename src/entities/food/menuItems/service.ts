@@ -1,4 +1,5 @@
 import MenuItem, { IMenuItem } from './model';
+import { escapeRegex } from '../../../utils/sanitize';
 
 export class MenuItemsService {
   async getAll(filters: { category?: string, dayOfWeek?: number, weekNumber?: number, isAvailable?: boolean, createdBy?: string }) {
@@ -139,7 +140,7 @@ export class MenuItemsService {
 
   async searchByName(name: string, category?: string) {
     const filter: any = {
-      name: { $regex: name, $options: 'i' }
+      name: { $regex: escapeRegex(name), $options: 'i' }
     };
 
     if (category) {

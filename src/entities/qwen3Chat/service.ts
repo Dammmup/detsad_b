@@ -5,9 +5,24 @@ import { ASSISTANT_PROMPT, DATA_ACCESS_PROMPT, DATABASE_PROMPT } from './prompts
 import { productsService } from '../food/products/service';
 import { dishesService } from '../food/dishes/service';
 import crypto from 'crypto';
+import Child from '../children/model';
+import User from '../users/model';
+import ChildPayment from '../childPayment/model';
+import Payroll from '../payroll/model';
+import StaffAttendanceTracking from '../staffAttendanceTracking/model';
+import Task from '../taskList/model';
+import Rent from '../rent/model';
+import Product from '../food/products/model';
+import DailyMenu from '../food/dailyMenu/model';
+import Shift from '../staffShifts/model';
+import ExternalSpecialist from '../externalSpecialists/model';
+import { escapeRegex } from '../../utils/sanitize';
 
 const QWEN3_API_URL = process.env.QWEN3_API_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
-const QWEN3_API_KEY = process.env.QWEN3_API_KEY || 'sk-5aeb0fdc7fa446c391b6d51363102e79';
+const QWEN3_API_KEY = process.env.QWEN3_API_KEY;
+if (!QWEN3_API_KEY) {
+  console.warn('⚠️ QWEN3_API_KEY не установлен в переменных окружения');
+}
 
 // Операции записи, которые требуют подтверждения пользователя
 const WRITE_OPERATIONS = ['insertOne', 'updateOne', 'updateMany', 'deleteOne', 'deleteMany'];
@@ -21,7 +36,13 @@ interface ServiceResponse {
 }
 
 interface AIAction {
-  action: 'query' | 'navigate' | 'text' | 'create_dish_from_name' | 'check_dish_exists';
+  action: 'query' | 'navigate' | 'text' | 'create_dish_from_name' | 'check_dish_exists'
+    | 'update_child_payment_status' | 'analyze_payroll'
+    | 'generate_attendance_report' | 'generate_child_payment_report'
+    | 'get_overdue_tasks' | 'update_task_status'
+    | 'generate_rent_report' | 'update_rent_payment_status'
+    | 'check_product_alerts' | 'get_today_menu'
+    | 'get_child_info' | 'get_staff_summary';
   query?: QueryRequest;
   navigate?: {
     route: string;
@@ -32,6 +53,26 @@ interface AIAction {
   dishName?: string;
   ingredients?: { productName: string, quantity: number, unit: string }[];
   category?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  // Новые поля для специализированных действий
+  childName?: string;
+  staffName?: string;
+  period?: string;
+  monthPeriod?: string;
+  newStatus?: 'paid' | 'active';
+  paidAmount?: number;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  statusFilter?: string;
+  // Поля для новых действий
+  taskId?: string;
+  taskStatus?: 'in_progress' | 'completed' | 'cancelled';
+  priority?: string;
+  tenantName?: string;
+  rentPeriod?: string;
+  rentStatus?: 'paid' | 'active';
+  rentAmount?: number;
+  groupName?: string;
 }
 
 
@@ -86,9 +127,14 @@ export class Qwen3ChatService {
     // 4. Убираем сырой JSON из ответа (блоки {...} с ключами MongoDB вроде _id, $oid, ObjectId)
     result = result.replace(/\{[^{}]*"\$oid"[^{}]*\}/g, '');
     result = result.replace(/\{[^{}]*"_id"[^{}]*"createdAt"[^{}]*\}/g, '');
+    result = result.replace(/ObjectId\("[^"]*"\)/g, '');
+    result = result.replace(/new Date\("[^"]*"\)/g, '');
 
     // 5. Убираем JSON-массивы в ответе (если это не форматированный список)
     result = result.replace(/\[\s*\{[^[\]]*"_id"[^[\]]*\}\s*\]/g, '');
+
+    // 5b. Убираем NaN
+    result = result.replace(/\bNaN\b/g, '0');
 
     // 6. Убираем скрытые метаданные markdown-комментарии (ids)
     // НЕ убираем — они полезны для контекста
@@ -367,7 +413,6 @@ export class Qwen3ChatService {
       'in-progress': 'В работе',
       'done': 'Выполнено',
       'paid': 'Оплачено',
-      'unpaid': 'Не оплачено',
       'draft': 'Черновик',
       'approved': 'Утверждено',
       'present': 'Присутствует',
@@ -379,7 +424,15 @@ export class Qwen3ChatService {
       'inactive': 'Неактивен',
       'pending': 'Ожидает',
       'cancelled': 'Отменено',
-      'completed': 'Завершено'
+      'completed': 'Завершено',
+      'overdue': 'Просрочено',
+      'in_progress': 'В процессе',
+      'scheduled': 'Запланировано',
+      'pending_approval': 'Ожидает подтверждения',
+      'checked_in': 'Отмечен приход',
+      'checked_out': 'Отмечен уход',
+      'on_break': 'На перерыве',
+      'overtime': 'Переработка'
     };
     return statuses[status] || status;
   }
@@ -754,6 +807,42 @@ export class Qwen3ChatService {
             };
           }
 
+        case 'update_child_payment_status':
+          return await this.handleUpdateChildPaymentStatus(aiAction);
+
+        case 'analyze_payroll':
+          return await this.handleAnalyzePayroll(aiAction);
+
+        case 'generate_attendance_report':
+          return await this.handleGenerateAttendanceReport(aiAction);
+
+        case 'generate_child_payment_report':
+          return await this.handleGenerateChildPaymentReport(aiAction);
+
+        case 'get_overdue_tasks':
+          return await this.handleGetOverdueTasks(aiAction);
+
+        case 'update_task_status':
+          return await this.handleUpdateTaskStatus(aiAction);
+
+        case 'generate_rent_report':
+          return await this.handleGenerateRentReport(aiAction);
+
+        case 'update_rent_payment_status':
+          return await this.handleUpdateRentPaymentStatus(aiAction);
+
+        case 'check_product_alerts':
+          return await this.handleCheckProductAlerts();
+
+        case 'get_today_menu':
+          return await this.handleGetTodayMenu(aiAction);
+
+        case 'get_child_info':
+          return await this.handleGetChildInfo(aiAction);
+
+        case 'get_staff_summary':
+          return await this.handleGetStaffSummary(aiAction);
+
         case 'text':
         default:
           return {
@@ -867,9 +956,970 @@ export class Qwen3ChatService {
         }
       }
 
+      case 'update_child_payment_status': {
+        if (!pendingAction.paymentData) {
+          return { content: 'Ошибка: данные оплаты не найдены.', action: 'text' };
+        }
+
+        const { paymentId, newStatus, paidAmount } = pendingAction.paymentData;
+
+        try {
+          const payment = await ChildPayment.findById(paymentId);
+          if (!payment) {
+            return { content: 'Платёж не найден. Возможно, он был удалён.', action: 'text' };
+          }
+
+          payment.status = newStatus;
+          if (newStatus === 'paid') {
+            payment.paidAmount = paidAmount || payment.amount;
+            payment.paymentDate = new Date();
+          } else {
+            payment.paidAmount = 0;
+            payment.paymentDate = undefined as any;
+          }
+          payment.updatedAt = new Date();
+          await payment.save();
+
+          const statusText = newStatus === 'paid' ? 'Оплачено' : 'Активен (неоплачено)';
+          const childName = pendingAction.paymentData.childName || 'ребёнка';
+          const period = this.translateMonthPeriod(pendingAction.paymentData.monthPeriod);
+
+          return {
+            content: `Статус оплаты за ${childName} за ${period} изменён на "${statusText}".${newStatus === 'paid' ? ` Сумма: ${Number(payment.paidAmount).toLocaleString('ru-RU')} тг.` : ''}`,
+            action: 'text'
+          };
+        } catch (error: any) {
+          console.error('Ошибка при обновлении статуса оплаты:', error);
+          return { content: 'Не удалось обновить статус оплаты. Попробуйте позже.', action: 'text' };
+        }
+      }
+
+      case 'update_task_status': {
+        if (!pendingAction.taskData) {
+          return { content: 'Ошибка: данные задачи не найдены.', action: 'text' };
+        }
+
+        const { taskId: tId, newStatus: tStatus } = pendingAction.taskData;
+
+        try {
+          const task = await Task.findById(tId);
+          if (!task) {
+            return { content: 'Задача не найдена. Возможно, она была удалена.', action: 'text' };
+          }
+
+          task.status = tStatus;
+          if (tStatus === 'completed') {
+            task.completedAt = new Date();
+            if (authContext?.userId) task.completedBy = authContext.userId as any;
+          } else if (tStatus === 'cancelled') {
+            task.cancelledAt = new Date();
+            if (authContext?.userId) task.cancelledBy = authContext.userId as any;
+          }
+          await task.save();
+
+          return {
+            content: `Статус задачи "${pendingAction.taskData.taskTitle}" изменён на "${this.translateStatus(tStatus)}".`,
+            action: 'text'
+          };
+        } catch (error: any) {
+          console.error('Ошибка при обновлении задачи:', error);
+          return { content: 'Не удалось обновить задачу. Попробуйте позже.', action: 'text' };
+        }
+      }
+
+      case 'update_rent_payment_status': {
+        if (!pendingAction.rentData) {
+          return { content: 'Ошибка: данные аренды не найдены.', action: 'text' };
+        }
+
+        const { rentId, newStatus: rStatus, paidAmount: rAmount } = pendingAction.rentData;
+
+        try {
+          const rent = await Rent.findById(rentId);
+          if (!rent) {
+            return { content: 'Платёж за аренду не найден.', action: 'text' };
+          }
+
+          rent.status = rStatus;
+          if (rStatus === 'paid') {
+            rent.paidAmount = rAmount || rent.total;
+            rent.paymentDate = new Date();
+          } else {
+            rent.paidAmount = 0;
+            rent.paymentDate = undefined as any;
+          }
+          await rent.save();
+
+          const statusText = rStatus === 'paid' ? 'Оплачено' : 'Активен (неоплачено)';
+          const tenantName = pendingAction.rentData.tenantName || 'арендатора';
+          const period = this.translateMonthPeriod(pendingAction.rentData.period);
+
+          return {
+            content: `Статус оплаты аренды за ${tenantName} за ${period} изменён на "${statusText}".${rStatus === 'paid' ? ` Сумма: ${Number(rent.paidAmount).toLocaleString('ru-RU')} тг.` : ''}`,
+            action: 'text'
+          };
+        } catch (error: any) {
+          console.error('Ошибка при обновлении аренды:', error);
+          return { content: 'Не удалось обновить статус аренды. Попробуйте позже.', action: 'text' };
+        }
+      }
+
       default:
         return { content: 'Неизвестный тип действия.', action: 'text' };
     }
+  }
+
+  // ===== НОВЫЕ ОБРАБОТЧИКИ СПЕЦИАЛИЗИРОВАННЫХ ДЕЙСТВИЙ =====
+
+  /**
+   * Изменение статуса оплаты ребёнка (требует подтверждения)
+   */
+  private static async handleUpdateChildPaymentStatus(aiAction: AIAction): Promise<ServiceResponse> {
+    const { childName, monthPeriod, newStatus, paidAmount } = aiAction;
+
+    if (!childName || !monthPeriod || !newStatus) {
+      return { content: 'Не удалось определить ребёнка, период или новый статус. Уточните запрос.', action: 'text' };
+    }
+
+    try {
+      const children = await Child.find({
+        fullName: { $regex: escapeRegex(childName), $options: 'i' },
+        active: true
+      }).limit(5);
+
+      if (children.length === 0) {
+        return { content: `Ребёнок с именем "${childName}" не найден среди активных.`, action: 'text' };
+      }
+
+      if (children.length > 1) {
+        const names = children.map((c: any, i: number) => `${i + 1}. ${c.fullName}`).join('\n');
+        return { content: `Найдено несколько детей:\n${names}\n\nУточните полное имя ребёнка.`, action: 'text' };
+      }
+
+      const child = children[0];
+      const payment = await ChildPayment.findOne({ childId: child._id, monthPeriod });
+
+      if (!payment) {
+        return { content: `Платёж за ${child.fullName} за ${this.translateMonthPeriod(monthPeriod)} не найден.`, action: 'text' };
+      }
+
+      if (payment.status === newStatus) {
+        const statusText = this.translateStatus(newStatus);
+        return { content: `Статус оплаты за ${child.fullName} уже "${statusText}".`, action: 'text' };
+      }
+
+      const pendingId = crypto.randomUUID();
+      const statusText = newStatus === 'paid' ? 'Оплачено' : 'Активен (неоплачено)';
+      const amount = paidAmount || (child as any).paymentAmount || payment.amount;
+      const period = this.translateMonthPeriod(monthPeriod);
+
+      const description = `Изменить статус оплаты за ${child.fullName} за ${period}\nТекущий статус: ${this.translateStatus(payment.status)}\nНовый статус: ${statusText}${newStatus === 'paid' ? `\nСумма оплаты: ${Number(amount).toLocaleString('ru-RU')} тг` : ''}`;
+
+      const pendingAction: PendingAction = {
+        id: pendingId,
+        type: 'update_child_payment_status',
+        description,
+        paymentData: {
+          childName: child.fullName,
+          childId: child._id.toString(),
+          paymentId: payment._id.toString(),
+          monthPeriod,
+          newStatus,
+          paidAmount: amount
+        }
+      };
+
+      return {
+        content: `Для изменения статуса оплаты требуется ваше подтверждение:\n\n${description}\n\nПодтвердите или отмените действие.`,
+        action: 'confirm_action',
+        pendingAction
+      };
+    } catch (error: any) {
+      console.error('Ошибка в handleUpdateChildPaymentStatus:', error);
+      return { content: 'Не удалось найти данные об оплате. Попробуйте позже.', action: 'text' };
+    }
+  }
+
+  /**
+   * Анализ зарплаты сотрудника (read-only, без подтверждения)
+   */
+  private static async handleAnalyzePayroll(aiAction: AIAction): Promise<ServiceResponse> {
+    const { staffName, period } = aiAction;
+
+    if (!staffName) {
+      return { content: 'Укажите имя сотрудника для анализа зарплаты.', action: 'text' };
+    }
+
+    const targetPeriod = period || this.getCurrentPeriod();
+
+    try {
+      const users = await User.find({
+        fullName: { $regex: escapeRegex(staffName), $options: 'i' },
+        active: true
+      }).limit(5);
+
+      if (users.length === 0) {
+        return { content: `Сотрудник "${staffName}" не найден.`, action: 'text' };
+      }
+
+      if (users.length > 1) {
+        const names = users.map((u: any, i: number) => `${i + 1}. ${u.fullName} (${this.translateRole(u.role)})`).join('\n');
+        return { content: `Найдено несколько сотрудников:\n${names}\n\nУточните полное имя.`, action: 'text' };
+      }
+
+      const user = users[0];
+      const payroll = await Payroll.findOne({ staffId: user._id, period: targetPeriod });
+
+      if (!payroll) {
+        return { content: `Зарплатная ведомость для ${user.fullName} за ${this.translateMonthPeriod(targetPeriod)} не найдена.`, action: 'text' };
+      }
+
+      const report = this.formatPayrollBreakdown(payroll, user);
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleAnalyzePayroll:', error);
+      return { content: 'Не удалось загрузить данные зарплаты. Попробуйте позже.', action: 'text' };
+    }
+  }
+
+  /**
+   * Отчёт по посещаемости сотрудников (read-only)
+   */
+  private static async handleGenerateAttendanceReport(aiAction: AIAction): Promise<ServiceResponse> {
+    try {
+      const targetDate = aiAction.date || aiAction.startDate || this.getCurrentDateStr();
+      const endDate = aiAction.endDate;
+
+      const query: any = {};
+      if (endDate) {
+        query.date = { $gte: new Date(targetDate), $lte: new Date(endDate) };
+      } else {
+        const dayStart = new Date(targetDate);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setDate(dayEnd.getDate() + 1);
+        query.date = { $gte: dayStart, $lt: dayEnd };
+      }
+
+      const records = await StaffAttendanceTracking.find(query)
+        .populate('staffId', 'fullName role')
+        .sort({ date: -1 })
+        .limit(200);
+
+      if (records.length === 0) {
+        return { content: `Нет данных о посещаемости за ${this.translateDateStr(targetDate)}.`, action: 'text' };
+      }
+
+      const report = this.formatAttendanceReport(records, targetDate, endDate);
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGenerateAttendanceReport:', error);
+      return { content: 'Не удалось сформировать отчёт по посещаемости.', action: 'text' };
+    }
+  }
+
+  /**
+   * Отчёт по оплатам за детей (read-only)
+   */
+  private static async handleGenerateChildPaymentReport(aiAction: AIAction): Promise<ServiceResponse> {
+    const targetPeriod = aiAction.monthPeriod || this.getCurrentPeriod();
+
+    try {
+      const query: any = { monthPeriod: targetPeriod };
+      if (aiAction.statusFilter) {
+        query.status = aiAction.statusFilter;
+      }
+
+      const payments = await ChildPayment.find(query).populate('childId', 'fullName groupId');
+
+      if (payments.length === 0) {
+        const statusText = aiAction.statusFilter ? ` со статусом "${this.translateStatus(aiAction.statusFilter)}"` : '';
+        return { content: `Платежей за ${this.translateMonthPeriod(targetPeriod)}${statusText} не найдено.`, action: 'text' };
+      }
+
+      const report = this.formatPaymentReport(payments, targetPeriod);
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGenerateChildPaymentReport:', error);
+      return { content: 'Не удалось сформировать отчёт по оплатам.', action: 'text' };
+    }
+  }
+
+  // ===== НОВЫЕ ОБРАБОТЧИКИ (8 действий) =====
+
+  /**
+   * Получить просроченные/активные задачи
+   */
+  private static async handleGetOverdueTasks(aiAction: AIAction): Promise<ServiceResponse> {
+    try {
+      const query: any = { status: { $in: ['pending', 'in_progress'] } };
+
+      if (aiAction.priority) {
+        query.priority = aiAction.priority;
+      }
+
+      const tasks = await Task.find(query)
+        .populate('assignedTo', 'fullName role')
+        .populate('assignedBy', 'fullName')
+        .sort({ dueDate: 1, priority: -1 })
+        .limit(30);
+
+      if (tasks.length === 0) {
+        return { content: 'Нет активных или просроченных задач.', action: 'text' };
+      }
+
+      const now = new Date();
+      const overdue = tasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < now);
+      const upcoming = tasks.filter((t: any) => !t.dueDate || new Date(t.dueDate) >= now);
+
+      let report = `Задачи — всего активных: ${tasks.length}\n`;
+      if (overdue.length > 0) report += `Просрочено: ${overdue.length}\n`;
+      report += '\n';
+
+      if (overdue.length > 0) {
+        report += '--- Просроченные ---\n';
+        overdue.forEach((t: any, i: number) => {
+          const assignee = t.assignedTo?.fullName || 'не назначен';
+          const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('ru-RU') : '—';
+          const priorityMap: Record<string, string> = { urgent: 'Срочно', high: 'Высокий', medium: 'Средний', low: 'Низкий' };
+          report += `${i + 1}. ${t.title} [${priorityMap[t.priority] || t.priority}]\n   Исполнитель: ${assignee}, срок: ${due}\n`;
+        });
+      }
+
+      if (upcoming.length > 0) {
+        report += '\n--- Текущие ---\n';
+        upcoming.slice(0, 15).forEach((t: any, i: number) => {
+          const assignee = t.assignedTo?.fullName || 'не назначен';
+          const due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('ru-RU') : 'без срока';
+          const statusText = this.translateStatus(t.status);
+          report += `${i + 1}. ${t.title} — ${statusText}\n   Исполнитель: ${assignee}, срок: ${due}\n`;
+        });
+        if (upcoming.length > 15) report += `... и ещё ${upcoming.length - 15} задач\n`;
+      }
+
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGetOverdueTasks:', error);
+      return { content: 'Не удалось загрузить задачи. Попробуйте позже.', action: 'text' };
+    }
+  }
+
+  /**
+   * Изменение статуса задачи (требует подтверждения)
+   */
+  private static async handleUpdateTaskStatus(aiAction: AIAction): Promise<ServiceResponse> {
+    const { taskId, taskStatus, childName: taskTitle } = aiAction;
+
+    if (!taskStatus) {
+      return { content: 'Укажите новый статус задачи (выполнена, в работе, отменена).', action: 'text' };
+    }
+
+    try {
+      let task: any = null;
+
+      if (taskId) {
+        task = await Task.findById(taskId);
+      } else if (taskTitle) {
+        const tasks = await Task.find({
+          title: { $regex: escapeRegex(taskTitle), $options: 'i' },
+          status: { $in: ['pending', 'in_progress'] }
+        }).limit(5);
+
+        if (tasks.length === 0) {
+          return { content: `Задача "${taskTitle}" не найдена среди активных.`, action: 'text' };
+        }
+        if (tasks.length > 1) {
+          const list = tasks.map((t: any, i: number) => `${i + 1}. ${t.title} (${this.translateStatus(t.status)})`).join('\n');
+          return { content: `Найдено несколько задач:\n${list}\n\nУточните название задачи.`, action: 'text' };
+        }
+        task = tasks[0];
+      } else {
+        return { content: 'Укажите ID или название задачи.', action: 'text' };
+      }
+
+      if (!task) {
+        return { content: 'Задача не найдена.', action: 'text' };
+      }
+
+      const pendingId = crypto.randomUUID();
+      const statusMap: Record<string, string> = { completed: 'Выполнена', in_progress: 'В работе', cancelled: 'Отменена' };
+      const description = `Изменить статус задачи "${task.title}"\nТекущий статус: ${this.translateStatus(task.status)}\nНовый статус: ${statusMap[taskStatus] || taskStatus}`;
+
+      const pendingAction: PendingAction = {
+        id: pendingId,
+        type: 'update_task_status',
+        description,
+        taskData: {
+          taskId: task._id.toString(),
+          taskTitle: task.title,
+          newStatus: taskStatus
+        }
+      };
+
+      return {
+        content: `Для изменения задачи требуется подтверждение:\n\n${description}\n\nПодтвердите или отмените действие.`,
+        action: 'confirm_action',
+        pendingAction
+      };
+    } catch (error: any) {
+      console.error('Ошибка в handleUpdateTaskStatus:', error);
+      return { content: 'Не удалось найти задачу. Попробуйте позже.', action: 'text' };
+    }
+  }
+
+  /**
+   * Отчёт по арендным платежам (read-only)
+   */
+  private static async handleGenerateRentReport(aiAction: AIAction): Promise<ServiceResponse> {
+    const targetPeriod = aiAction.rentPeriod || aiAction.monthPeriod || this.getCurrentPeriod();
+
+    try {
+      const query: any = { period: targetPeriod };
+      if (aiAction.statusFilter) {
+        query.status = aiAction.statusFilter;
+      }
+
+      const rents = await Rent.find(query).populate('tenantId', 'name phone type');
+
+      if (rents.length === 0) {
+        const statusText = aiAction.statusFilter ? ` со статусом "${this.translateStatus(aiAction.statusFilter)}"` : '';
+        return { content: `Арендных платежей за ${this.translateMonthPeriod(targetPeriod)}${statusText} не найдено.`, action: 'text' };
+      }
+
+      const period = this.translateMonthPeriod(targetPeriod);
+      let report = `Отчёт по аренде за ${period}\n\n`;
+
+      const paid = rents.filter((r: any) => r.status === 'paid');
+      const active = rents.filter((r: any) => r.status === 'active');
+      const overdue = rents.filter((r: any) => r.status === 'overdue');
+
+      const sum = (arr: any[]) => arr.reduce((s: number, r: any) => s + (r.total || r.amount || 0), 0);
+
+      report += `Всего: ${rents.length}\n`;
+      report += `Оплачено: ${paid.length} (${Number(sum(paid)).toLocaleString('ru-RU')} тг)\n`;
+      report += `Не оплачено: ${active.length} (${Number(sum(active)).toLocaleString('ru-RU')} тг)\n`;
+      if (overdue.length > 0) report += `Просрочено: ${overdue.length} (${Number(sum(overdue)).toLocaleString('ru-RU')} тг)\n`;
+
+      const unpaid = [...active, ...overdue];
+      if (unpaid.length > 0) {
+        report += '\n--- Неоплаченные ---\n';
+        unpaid.forEach((r: any, i: number) => {
+          const name = r.tenantId?.name || 'Неизвестный';
+          const amount = Number(r.total || r.amount || 0).toLocaleString('ru-RU');
+          const status = this.translateStatus(r.status);
+          report += `${i + 1}. ${name} — ${amount} тг (${status})\n`;
+        });
+      }
+
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGenerateRentReport:', error);
+      return { content: 'Не удалось сформировать отчёт по аренде.', action: 'text' };
+    }
+  }
+
+  /**
+   * Изменение статуса арендного платежа (требует подтверждения)
+   */
+  private static async handleUpdateRentPaymentStatus(aiAction: AIAction): Promise<ServiceResponse> {
+    const { tenantName, rentPeriod, rentStatus, rentAmount } = aiAction;
+
+    if (!tenantName || !rentStatus) {
+      return { content: 'Укажите имя арендатора и новый статус.', action: 'text' };
+    }
+
+    const targetPeriod = rentPeriod || aiAction.monthPeriod || this.getCurrentPeriod();
+
+    try {
+      const specialists = await ExternalSpecialist.find({
+        name: { $regex: escapeRegex(tenantName), $options: 'i' },
+        active: true
+      }).limit(5);
+
+      if (specialists.length === 0) {
+        return { content: `Арендатор "${tenantName}" не найден.`, action: 'text' };
+      }
+
+      if (specialists.length > 1) {
+        const names = specialists.map((s: any, i: number) => `${i + 1}. ${s.name}`).join('\n');
+        return { content: `Найдено несколько арендаторов:\n${names}\n\nУточните имя.`, action: 'text' };
+      }
+
+      const specialist = specialists[0];
+      const rent = await Rent.findOne({ tenantId: specialist._id, period: targetPeriod });
+
+      if (!rent) {
+        return { content: `Платёж за аренду для ${specialist.name} за ${this.translateMonthPeriod(targetPeriod)} не найден.`, action: 'text' };
+      }
+
+      if (rent.status === rentStatus) {
+        return { content: `Статус аренды для ${specialist.name} уже "${this.translateStatus(rentStatus)}".`, action: 'text' };
+      }
+
+      const pendingId = crypto.randomUUID();
+      const statusText = rentStatus === 'paid' ? 'Оплачено' : 'Активен (неоплачено)';
+      const amount = rentAmount || rent.total;
+      const period = this.translateMonthPeriod(targetPeriod);
+
+      const description = `Изменить статус аренды для ${specialist.name} за ${period}\nТекущий статус: ${this.translateStatus(rent.status)}\nНовый статус: ${statusText}${rentStatus === 'paid' ? `\nСумма: ${Number(amount).toLocaleString('ru-RU')} тг` : ''}`;
+
+      const pendingAction: PendingAction = {
+        id: pendingId,
+        type: 'update_rent_payment_status',
+        description,
+        rentData: {
+          tenantName: specialist.name,
+          rentId: rent._id.toString(),
+          period: targetPeriod,
+          newStatus: rentStatus,
+          paidAmount: amount
+        }
+      };
+
+      return {
+        content: `Для изменения аренды требуется подтверждение:\n\n${description}\n\nПодтвердите или отмените действие.`,
+        action: 'confirm_action',
+        pendingAction
+      };
+    } catch (error: any) {
+      console.error('Ошибка в handleUpdateRentPaymentStatus:', error);
+      return { content: 'Не удалось найти данные аренды. Попробуйте позже.', action: 'text' };
+    }
+  }
+
+  /**
+   * Проверка просроченных продуктов и низкого запаса (read-only)
+   */
+  private static async handleCheckProductAlerts(): Promise<ServiceResponse> {
+    try {
+      const now = new Date();
+      const weekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      // Просроченные или истекающие в течение недели
+      const expiring = await Product.find({
+        status: 'active',
+        expirationDate: { $lte: weekLater }
+      }).sort({ expirationDate: 1 }).limit(30);
+
+      // Низкий запас (stockQuantity <= minStockLevel)
+      const lowStock = await Product.find({
+        status: 'active',
+        $expr: { $lte: ['$stockQuantity', '$minStockLevel'] }
+      }).sort({ stockQuantity: 1 }).limit(30);
+
+      if (expiring.length === 0 && lowStock.length === 0) {
+        return { content: 'Все продукты в порядке: нет просроченных и низких запасов.', action: 'text' };
+      }
+
+      let report = 'Оповещения по продуктам\n\n';
+
+      if (expiring.length > 0) {
+        const expired = expiring.filter((p: any) => p.expirationDate && new Date(p.expirationDate) <= now);
+        const soonExpiring = expiring.filter((p: any) => p.expirationDate && new Date(p.expirationDate) > now);
+
+        if (expired.length > 0) {
+          report += `--- Просрочено (${expired.length}) ---\n`;
+          expired.forEach((p: any, i: number) => {
+            const date = new Date(p.expirationDate).toLocaleDateString('ru-RU');
+            report += `${i + 1}. ${p.name} — истёк ${date} (остаток: ${p.stockQuantity} ${p.unit})\n`;
+          });
+        }
+
+        if (soonExpiring.length > 0) {
+          report += `\n--- Истекает в ближайшую неделю (${soonExpiring.length}) ---\n`;
+          soonExpiring.forEach((p: any, i: number) => {
+            const date = new Date(p.expirationDate).toLocaleDateString('ru-RU');
+            report += `${i + 1}. ${p.name} — до ${date} (остаток: ${p.stockQuantity} ${p.unit})\n`;
+          });
+        }
+      }
+
+      if (lowStock.length > 0) {
+        report += `\n--- Низкий запас (${lowStock.length}) ---\n`;
+        lowStock.forEach((p: any, i: number) => {
+          report += `${i + 1}. ${p.name} — ${p.stockQuantity} ${p.unit} (минимум: ${p.minStockLevel} ${p.unit})\n`;
+        });
+      }
+
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleCheckProductAlerts:', error);
+      return { content: 'Не удалось проверить запасы продуктов.', action: 'text' };
+    }
+  }
+
+  /**
+   * Меню на сегодня (read-only)
+   */
+  private static async handleGetTodayMenu(aiAction: AIAction): Promise<ServiceResponse> {
+    try {
+      const targetDate = aiAction.date || this.getCurrentDateStr();
+      const dayStart = new Date(targetDate);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const menu = await DailyMenu.findOne({
+        date: { $gte: dayStart, $lt: dayEnd }
+      }).populate({
+        path: 'meals.breakfast.dishes meals.lunch.dishes meals.snack.dishes meals.dinner.dishes',
+        select: 'name category'
+      });
+
+      if (!menu) {
+        return { content: `Меню на ${this.translateDateStr(targetDate)} не составлено.`, action: 'text' };
+      }
+
+      const dateLabel = this.translateDateStr(targetDate);
+      let report = `Меню на ${dateLabel}\n`;
+      if (menu.totalChildCount) report += `Количество детей: ${menu.totalChildCount}\n`;
+      report += '\n';
+
+      const mealNames: Record<string, string> = {
+        breakfast: 'Завтрак',
+        lunch: 'Обед',
+        snack: 'Полдник',
+        dinner: 'Ужин'
+      };
+
+      for (const [key, label] of Object.entries(mealNames)) {
+        const meal = (menu.meals as any)?.[key];
+        if (meal && meal.dishes && meal.dishes.length > 0) {
+          const dishes = meal.dishes.map((d: any) => d.name || d).filter(Boolean);
+          if (dishes.length > 0) {
+            report += `${label}: ${dishes.join(', ')}\n`;
+            if (meal.childCount) report += `  (детей: ${meal.childCount})\n`;
+          }
+        }
+      }
+
+      if (menu.notes) {
+        report += `\nПримечание: ${menu.notes}`;
+      }
+
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGetTodayMenu:', error);
+      return { content: 'Не удалось загрузить меню.', action: 'text' };
+    }
+  }
+
+  /**
+   * Информация о ребёнке (read-only)
+   */
+  private static async handleGetChildInfo(aiAction: AIAction): Promise<ServiceResponse> {
+    const childName = aiAction.childName;
+
+    if (!childName) {
+      return { content: 'Укажите имя ребёнка.', action: 'text' };
+    }
+
+    try {
+      const children = await Child.find({
+        fullName: { $regex: escapeRegex(childName), $options: 'i' }
+      }).populate('groupId', 'name').limit(5);
+
+      if (children.length === 0) {
+        return { content: `Ребёнок "${childName}" не найден.`, action: 'text' };
+      }
+
+      if (children.length > 1) {
+        const names = children.map((c: any, i: number) => `${i + 1}. ${c.fullName}`).join('\n');
+        return { content: `Найдено несколько детей:\n${names}\n\nУточните полное имя.`, action: 'text' };
+      }
+
+      const c = children[0] as any;
+      let report = `Карточка ребёнка: ${c.fullName}\n\n`;
+
+      if (c.birthday) report += `Дата рождения: ${new Date(c.birthday).toLocaleDateString('ru-RU')}\n`;
+      if (c.gender) report += `Пол: ${c.gender === 'male' ? 'Мальчик' : 'Девочка'}\n`;
+      if (c.iin) report += `ИИН: ${c.iin}\n`;
+      const groupName = c.groupId?.name || '—';
+      report += `Группа: ${groupName}\n`;
+      report += `Статус: ${c.active ? 'Активен' : 'Неактивен'}\n`;
+
+      report += `\n--- Родитель ---\n`;
+      if (c.parentName) report += `ФИО: ${c.parentName}\n`;
+      if (c.parentPhone) report += `Телефон: ${c.parentPhone}\n`;
+      if (c.address) report += `Адрес: ${c.address}\n`;
+
+      const hasMedical = c.bloodGroup || c.allergy || c.diagnosis || c.disability || c.clinic;
+      if (hasMedical) {
+        report += `\n--- Медицинские данные ---\n`;
+        if (c.clinic) report += `Поликлиника: ${c.clinic}\n`;
+        if (c.bloodGroup) report += `Группа крови: ${c.bloodGroup}${c.rhesus ? ` (${c.rhesus})` : ''}\n`;
+        if (c.allergy) report += `Аллергия: ${c.allergy}\n`;
+        if (c.diagnosis) report += `Диагноз: ${c.diagnosis}\n`;
+        if (c.disability) report += `Инвалидность: ${c.disability}\n`;
+      }
+
+      if (c.paymentAmount) {
+        report += `\nОплата: ${Number(c.paymentAmount).toLocaleString('ru-RU')} тг/мес`;
+      }
+
+      if (c.notes) {
+        report += `\nПримечания: ${c.notes}`;
+      }
+
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGetChildInfo:', error);
+      return { content: 'Не удалось загрузить данные ребёнка.', action: 'text' };
+    }
+  }
+
+  /**
+   * Сводка по персоналу на сегодня (read-only)
+   */
+  private static async handleGetStaffSummary(aiAction: AIAction): Promise<ServiceResponse> {
+    try {
+      const targetDate = aiAction.date || this.getCurrentDateStr();
+      const dateKey = targetDate; // формат YYYY-MM-DD
+
+      // Получаем все смены на сегодня
+      const shifts = await Shift.find({
+        [`shifts.${dateKey}`]: { $exists: true }
+      }).populate('staffId', 'fullName role phone');
+
+      // Получаем посещаемость на сегодня
+      const dayStart = new Date(targetDate);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const attendance = await StaffAttendanceTracking.find({
+        date: { $gte: dayStart, $lt: dayEnd }
+      }).populate('staffId', 'fullName role');
+
+      const totalStaff = await User.countDocuments({ active: true, role: { $nin: ['admin', 'parent', 'child'] } });
+
+      let report = `Сводка по персоналу на ${this.translateDateStr(targetDate)}\n\n`;
+      report += `Всего активных сотрудников: ${totalStaff}\n`;
+
+      if (shifts.length > 0) {
+        const scheduled = shifts.filter((s: any) => {
+          const dayShift = s.shifts?.get(dateKey);
+          return dayShift && dayShift.status !== 'absent';
+        });
+        const absent = shifts.filter((s: any) => {
+          const dayShift = s.shifts?.get(dateKey);
+          return dayShift && dayShift.status === 'absent';
+        });
+
+        report += `Запланировано смен: ${scheduled.length}\n`;
+        if (absent.length > 0) report += `Отсутствуют по расписанию: ${absent.length}\n`;
+
+        if (scheduled.length > 0) {
+          report += '\n--- На смене ---\n';
+          scheduled.forEach((s: any, i: number) => {
+            const name = s.staffId?.fullName || 'Неизвестный';
+            const role = s.staffId?.role ? this.translateRole(s.staffId.role) : '';
+            report += `${i + 1}. ${name}${role ? ` (${role})` : ''}\n`;
+          });
+        }
+      }
+
+      if (attendance.length > 0) {
+        const late = attendance.filter((a: any) => a.lateMinutes > 0 || a.status === 'late');
+        const absentAtt = attendance.filter((a: any) => a.status === 'absent');
+
+        report += `\nОтмечено приход: ${attendance.length}\n`;
+        if (late.length > 0) {
+          report += `Опоздали: ${late.length}\n`;
+          late.forEach((a: any, i: number) => {
+            const name = a.staffId?.fullName || 'Неизвестный';
+            report += `  ${i + 1}. ${name} — ${a.lateMinutes || 0} мин\n`;
+          });
+        }
+        if (absentAtt.length > 0) {
+          report += `Не вышли: ${absentAtt.length}\n`;
+          absentAtt.forEach((a: any, i: number) => {
+            const name = a.staffId?.fullName || 'Неизвестный';
+            report += `  ${i + 1}. ${name}\n`;
+          });
+        }
+      } else if (shifts.length === 0) {
+        report += '\nДанные о сменах и посещаемости на эту дату отсутствуют.';
+      }
+
+      return { content: report, action: 'text' };
+    } catch (error: any) {
+      console.error('Ошибка в handleGetStaffSummary:', error);
+      return { content: 'Не удалось загрузить сводку по персоналу.', action: 'text' };
+    }
+  }
+
+  // ===== ФОРМАТИРОВАНИЕ ОТЧЁТОВ =====
+
+  /**
+   * Детальный разбор зарплаты
+   */
+  private static formatPayrollBreakdown(payroll: any, user: any): string {
+    const p = payroll;
+    const period = this.translateMonthPeriod(p.period);
+    const role = this.translateRole(user.role);
+    const salaryType = p.baseSalaryType === 'shift' ? 'за смену' : 'в месяц';
+
+    let report = `Зарплата: ${user.fullName} (${role}) за ${period}\n`;
+    report += `Статус: ${this.translateStatus(p.status)}\n\n`;
+
+    report += `Оклад: ${Number(p.baseSalary || 0).toLocaleString('ru-RU')} тг ${salaryType}\n`;
+    if (p.baseSalaryType === 'shift' && p.shiftRate) {
+      report += `Ставка за смену: ${Number(p.shiftRate).toLocaleString('ru-RU')} тг\n`;
+    }
+    report += `Отработано: ${p.workedShifts || 0} смен / ${p.workedDays || 0} дней\n\n`;
+
+    report += `--- Начисления ---\n`;
+    report += `Начислено: ${Number(p.accruals || 0).toLocaleString('ru-RU')} тг\n`;
+    if (p.bonuses) report += `Бонусы: +${Number(p.bonuses).toLocaleString('ru-RU')} тг\n`;
+
+    const hasDeductions = (p.latePenalties || p.absencePenalties || p.userFines || p.advance || p.deductions || p.carryOverDebt);
+    if (hasDeductions) {
+      report += `\n--- Вычеты ---\n`;
+      if (p.latePenalties) report += `Штрафы за опоздания: -${Number(p.latePenalties).toLocaleString('ru-RU')} тг\n`;
+      if (p.absencePenalties) report += `Штрафы за прогулы: -${Number(p.absencePenalties).toLocaleString('ru-RU')} тг\n`;
+      if (p.userFines) report += `Ручные штрафы: -${Number(p.userFines).toLocaleString('ru-RU')} тг\n`;
+      if (p.advance) report += `Аванс: -${Number(p.advance).toLocaleString('ru-RU')} тг\n`;
+      if (p.deductions) report += `Вычеты: -${Number(p.deductions).toLocaleString('ru-RU')} тг\n`;
+      if (p.carryOverDebt) report += `Долг с пред. месяца: -${Number(p.carryOverDebt).toLocaleString('ru-RU')} тг\n`;
+    }
+
+    // Список штрафов
+    if (p.fines && p.fines.length > 0) {
+      report += `\n--- Штрафы (${p.fines.length}) ---\n`;
+      p.fines.forEach((fine: any, i: number) => {
+        const fineDate = fine.date ? new Date(fine.date).toLocaleDateString('ru-RU') : '—';
+        report += `${i + 1}. ${Number(fine.amount).toLocaleString('ru-RU')} тг — ${fine.reason || 'без причины'} (${fineDate})\n`;
+      });
+    }
+
+    report += `\n--- Итог ---\n`;
+    report += `К выплате: ${Number(p.total || 0).toLocaleString('ru-RU')} тг\n`;
+
+    // Проверка формулы
+    const expectedTotal = (p.accruals || 0) + (p.bonuses || 0)
+      - (p.latePenalties || 0) - (p.absencePenalties || 0) - (p.userFines || 0)
+      - (p.advance || 0) - (p.deductions || 0) - (p.carryOverDebt || 0);
+    const diff = Math.abs((p.total || 0) - expectedTotal);
+    if (diff > 1) {
+      report += `\n⚠️ Несоответствие! Ожидаемый итог по формуле: ${Number(expectedTotal).toLocaleString('ru-RU')} тг (разница: ${Number(diff).toLocaleString('ru-RU')} тг)`;
+    }
+
+    return report;
+  }
+
+  /**
+   * Отчёт по посещаемости
+   */
+  private static formatAttendanceReport(records: any[], dateStr: string, endDate?: string): string {
+    const dateLabel = endDate ? `${this.translateDateStr(dateStr)} — ${this.translateDateStr(endDate)}` : this.translateDateStr(dateStr);
+    let report = `Посещаемость сотрудников за ${dateLabel}\n\n`;
+
+    const late = records.filter((r: any) => r.lateMinutes > 0 || r.status === 'late');
+    const absent = records.filter((r: any) => r.status === 'absent');
+    const present = records.filter((r: any) => ['completed', 'checked_in', 'checked_out', 'in_progress'].includes(r.status));
+
+    report += `Всего записей: ${records.length}\n`;
+    report += `На работе: ${present.length}\n`;
+    report += `Опоздали: ${late.length}\n`;
+    report += `Отсутствуют: ${absent.length}\n`;
+
+    if (late.length > 0) {
+      report += `\n--- Опоздания ---\n`;
+      late.forEach((r: any, i: number) => {
+        const name = r.staffId?.fullName || 'Неизвестный';
+        const mins = r.lateMinutes || 0;
+        const start = r.actualStart ? new Date(r.actualStart).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '—';
+        report += `${i + 1}. ${name} — опоздание ${mins} мин (приход: ${start})\n`;
+      });
+    }
+
+    if (absent.length > 0) {
+      report += `\n--- Отсутствующие ---\n`;
+      absent.forEach((r: any, i: number) => {
+        const name = r.staffId?.fullName || 'Неизвестный';
+        report += `${i + 1}. ${name}\n`;
+      });
+    }
+
+    return report;
+  }
+
+  /**
+   * Отчёт по оплатам
+   */
+  private static formatPaymentReport(payments: any[], monthPeriod: string): string {
+    const period = this.translateMonthPeriod(monthPeriod);
+    let report = `Отчёт по оплатам за ${period}\n\n`;
+
+    const paid = payments.filter((p: any) => p.status === 'paid');
+    const active = payments.filter((p: any) => p.status === 'active');
+    const overdue = payments.filter((p: any) => p.status === 'overdue');
+    const draft = payments.filter((p: any) => p.status === 'draft');
+
+    const sum = (arr: any[]) => arr.reduce((s: number, p: any) => s + (p.total || p.amount || 0), 0);
+
+    report += `Всего платежей: ${payments.length}\n`;
+    report += `Оплачено: ${paid.length} (${Number(sum(paid)).toLocaleString('ru-RU')} тг)\n`;
+    report += `Не оплачено: ${active.length} (${Number(sum(active)).toLocaleString('ru-RU')} тг)\n`;
+    if (overdue.length > 0) report += `Просрочено: ${overdue.length} (${Number(sum(overdue)).toLocaleString('ru-RU')} тг)\n`;
+    if (draft.length > 0) report += `Черновики: ${draft.length}\n`;
+
+    const unpaid = [...active, ...overdue];
+    if (unpaid.length > 0) {
+      report += `\n--- Неоплаченные ---\n`;
+      unpaid.forEach((p: any, i: number) => {
+        const childName = p.childId?.fullName || 'Неизвестный';
+        const amount = Number(p.total || p.amount || 0).toLocaleString('ru-RU');
+        const status = this.translateStatus(p.status);
+        report += `${i + 1}. ${childName} — ${amount} тг (${status})\n`;
+      });
+    }
+
+    return report;
+  }
+
+  // ===== УТИЛИТЫ =====
+
+  /**
+   * Переводит период "2026-03" в "Март 2026"
+   */
+  private static translateMonthPeriod(period: string): string {
+    const months: Record<string, string> = {
+      '01': 'Январь', '02': 'Февраль', '03': 'Март', '04': 'Апрель',
+      '05': 'Май', '06': 'Июнь', '07': 'Июль', '08': 'Август',
+      '09': 'Сентябрь', '10': 'Октябрь', '11': 'Ноябрь', '12': 'Декабрь'
+    };
+    const [year, month] = period.split('-');
+    return `${months[month] || month} ${year}`;
+  }
+
+  /**
+   * Переводит дату строку в читаемый формат
+   */
+  private static translateDateStr(dateStr: string): string {
+    try {
+      return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  }
+
+  /**
+   * Текущий период в формате YYYY-MM
+   */
+  private static getCurrentPeriod(): string {
+    const now = new Date();
+    const KZ_OFFSET_MS = 5 * 60 * 60 * 1000;
+    const kz = new Date(now.getTime() + KZ_OFFSET_MS);
+    return kz.toISOString().slice(0, 7);
+  }
+
+  /**
+   * Текущая дата в формате YYYY-MM-DD
+   */
+  private static getCurrentDateStr(): string {
+    const now = new Date();
+    const KZ_OFFSET_MS = 5 * 60 * 60 * 1000;
+    const kz = new Date(now.getTime() + KZ_OFFSET_MS);
+    return kz.toISOString().slice(0, 10);
   }
 }
 
